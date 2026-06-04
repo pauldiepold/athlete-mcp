@@ -1,0 +1,18 @@
+# Secrets – niemals committen
+.env
+.dev.vars
+.dev.vars.*
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# Node / Wrangler
+node_modules/
+.wrangler/
+dist/
+
+# IDE
+.idea/
