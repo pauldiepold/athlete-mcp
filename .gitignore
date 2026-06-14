@@ -3,6 +3,13 @@
 .dev.vars
 .dev.vars.*
 
+# Garmin-Tagesexporte (Körperdaten/Gesundheitsdaten) – nur lokale Referenz, nie committen
+garmin-data/
+
+# Garmin-Körperdaten-Fixtures – echte Gesundheitsdaten, nur lokal.
+# Struktur/Befunde dokumentiert in src/garmin/docs/garmin-connect-api.md.
+src/garmin/__fixtures__/
+
 # Python
 __pycache__/
 *.pyc
