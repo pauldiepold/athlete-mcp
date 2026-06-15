@@ -1,1 +1,1 @@
-# finalsurge-mcp
+# athlete-mcp

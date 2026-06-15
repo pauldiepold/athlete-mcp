@@ -1,10 +1,10 @@
-# finalsurge-mcp
+# athlete-mcp
 
 ## Agent skills
 
 ### Issue tracker
 
-Issues and PRDs are tracked as GitHub issues (`pauldiepold/finalsurge-mcp`) via the `gh` CLI. See `docs/agents/issue-tracker.md`.
+Issues and PRDs are tracked as GitHub issues (`pauldiepold/athlete-mcp`) via the `gh` CLI. See `docs/agents/issue-tracker.md`.
 
 ### Triage labels
 
