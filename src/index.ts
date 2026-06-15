@@ -4,7 +4,8 @@
  * Das Pfad-Secret in der URL identifiziert den Nutzer (TenantResolver: `pathsecret:<secret>`
  * → userId im KV); alle Per-Nutzer-Daten liegen unter `user:<userId>:<context>`.
  *
- * Final Surge = Plan (per-user Creds im KV). Strava = Ist (siehe finalsurge/ADR-0001).
+ * Final Surge = Plan (per-user Creds im KV). Garmin = Körperdaten (per-user Refresh-Token).
+ * Strava = Ist (außerhalb, siehe finalsurge/ADR-0001).
  */
 
 import { McpAgent } from "agents/mcp";
@@ -15,6 +16,9 @@ import { formatWorkout } from "./finalsurge/formatWorkout.js";
 import { FinalSurgeClient, login } from "./finalsurge/finalSurgeClient.js";
 import { SessionCache } from "./finalsurge/sessionCache.js";
 import { TenantResolver } from "./tenantResolver.js";
+import { formatKoerperdaten } from "./garmin/formatKoerperdaten.js";
+import { GarminAuth, refreshTokens } from "./garmin/garminAuth.js";
+import { GarminClient } from "./garmin/garminClient.js";
 
 export interface Env {
   MCP_OBJECT: DurableObjectNamespace;
@@ -44,11 +48,18 @@ const PLAN_HINT =
   "Liefert die GEPLANTEN Coach-Vorgaben aus Final Surge (Plan-Seite). " +
   "Absolvierte Läufe (HR, Pace, Power) kommen separat über den Strava-Connector.";
 
+const BODY_HINT =
+  "Liefert rohe KÖRPERDATEN aus Garmin (HRV-Status, Schlaf, Stress/Body Battery, " +
+  "Training Readiness, Hauttemperatur) — den täglichen physiologischen Zustand. " +
+  "Das sind NICHT absolvierte Läufe (HR/Pace/Power → Strava) und NICHT der geplante " +
+  "Trainingsinhalt (Final Surge), sondern Rohwerte ohne interpretierte Tagesform.";
+
 export class AthleteMCP extends McpAgent<Env, unknown, Props> {
   server = new McpServer({ name: "athlete-mcp", version: "1.0.0" });
 
   async init() {
     await this.initFinalSurge();
+    await this.initGarmin();
   }
 
   /** Final-Surge-Kontext: per-user Creds + gecachte Session aus dem KV. */
@@ -95,6 +106,42 @@ export class AthleteMCP extends McpAgent<Env, unknown, Props> {
         const start = todayInBerlin();
         const end = addDays(start, days - 1);
         return fetchPlanned(start, end);
+      },
+    );
+  }
+
+  /** Garmin-Kontext: per-user Token-Bündel + displayName aus dem KV, live geholt. */
+  private async initGarmin() {
+    const { userId } = this.props;
+    const profile = (await this.env.SESSION_KV.get(
+      `user:${userId}:garmin:profile`,
+      "json",
+    )) as { display_name?: string } | null;
+
+    const auth = new GarminAuth(this.env.SESSION_KV, userId, refreshTokens);
+    const client = new GarminClient(auth, profile?.display_name ?? "");
+
+    this.server.tool(
+      "get_koerperdaten",
+      `Körperdaten für ein explizites Datum (live aus Garmin geholt). ${BODY_HINT}`,
+      {
+        date: z.string().describe("Datum YYYY-MM-DD"),
+      },
+      async ({ date }) => {
+        const raw = await client.getKoerperdaten(date);
+        const koerperdaten = formatKoerperdaten(
+          date,
+          raw.hrv,
+          raw.sleep,
+          raw.stress,
+          raw.bodyBattery,
+          raw.trainingReadiness,
+        );
+        return {
+          content: [
+            { type: "text" as const, text: JSON.stringify(koerperdaten, null, 2) },
+          ],
+        };
       },
     );
   }
