@@ -1,11 +1,11 @@
 import { describe, it, expect } from "vitest";
 import { formatWorkout } from "./formatWorkout.js";
 
-import quality from "../test/fixtures/quality-subthreshold.json";
-import restDay from "../test/fixtures/rest-day.json";
-import raceTermin from "../test/fixtures/race-termin.json";
-import raceFlag from "../test/fixtures/race-flag.json";
-import easyRegen from "../test/fixtures/easy-regen.json";
+import quality from "../../test/fixtures/quality-subthreshold.json";
+import restDay from "../../test/fixtures/rest-day.json";
+import raceTermin from "../../test/fixtures/race-termin.json";
+import raceFlag from "../../test/fixtures/race-flag.json";
+import easyRegen from "../../test/fixtures/easy-regen.json";
 
 describe("formatWorkout", () => {
   it("mappt ein Qualitätstraining auf die Plan-Felder", () => {

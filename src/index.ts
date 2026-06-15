@@ -1,24 +1,29 @@
 /**
- * MCP-Server-Shell (dünn): registriert die zwei Tools, hängt den Streamable-HTTP/MCP-
- * Transport über McpAgent ein und schützt den Zugriff per Secret im URL-Pfad.
+ * MCP-Server-Shell (dünn): hängt den Streamable-HTTP/MCP-Transport über McpAgent
+ * ein und bündelt mehrere Bounded Contexts hinter einer URL (siehe athlete-mcp-ADR).
+ * Das Pfad-Secret in der URL identifiziert den Nutzer (TenantResolver: `pathsecret:<secret>`
+ * → userId im KV); alle Per-Nutzer-Daten liegen unter `user:<userId>:<context>`.
  *
- * Final Surge = Plan. Strava = Ist (siehe ADR-0001). Dieser Server liefert nur den Plan.
+ * Final Surge = Plan (per-user Creds im KV). Strava = Ist (siehe finalsurge/ADR-0001).
  */
 
 import { McpAgent } from "agents/mcp";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 
-import { formatWorkout } from "./formatWorkout.js";
-import { FinalSurgeClient, login } from "./finalSurgeClient.js";
-import { SessionCache } from "./sessionCache.js";
+import { formatWorkout } from "./finalsurge/formatWorkout.js";
+import { FinalSurgeClient, login } from "./finalsurge/finalSurgeClient.js";
+import { SessionCache } from "./finalsurge/sessionCache.js";
+import { TenantResolver } from "./tenantResolver.js";
 
 export interface Env {
   MCP_OBJECT: DurableObjectNamespace;
   SESSION_KV: KVNamespace;
-  FINAL_SURGE_EMAIL: string;
-  FINAL_SURGE_PASSWORD: string;
-  MCP_PATH_SECRET: string;
+}
+
+/** Per-Request-Kontext, im fetch-Handler über den TenantResolver aufgelöst. */
+interface Props extends Record<string, unknown> {
+  userId: string;
 }
 
 /** Heutiges Datum in Pauls Zeitzone als YYYY-MM-DD (en-CA liefert ISO-Reihenfolge). */
@@ -39,12 +44,19 @@ const PLAN_HINT =
   "Liefert die GEPLANTEN Coach-Vorgaben aus Final Surge (Plan-Seite). " +
   "Absolvierte Läufe (HR, Pace, Power) kommen separat über den Strava-Connector.";
 
-export class FinalSurgeMCP extends McpAgent<Env> {
-  server = new McpServer({ name: "Final Surge", version: "1.0.0" });
+export class AthleteMCP extends McpAgent<Env, unknown, Props> {
+  server = new McpServer({ name: "athlete-mcp", version: "1.0.0" });
 
   async init() {
-    const cache = new SessionCache(this.env.SESSION_KV, () =>
-      login(this.env.FINAL_SURGE_EMAIL, this.env.FINAL_SURGE_PASSWORD),
+    await this.initFinalSurge();
+  }
+
+  /** Final-Surge-Kontext: per-user Creds + gecachte Session aus dem KV. */
+  private async initFinalSurge() {
+    const cache = new SessionCache(
+      this.env.SESSION_KV,
+      this.props.userId,
+      login,
     );
     const client = new FinalSurgeClient(cache);
 
@@ -95,12 +107,15 @@ export default {
     ctx: ExecutionContext,
   ): Promise<Response> {
     const { pathname } = new URL(request.url);
-    const expectedPath = `/${env.MCP_PATH_SECRET}/mcp`;
 
-    if (pathname === expectedPath) {
-      return FinalSurgeMCP.serve(expectedPath).fetch(request, env, ctx);
+    const userId = await new TenantResolver(env.SESSION_KV).resolve(pathname);
+    if (!userId) {
+      return new Response("Not found", { status: 404 });
     }
 
-    return new Response("Not found", { status: 404 });
+    // Per-Request-Kontext für McpAgent (landet als this.props in init()).
+    (ctx as ExecutionContext & { props: Props }).props = { userId };
+
+    return AthleteMCP.serve(pathname).fetch(request, env, ctx);
   },
 };
