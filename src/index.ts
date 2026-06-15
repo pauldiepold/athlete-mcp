@@ -17,12 +17,16 @@ import { FinalSurgeClient, login } from "./finalsurge/finalSurgeClient.js";
 import { SessionCache } from "./finalsurge/sessionCache.js";
 import { TenantResolver } from "./tenantResolver.js";
 import { formatKoerperdaten } from "./garmin/formatKoerperdaten.js";
+import type { Koerperdaten } from "./garmin/formatKoerperdaten.js";
 import { GarminAuth, refreshTokens } from "./garmin/garminAuth.js";
 import { GarminClient } from "./garmin/garminClient.js";
+import { KoerperdatenArchive } from "./garmin/koerperdatenArchive.js";
+import { getKoerperdatenRange } from "./garmin/koerperdatenReadThrough.js";
 
 export interface Env {
   MCP_OBJECT: DurableObjectNamespace;
   SESSION_KV: KVNamespace;
+  KOERPERDATEN_DB: D1Database;
 }
 
 /** Per-Request-Kontext, im fetch-Handler über den TenantResolver aufgelöst. */
@@ -42,6 +46,49 @@ function addDays(isoDate: string, days: number): string {
   const d = new Date(`${isoDate}T00:00:00Z`);
   d.setUTCDate(d.getUTCDate() + days);
   return d.toISOString().slice(0, 10);
+}
+
+/** Baut den GarminClient eines Nutzers (per-user Token-Bündel + displayName aus dem KV). */
+async function buildGarminClient(
+  kv: KVNamespace,
+  userId: string,
+): Promise<GarminClient> {
+  const profile = (await kv.get(`user:${userId}:garmin:profile`, "json")) as {
+    display_name?: string;
+  } | null;
+  const auth = new GarminAuth(kv, userId, refreshTokens);
+  return new GarminClient(auth, profile?.display_name ?? "");
+}
+
+/** Live-Fetcher für die Read-through-Orchestrierung: roh holen → schlanke Form. */
+async function fetchKoerperdatenLive(
+  client: GarminClient,
+  date: string,
+): Promise<Koerperdaten> {
+  const raw = await client.getKoerperdaten(date);
+  return formatKoerperdaten(
+    date,
+    raw.hrv,
+    raw.sleep,
+    raw.stress,
+    raw.bodyBattery,
+    raw.trainingReadiness,
+  );
+}
+
+/** Alle userIds mit einem Garmin-Token-Bündel im KV (`user:<id>:garmin`). */
+async function listGarminUsers(kv: KVNamespace): Promise<string[]> {
+  const ids: string[] = [];
+  let cursor: string | undefined;
+  do {
+    const res = await kv.list({ prefix: "user:", cursor });
+    for (const { name } of res.keys) {
+      const match = name.match(/^user:(.+):garmin$/);
+      if (match) ids.push(match[1]!);
+    }
+    cursor = res.list_complete ? undefined : res.cursor;
+  } while (cursor);
+  return ids;
 }
 
 const PLAN_HINT =
@@ -110,39 +157,45 @@ export class AthleteMCP extends McpAgent<Env, unknown, Props> {
     );
   }
 
-  /** Garmin-Kontext: per-user Token-Bündel + displayName aus dem KV, live geholt. */
+  /** Garmin-Kontext: archive-first aus D1 lesen, fehlende Tage live nachladen + upserten. */
   private async initGarmin() {
     const { userId } = this.props;
-    const profile = (await this.env.SESSION_KV.get(
-      `user:${userId}:garmin:profile`,
-      "json",
-    )) as { display_name?: string } | null;
+    const client = await buildGarminClient(this.env.SESSION_KV, userId);
+    const archive = new KoerperdatenArchive(this.env.KOERPERDATEN_DB);
+    const fetchLive = (date: string) => fetchKoerperdatenLive(client, date);
 
-    const auth = new GarminAuth(this.env.SESSION_KV, userId, refreshTokens);
-    const client = new GarminClient(auth, profile?.display_name ?? "");
+    const fetchRange = async (start: string, end: string) => {
+      const koerperdaten = await getKoerperdatenRange(
+        archive,
+        fetchLive,
+        userId,
+        start,
+        end,
+      );
+      return {
+        content: [
+          { type: "text" as const, text: JSON.stringify(koerperdaten, null, 2) },
+        ],
+      };
+    };
 
     this.server.tool(
       "get_koerperdaten",
-      `Körperdaten für ein explizites Datum (live aus Garmin geholt). ${BODY_HINT}`,
+      `Körperdaten für ein explizites Datum (aus dem Archiv, fehlender Tag wird live nachgeladen). ${BODY_HINT}`,
       {
         date: z.string().describe("Datum YYYY-MM-DD"),
       },
-      async ({ date }) => {
-        const raw = await client.getKoerperdaten(date);
-        const koerperdaten = formatKoerperdaten(
-          date,
-          raw.hrv,
-          raw.sleep,
-          raw.stress,
-          raw.bodyBattery,
-          raw.trainingReadiness,
-        );
-        return {
-          content: [
-            { type: "text" as const, text: JSON.stringify(koerperdaten, null, 2) },
-          ],
-        };
+      ({ date }) => fetchRange(date, date),
+    );
+
+    this.server.tool(
+      "get_koerperdaten_range",
+      `Körperdaten für einen Datumsbereich (aus dem Archiv, fehlende Tage werden live nachgeladen). ${BODY_HINT}`,
+      {
+        start_date: z.string().describe("Startdatum YYYY-MM-DD (inklusive)"),
+        end_date: z.string().describe("Enddatum YYYY-MM-DD (inklusive)"),
       },
+      ({ start_date, end_date }) => fetchRange(start_date, end_date),
     );
   }
 }
@@ -164,5 +217,29 @@ export default {
     (ctx as ExecutionContext & { props: Props }).props = { userId };
 
     return AthleteMCP.serve(pathname).fetch(request, env, ctx);
+  },
+
+  /**
+   * Täglicher Cron (archive-first): pro Garmin-Nutzer die gestrigen Körperdaten
+   * live holen und ins D1-Archiv upserten. Fehler eines Nutzers (z. B. abgerissener
+   * Refresh-Token) blockieren die übrigen nicht.
+   */
+  async scheduled(
+    _controller: ScheduledController,
+    env: Env,
+    _ctx: ExecutionContext,
+  ): Promise<void> {
+    const yesterday = addDays(todayInBerlin(), -1);
+    const archive = new KoerperdatenArchive(env.KOERPERDATEN_DB);
+
+    for (const userId of await listGarminUsers(env.SESSION_KV)) {
+      try {
+        const client = await buildGarminClient(env.SESSION_KV, userId);
+        const daten = await fetchKoerperdatenLive(client, yesterday);
+        await archive.upsert(userId, yesterday, daten);
+      } catch (err) {
+        console.error(`Cron Körperdaten ${userId} ${yesterday}:`, err);
+      }
+    }
   },
 };

@@ -21,16 +21,7 @@
 		{
 			"tag": "v1",
 			"new_sqlite_classes": [
-				"FinalSurgeMCP"
-			]
-		},
-		{
-			"tag": "v2",
-			"renamed_classes": [
-				{
-					"from": "FinalSurgeMCP",
-					"to": "AthleteMCP"
-				}
+				"AthleteMCP"
 			]
 		}
 	],
@@ -39,5 +30,18 @@
 			"binding": "SESSION_KV",
 			"id": "b5f5aa9024b141608a93ef7388aed64d"
 		}
-	]
+	],
+	"d1_databases": [
+		{
+			"binding": "KOERPERDATEN_DB",
+			"database_name": "athlete-mcp-koerperdaten",
+			"database_id": "2d146aa3-8fed-40dc-a7a8-b924e82a4343",
+			"migrations_dir": "migrations"
+		}
+	],
+	"triggers": {
+		"crons": [
+			"0 5 * * *"
+		]
+	}
 }
