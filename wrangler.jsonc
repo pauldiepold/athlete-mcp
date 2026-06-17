@@ -33,7 +33,7 @@
 	],
 	"d1_databases": [
 		{
-			"binding": "KOERPERDATEN_DB",
+			"binding": "ATHLETE_DB",
 			"database_name": "athlete-mcp-koerperdaten",
 			"database_id": "2d146aa3-8fed-40dc-a7a8-b924e82a4343",
 			"migrations_dir": "migrations"

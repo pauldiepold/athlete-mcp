@@ -22,11 +22,12 @@ import { GarminAuth, refreshTokens } from "./garmin/garminAuth.js";
 import { GarminClient } from "./garmin/garminClient.js";
 import { KoerperdatenArchive } from "./garmin/koerperdatenArchive.js";
 import { getKoerperdatenRange } from "./garmin/koerperdatenReadThrough.js";
+import { SteuerungStore } from "./steuerung/steuerungStore.js";
 
 export interface Env {
   MCP_OBJECT: DurableObjectNamespace;
   SESSION_KV: KVNamespace;
-  KOERPERDATEN_DB: D1Database;
+  ATHLETE_DB: D1Database;
 }
 
 /** Per-Request-Kontext, im fetch-Handler über den TenantResolver aufgelöst. */
@@ -101,12 +102,20 @@ const BODY_HINT =
   "Das sind NICHT absolvierte Läufe (HR/Pace/Power → Strava) und NICHT der geplante " +
   "Trainingsinhalt (Final Surge), sondern Rohwerte ohne interpretierte Tagesform.";
 
+const STEUERUNG_HINT =
+  "Der vom Athleten SELBST geschriebene Steuerungs-Store (rohes Markdown, UTF-8, " +
+  "rein wie raus). Das ist NICHT der Coach-Plan aus Final Surge (get_planned_workouts) " +
+  "und NICHT die Körperdaten aus Garmin, sondern die eigene strategische Steuerung: " +
+  "der Steuerungsplan (Block/Periodisierung/Form-Snapshot) plus Wocheneinträge. " +
+  "set-Tools überschreiben das jeweilige Objekt komplett.";
+
 export class AthleteMCP extends McpAgent<Env, unknown, Props> {
   server = new McpServer({ name: "athlete-mcp", version: "1.0.0" });
 
   async init() {
     await this.initFinalSurge();
     await this.initGarmin();
+    await this.initSteuerung();
   }
 
   /** Final-Surge-Kontext: per-user Creds + gecachte Session aus dem KV. */
@@ -161,7 +170,7 @@ export class AthleteMCP extends McpAgent<Env, unknown, Props> {
   private async initGarmin() {
     const { userId } = this.props;
     const client = await buildGarminClient(this.env.SESSION_KV, userId);
-    const archive = new KoerperdatenArchive(this.env.KOERPERDATEN_DB);
+    const archive = new KoerperdatenArchive(this.env.ATHLETE_DB);
     const fetchLive = (date: string) => fetchKoerperdatenLive(client, date);
 
     const fetchRange = async (start: string, end: string) => {
@@ -198,6 +207,70 @@ export class AthleteMCP extends McpAgent<Env, unknown, Props> {
       ({ start_date, end_date }) => fetchRange(start_date, end_date),
     );
   }
+
+  /** Steuerungs-Kontext: eigenes Write-Modell in D1 (Steuerungsplan + Wochen). */
+  private async initSteuerung() {
+    const { userId } = this.props;
+    const store = new SteuerungStore(this.env.ATHLETE_DB);
+    const ok = { content: [{ type: "text" as const, text: "ok" }] };
+    const text = (value: string) => ({
+      content: [{ type: "text" as const, text: value }],
+    });
+
+    this.server.tool(
+      "get_steuerungsplan",
+      `Liefert den Steuerungsplan als rohes Markdown (leer, wenn noch keiner gesetzt). ${STEUERUNG_HINT}`,
+      {},
+      async () => text(await store.getPlan(userId)),
+    );
+
+    this.server.tool(
+      "set_steuerungsplan",
+      `Überschreibt den GESAMTEN Steuerungsplan mit dem übergebenen Markdown. ${STEUERUNG_HINT}`,
+      {
+        content: z.string().describe("Der vollständige Steuerungsplan als Markdown"),
+      },
+      async ({ content }) => {
+        await store.setPlan(userId, content);
+        return ok;
+      },
+    );
+
+    this.server.tool(
+      "list_wochen",
+      `Listet die vorhandenen Wochen-Keys (kw, aufsteigend; leer bei keinem Eintrag). ${STEUERUNG_HINT}`,
+      {},
+      async () => text(JSON.stringify(await store.listWochen(userId))),
+    );
+
+    this.server.tool(
+      "get_woche",
+      `Liefert eine Woche als rohes Markdown (leer, wenn die kw nicht existiert). ${STEUERUNG_HINT}`,
+      {
+        kw: z
+          .string()
+          .regex(/^\d{4}-W\d{2}$/, "kw im ISO-Format YYYY-Www, z. B. 2026-W25")
+          .describe("Kalenderwoche im ISO-Format YYYY-Www (z. B. 2026-W25)"),
+      },
+      async ({ kw }) => text(await store.getWoche(userId, kw)),
+    );
+
+    this.server.tool(
+      "set_woche",
+      `Überschreibt eine spezifische Woche komplett mit dem übergebenen Markdown (legt sie an, falls neu). ${STEUERUNG_HINT}`,
+      {
+        kw: z
+          .string()
+          .regex(/^\d{4}-W\d{2}$/, "kw im ISO-Format YYYY-Www, z. B. 2026-W25")
+          .describe("Kalenderwoche im ISO-Format YYYY-Www (z. B. 2026-W25)"),
+        content: z.string().describe("Der vollständige Wocheneintrag als Markdown"),
+      },
+      async ({ kw, content }) => {
+        await store.setWoche(userId, kw, content);
+        return ok;
+      },
+    );
+  }
 }
 
 export default {
@@ -230,7 +303,7 @@ export default {
     _ctx: ExecutionContext,
   ): Promise<void> {
     const yesterday = addDays(todayInBerlin(), -1);
-    const archive = new KoerperdatenArchive(env.KOERPERDATEN_DB);
+    const archive = new KoerperdatenArchive(env.ATHLETE_DB);
 
     for (const userId of await listGarminUsers(env.SESSION_KV)) {
       try {
