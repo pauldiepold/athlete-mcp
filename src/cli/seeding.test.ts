@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
   buildSeedEntries,
   buildMcpUrl,
+  buildViewUrl,
   generatePathSecret,
 } from "./seeding.js";
 
@@ -13,6 +14,7 @@ function asMap(entries: { key: string; value: string }[]) {
 const input = {
   userId: "paul",
   pathSecret: "s3cret",
+  viewSecret: "v13w",
   finalSurge: { email: "paul@example.com", password: "fs-pw" },
   garmin: {
     di_token: "di-access",
@@ -23,7 +25,7 @@ const input = {
 };
 
 describe("buildSeedEntries", () => {
-  it("bildet die userId auf genau die vier Per-Nutzer-KV-Einträge ab", () => {
+  it("bildet die userId auf genau die fünf Per-Nutzer-KV-Einträge ab", () => {
     const entries = asMap(buildSeedEntries(input));
 
     expect(JSON.parse(entries.get("user:paul:finalsurge")!)).toEqual({
@@ -39,6 +41,16 @@ describe("buildSeedEntries", () => {
       display_name: "paul.garmin",
     });
     expect(entries.get("pathsecret:s3cret")).toBe("paul");
+    expect(entries.get("viewsecret:v13w")).toBe("paul");
+  });
+
+  it("trennt View-Secret und MCP-Secret in eigene Namespaces", () => {
+    const entries = asMap(buildSeedEntries(input));
+
+    // Eigener Namespace, getrennt vom Schreib-Secret (ADR-0003).
+    expect(entries.has("viewsecret:v13w")).toBe(true);
+    expect(entries.has("pathsecret:v13w")).toBe(false);
+    expect(entries.has("viewsecret:s3cret")).toBe(false);
   });
 
   it("schreibt kein Garmin-Passwort und vermischt die Kontexte nicht", () => {
@@ -74,6 +86,20 @@ describe("buildMcpUrl", () => {
     expect(
       buildMcpUrl("https://athlete-mcp.pauldiepold.workers.dev/", "s3cret"),
     ).toBe("https://athlete-mcp.pauldiepold.workers.dev/s3cret/mcp");
+  });
+});
+
+describe("buildViewUrl", () => {
+  it("setzt die fertige /{secret}/steuerung-URL zusammen", () => {
+    expect(
+      buildViewUrl("https://athlete-mcp.pauldiepold.workers.dev", "v13w"),
+    ).toBe("https://athlete-mcp.pauldiepold.workers.dev/v13w/steuerung");
+  });
+
+  it("toleriert einen Trailing-Slash in der Basis-URL", () => {
+    expect(
+      buildViewUrl("https://athlete-mcp.pauldiepold.workers.dev/", "v13w"),
+    ).toBe("https://athlete-mcp.pauldiepold.workers.dev/v13w/steuerung");
   });
 });
 
