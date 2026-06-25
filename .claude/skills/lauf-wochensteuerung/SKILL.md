@@ -50,6 +50,26 @@ Alle Daten über **MCP-Tools** (keine lokalen Dateien). Typischer Ablauf: erst S
 
 Pace **immer in min/km** (Format `M:SS/km`). **Niemals m/s oder km/h** – in keiner Tabelle, Zwischenrechnung, keinem Nebensatz. Aktivitäts-Connectoren liefern oft m/s: umrechnen mit `min/km = 60 / (m_pro_s × 3,6)`, Ergebnis als `M:SS`. Distanzen in km (Meter ÷ 1000), Höhe in m.
 
+## Wochentabelle: km pro Tag + Wochensumme (hart, immer)
+
+Jede Tages-Tabelle einer Woche (Verlauf bzw. Entwurf B) trägt **rechts eine km-Spalte** und **unten eine Summenzeile** mit den Wochenkilometern. Gilt für KW-Rückblick, Entwurf der Folgewoche und jede ad-hoc gezeigte Wochentabelle.
+
+- **Pro Tag:**
+  - **Durchgeführter Tag** → **Ist** aus Strava (`list_activities` über den Wochen-Bereich Mo 00:00 – So 23:59). Wert = **Tagessumme aller Läufe** des Tages (Ein-/Auslaufen + Hauptteil + separat geloggte wu/cd zusammenzählen), Meter ÷ 1000, eine Nachkommastelle (`8,0`). Alltagsradfahren/Cross **nicht** in die Lauf-km zählen (separate aerobe Last, s. Steuerungsplan).
+  - **Geplanter/künftiger Tag** → **Schätzung** aus der geplanten Einheit, als `~15 (Plan)` markiert. Zeit-Vorgaben über die Easy-/Ziel-Pace in km umrechnen (z. B. 80' easy @ ~4:50 ≈ 16 km), Workout-Tage inkl. wu/cd.
+- **Summenzeile** (`**Σ Woche**`): solange die Woche läuft, **Ist + Plan getrennt** ausweisen (`Ist 17,8 + Plan ~62 ≈ ~80`). Ist die Woche abgeschlossen, **reines Ist** (`Σ 96`).
+- **Beim Sonntagsritual:** alle Plan-Schätzungen der abgelaufenen Woche durch Strava-Ist ersetzen, Summe auf reines Ist umstellen. Dann im Entwurf der Folgewoche die Plan-km neu setzen.
+- **Format-Beispiel:**
+
+  | Tag | Einheit | km |
+  |---|---|---|
+  | Mo 22.06 | easy | 0,4 |
+  | Di 23.06 | Primer 8 km + 6×200 | 8,0 |
+  | … | … | … |
+  | **Σ Woche** | | **Ist 17,8 + Plan ~62 ≈ ~80** |
+
+- **Realismus-Watch:** Easy-/LR-Schätzungen liegen beim „Bisschen-mehr"-Reflex chronisch **unter** dem Ist — Schätzung nicht künstlich hochziehen, aber beim Soll/Ist die systematische Überschreitung benennen, wenn sie ein Disziplin-/Erholungsthema wird (s. „Aktiv flaggen").
+
 ## Form-Referenz
 
 Die Form steht im **Steuerungsplan** (Form-Snapshot mit Stand-Datum: Ziel, Fitness-Kennzahl/VDOT, jüngste Schlüsselrennen, Anker-Paces). Diesen Snapshot als Basis nehmen. **Pace-Zonen nie statisch speichern** – immer aus der aktuellen Fitness-Kennzahl ableiten, sonst sind sie im Block nach wenigen Wochen falsch. Die Anker-Paces (MP, Schwelle, VO2/5K-Ziel) sind Orientierung, kein Ersatz für die Ableitung. Verschiebt ein neues Schlüsselrennen die Form: die **Snapshot-Zahlen via `set_steuerungsplan` nachziehen** (Plan komplett neu bauen, Änderungslog-Zeile + Datum) — Block/Strategie aber dem Makro-Skill überlassen.
@@ -69,7 +89,7 @@ Am realen Coach-Plan und Block prüfen, kein Modell über die Realität legen.
 
 ## Soll/Ist-Vergleich & Steuerung
 
-**Nach Schlüsseleinheiten und Longruns standardmäßig kurz vergleichen** (planen vs. gelaufen), nicht erst auf Nachfrage — das ist der Kern der Wochensteuerung. **Ausführlich** (volle Struktur, alle Splits) auf Nachfrage. Nach reinen Easy-Läufen nur, wenn etwas auffällt. Geplanten Workout (Coach-Plan bzw. Entwurf im Wochen-Key) gegen die gelaufene Aktivität halten — Struktur, Pace-Targets vs. real, HF, Renncharakter. Ehrlich bewerten (getroffen/übertroffen/verfehlt/anders). Ergebnis via `set_woche` in den Key. Bei Schlüsseleinheiten Pace und – wo vorhanden – HF/Laktat **zusammen** lesen, nicht Pace isoliert (wie der Athlet steuert, steht im Steuerungsplan). **Multisport** (Rad/Schwimmen/Wandern) ist aerobe Cross-Last, **kein Lauf-Defizit** — als Gesamtbelastung einordnen, nicht gegen das Lauf-Soll rechnen.
+**Nach Schlüsseleinheiten und Longruns standardmäßig kurz vergleichen** (planen vs. gelaufen), nicht erst auf Nachfrage — das ist der Kern der Wochensteuerung. **Ausführlich** (volle Struktur, alle Splits) auf Nachfrage. Nach reinen Easy-Läufen nur, wenn etwas auffällt. Geplanten Workout (Coach-Plan bzw. Entwurf im Wochen-Key) gegen die gelaufene Aktivität halten — Struktur, Pace-Targets vs. real, HF, Renncharakter. Ehrlich bewerten (getroffen/übertroffen/verfehlt/anders). Ergebnis via `set_woche` in den Key. **km-Spalte + Wochensumme dabei stets mitführen** (Plan → Ist umstellen, Σ aktualisieren; s. „Wochentabelle"). Bei Schlüsseleinheiten Pace und – wo vorhanden – HF/Laktat **zusammen** lesen, nicht Pace isoliert (wie der Athlet steuert, steht im Steuerungsplan). **Multisport** (Rad/Schwimmen/Wandern) ist aerobe Cross-Last, **kein Lauf-Defizit** — als Gesamtbelastung einordnen, nicht gegen das Lauf-Soll rechnen und **nicht** in die Lauf-Wochen-km zählen.
 
 ## Körperdaten-Erholungs-Overlay
 
@@ -97,19 +117,19 @@ Wöchentliches Standortbestimmungs-Ritual. **Kein Schedule** — der Athlet trig
 
 1. **Kontext laden:** `get_steuerungsplan()`; `list_wochen()`, dann `get_woche(aktuelle KW)` (enthält schon den Entwurf + subjektive Notizen) + `get_woche(Vorwoche)`.
 2. **Daten ziehen** (deferred zuerst per `tool_search`): Ist-Läufe der abgeschlossenen Woche (Mo 00:00 – So 23:59) mit Schlüsseleinheiten; Coach-Plan (falls vorhanden) für 7 Tage; Körperdaten-Range über die Woche.
-3. **Rückblick:** Soll/Ist gegen den **Entwurf im aktuellen Wochen-Key** + subjektive Nachträge. Volumen, Schlüsseleinheiten, Pace-Targets vs. real, HF/Laktat wo vorhanden. Multisport als aerobe Last. Körperdaten-Overlay (RHR-Trend, HRV-Wochenmittel, Schlaf, Cluster). Fit zur Phase, auf Renn-Ziel-Kurs, Überlastung proaktiv flaggen.
-4. **Entwurf kommende Woche:** Coach-Einheiten gegen das Ziel interpretieren (bzw. selbst planen), konkreter Tages-Entwurf Mo–So. Eigene Einheiten nur, wo der Coach-Plan schlecht passt. Kraft/Stabi schlank. **Klar als Entwurf markieren, kein Befehl** — der Athlet schränkt danach ein. Knapp, Tag für Tag.
+3. **Rückblick:** Soll/Ist gegen den **Entwurf im aktuellen Wochen-Key** + subjektive Nachträge. Volumen, Schlüsseleinheiten, Pace-Targets vs. real, HF/Laktat wo vorhanden. **km-Spalte auf Ist umstellen** (Plan-Schätzungen durch Strava-Tagessummen ersetzen) und **Σ Woche auf reines Ist** setzen. Multisport als aerobe Last (nicht in die Lauf-km). Körperdaten-Overlay (RHR-Trend, HRV-Wochenmittel, Schlaf, Cluster). Fit zur Phase, auf Renn-Ziel-Kurs, Überlastung proaktiv flaggen.
+4. **Entwurf kommende Woche:** Coach-Einheiten gegen das Ziel interpretieren (bzw. selbst planen), konkreter Tages-Entwurf Mo–So **mit km-Schätzung pro Tag (`~N (Plan)`) und `Σ Woche`-Plansumme**. Eigene Einheiten nur, wo der Coach-Plan schlecht passt. Kraft/Stabi schlank. **Klar als Entwurf markieren, kein Befehl** — der Athlet schränkt danach ein. Knapp, Tag für Tag.
 5. **In den Store schreiben (Whole-Object):**
-   - **Aktuelle KW:** `set_woche(aktuelle KW, …)` mit der **kompletten** Woche = Entwurf (B) + neuer Rückblick (A) + Subjektives, zusammengeführt. Vorher Gelesenes einbauen, nichts verlieren (Key wird komplett überschrieben).
-   - **Kommende KW:** `set_woche(kommende KW, …)` mit dem **Entwurf** (Teil B; Rückblick folgt nächsten Sonntag in denselben Key).
+   - **Aktuelle KW:** `set_woche(aktuelle KW, …)` mit der **kompletten** Woche = Entwurf (B) + neuer Rückblick (A) + Subjektives, zusammengeführt, **km-Spalte auf Ist + Σ auf Ist**. Vorher Gelesenes einbauen, nichts verlieren (Key wird komplett überschrieben).
+   - **Kommende KW:** `set_woche(kommende KW, …)` mit dem **Entwurf** (Teil B; Rückblick folgt nächsten Sonntag in denselben Key), inkl. km-Plan-Spalte + Σ-Plan.
    - **Form-Snapshot verschoben?** `set_steuerungsplan(…)` mit dem komplett neu gebauten Plan (Snapshot-Zahlen aktualisiert + Änderungslog-Zeile mit Datum). Größere strukturelle Umbauten → Makro-Skill.
-6. **Kurzbericht:** knapp (Rückblick, Fit zum Plan, Erholungslage, Entwurf zum Bestätigen/Einschränken, Flags). Hinweis, dass der volle Eintrag im Wochen-Key steht und im Chat anpassbar ist.
+6. **Kurzbericht:** knapp (Rückblick, Fit zum Plan, Erholungslage, **Wochen-km Ist + Entwurf-Σ**, Entwurf zum Bestätigen/Einschränken, Flags). Hinweis, dass der volle Eintrag im Wochen-Key steht und im Chat anpassbar ist.
 
 ## Tägliche Autoregulation (im Chat)
 
 Unter der Woche: fragt der Athlet nach einer Einheit oder spricht über seine Tagesform → `get_koerperdaten(heute)` + die für heute geplante Einheit → ggf. anpassen (entschärfen, schieben, grünes Licht). Roh-Marker lesen, Readiness wie oben nachrangig.
 
-**Subjektives Feedback fließt über den Chat in den Store:** Erwähnt der Athlet, wie sich eine Einheit angefühlt hat, schreibt **der Agent** es via `set_woche(laufende KW, …)` in die laufende Woche (ganzen Key neu schreiben, Bestehendes erhalten). Der Athlet editiert den Store nicht selbst.
+**Subjektives Feedback fließt über den Chat in den Store:** Erwähnt der Athlet, wie sich eine Einheit angefühlt hat, schreibt **der Agent** es via `set_woche(laufende KW, …)` in die laufende Woche (ganzen Key neu schreiben, Bestehendes erhalten). Wird dabei ein durchgeführter Tag erwähnt/bestätigt, **gleich die km-Spalte dieses Tags auf Ist nachziehen** (Strava-Tagessumme), Σ aktualisieren. Der Athlet editiert den Store nicht selbst.
 
 ## Aufbau des Steuerungsplans (Referenz fürs Onboarding/Updates)
 
@@ -121,4 +141,4 @@ Rohes Markdown, grob: **Konfiguration** (Coach + Quelle, Zielrennen) · **Wer & 
 
 ## Output
 
-Sprache wie der Athlet (hier Deutsch). Eher ausführlich, Tabellen okay. Pace in min/km. Direkt und ehrlich – keine Beschönigung, keine künstliche Härte.
+Sprache wie der Athlet (hier Deutsch). Eher ausführlich, Tabellen okay. Pace in min/km, Wochentabellen mit km-Spalte + Σ. Direkt und ehrlich – keine Beschönigung, keine künstliche Härte.
