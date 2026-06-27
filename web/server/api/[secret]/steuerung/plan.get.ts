@@ -1,23 +1,10 @@
-import { TenantResolver } from '@shared/tenantResolver'
-import { SteuerungStore } from '@shared/steuerung/steuerungStore'
-
 // Liefert das rohe Steuerungsplan-Markdown des per View-Secret identifizierten
 // Nutzers als JSON (für die Edit-Seite, Issue #12). Bindings/Secret bleiben
-// server-seitig — im Client landet nur das eigene Markdown des Nutzers, dessen
-// Secret ohnehin in seiner URL steht. Unbekanntes Secret → 404.
+// server-seitig (resolveSteuerung) — im Client landet nur das eigene Markdown des
+// Nutzers, dessen Secret ohnehin in seiner URL steht. Unbekanntes Secret → 404.
 export default defineEventHandler(async (event) => {
-  const { ATHLETE_DB, SESSION_KV } = event.context.cloudflare.env as unknown as {
-    ATHLETE_DB: D1Database
-    SESSION_KV: KVNamespace
-  }
-  const secret = getRouterParam(event, 'secret')!
+  const { userId, store } = await resolveSteuerung(event)
 
-  const userId = await new TenantResolver(SESSION_KV).resolveViewSecret(secret)
-  if (!userId) {
-    throw createError({ statusCode: 404, statusMessage: 'Not found' })
-  }
-
-  const store = new SteuerungStore(ATHLETE_DB)
   const [markdown, wochen] = await Promise.all([
     store.getPlan(userId),
     store.listWochen(userId),

@@ -1,75 +1,41 @@
-# Nuxt Minimal Starter
+# athlete-web
 
-Look at the [Nuxt documentation](https://nuxt.com/docs/getting-started/introduction) to learn more.
+Eigenständiges **Nuxt-Frontend** und zweites Cloudflare-Deploy-Target neben dem
+MCP-Worker (`../`). Der Athlet liest und editiert seine **Steuerung** (Steuerungsplan
++ Wochen) im Browser; Markdown bleibt das kanonische Speicherformat, byte-genau das,
+was der Agent über MCP liest/schreibt.
 
-## Setup
+Siehe `../docs/adr/0004-eigenstaendiges-nuxt-frontend-monorepo-browser-editing.md`.
 
-Make sure to install dependencies:
+## Architektur (Kurz)
+
+- **Geteilte Module statt Duplikat:** `SteuerungStore` und `TenantResolver` werden via
+  `@shared`-Alias direkt aus `../src` importiert — Single Source of Truth fürs Schema,
+  keine Drift (`nuxt.config.ts`).
+- **Auth server-seitig:** Das per-User **View-Secret** aus der URL wird im Nitro-Server
+  aufgelöst (`server/utils/steuerung.ts`); D1/KV-Bindings landen nie im Client-Bundle.
+- **Gleiche Bindings wie der MCP-Worker:** identische `binding`-Namen und `id`s in
+  `wrangler.jsonc` → dasselbe physische D1/KV. Das Web-Target hat bewusst **keine**
+  Durable Objects, Crons oder Migrations (die bleiben beim MCP-Worker).
+- **Last-Write-Wins:** kein Konflikt-Handling zwischen Browser- und Agent-Schreibzugriff
+  (ADR-0004).
+
+## Entwicklung
 
 ```bash
-# npm
-npm install
-
-# pnpm
 pnpm install
-
-# yarn
-yarn install
-
-# bun
-bun install
+pnpm dev          # http://localhost:3000
 ```
 
-## Development Server
+`wrangler.jsonc` setzt `"remote": true` für KV und D1: auch im lokalen `nuxt dev`
+(via `nitro-cloudflare-dev`) werden die **echten** Cloudflare-Ressourcen gelesen,
+nichts lokal dupliziert. Erfordert wrangler-Auth (OAuth-Login bzw. `CLOUDFLARE_API_TOKEN`).
 
-Start the development server on `http://localhost:3000`:
+Aufruf einer Steuerung: `/{view-secret}/steuerung`.
+
+## Build & Deploy
 
 ```bash
-# npm
-npm run dev
-
-# pnpm
-pnpm dev
-
-# yarn
-yarn dev
-
-# bun
-bun run dev
+pnpm typecheck    # nuxt typecheck (vue-tsc)
+pnpm deploy       # nuxt build && wrangler deploy
 ```
-
-## Production
-
-Build the application for production:
-
-```bash
-# npm
-npm run build
-
-# pnpm
-pnpm build
-
-# yarn
-yarn build
-
-# bun
-bun run build
-```
-
-Locally preview production build:
-
-```bash
-# npm
-npm run preview
-
-# pnpm
-pnpm preview
-
-# yarn
-yarn preview
-
-# bun
-bun run preview
-```
-
-Check out the [deployment documentation](https://nuxt.com/docs/getting-started/deployment) for more information.
