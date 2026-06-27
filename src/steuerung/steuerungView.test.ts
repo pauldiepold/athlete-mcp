@@ -133,6 +133,18 @@ describe("handleSteuerungView – Index", () => {
     expect(html).toContain("Noch kein Steuerungsplan");
     expect(html).toContain("Noch keine Wocheneinträge");
   });
+
+  it("blendet den Bearbeiten-Link nur mit canEdit ein (Nuxt-Surface, Issue #12)", async () => {
+    const { db, kv } = await setup(async () => {});
+
+    const ohne = await (await handleSteuerungView("/v13w/steuerung", kv, db))!.text();
+    expect(ohne).not.toContain("/v13w/steuerung/edit");
+
+    const mit = await (
+      await handleSteuerungView("/v13w/steuerung", kv, db, true)
+    )!.text();
+    expect(mit).toContain('href="/v13w/steuerung/edit"');
+  });
 });
 
 describe("handleSteuerungView – Woche", () => {

@@ -88,7 +88,12 @@ function renderMarkdown(md: string): string {
 }
 
 /** Index: Steuerungsplan oben, darunter die Wochen als Links (neueste zuerst). */
-function renderIndex(secret: string, plan: string, wochen: string[]): Response {
+function renderIndex(
+  secret: string,
+  plan: string,
+  wochen: string[],
+  canEdit: boolean,
+): Response {
   const base = `/${secret}/steuerung`;
   const planHtml = plan
     ? renderMarkdown(plan)
@@ -100,9 +105,13 @@ function renderIndex(secret: string, plan: string, wochen: string[]): Response {
         .join("")}</ul>`
     : `<p class="leer">Noch keine Wocheneinträge.</p>`;
 
+  // Der Bearbeiten-Link führt auf die Nuxt-Edit-Seite (Issue #12); auf der
+  // schlichten Worker-Surface (ADR-0003) existiert sie nicht → nur mit canEdit.
+  const editNav = canEdit ? `<nav><a href="${base}/edit">Bearbeiten</a></nav>\n` : "";
+
   return page(
     "Steuerungsplan",
-    `<h1>Steuerungsplan</h1>
+    `${editNav}<h1>Steuerungsplan</h1>
 ${planHtml}
 <h2>Wochen</h2>
 ${wochenHtml}`,
@@ -143,11 +152,15 @@ ${body}`,
  * Dispatcht eine Browser-Anfrage auf die Steuerungs-Ansicht.
  * Liefert `null`, wenn der Pfad keine View-Route ist (der Aufrufer routet dann
  * weiter, z. B. zur MCP-Surface). Unbekanntes View-Secret → 404.
+ *
+ * `canEdit` blendet den Bearbeiten-Link ein — nur das Nuxt-Frontend (Issue #12)
+ * hat die Edit-Seite; die schlichte Worker-Surface (ADR-0003) setzt es nicht.
  */
 export async function handleSteuerungView(
   pathname: string,
   kv: KVNamespace,
   db: D1Database,
+  canEdit = false,
 ): Promise<Response | null> {
   const match = pathname.match(VIEW_PATTERN);
   if (!match) {
@@ -172,7 +185,7 @@ export async function handleSteuerungView(
       store.getPlan(userId),
       store.listWochen(userId),
     ]);
-    return renderIndex(secret, plan, wochen);
+    return renderIndex(secret, plan, wochen, canEdit);
   }
 
   const [content, wochen] = await Promise.all([

@@ -13,7 +13,8 @@ export default defineEventHandler(async (event) => {
   }
   const { pathname } = getRequestURL(event)
 
-  const res = await handleSteuerungView(pathname, SESSION_KV, ATHLETE_DB)
+  // canEdit=true: nur das Nuxt-Frontend hat die Edit-Seite (Issue #12).
+  const res = await handleSteuerungView(pathname, SESSION_KV, ATHLETE_DB, true)
   if (!res) {
     throw createError({ statusCode: 404, statusMessage: 'Not found' })
   }
