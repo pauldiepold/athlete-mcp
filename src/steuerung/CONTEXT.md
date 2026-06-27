@@ -1,6 +1,6 @@
 # Steuerung
 
-Der vom Athleten (über den Agenten) **selbst geschriebene** Steuerungs-Store für die Wettkampfvorbereitung: ein strategischer Gesamtplan plus Wocheneinträge. Anders als Final Surge und Garmin ist dies **kein** Read-Connector zu einer externen API, sondern das erste **eigene Write-Modell** des Workers — eine sichere, surface-unabhängige Persistenz für den Agenten (Single-Writer).
+Der vom Athleten (über den Agenten) **selbst geschriebene** Steuerungs-Store für die Wettkampfvorbereitung: ein strategischer Gesamtplan plus Wocheneinträge. Anders als Final Surge und Garmin ist dies **kein** Read-Connector zu einer externen API, sondern das erste **eigene Write-Modell** des Workers — eine sichere, surface-unabhängige Markdown-Persistenz. Ursprünglich Single-Writer (nur der Agent); mit dem Browser-Editing schreiben jetzt **Agent und Mensch** dasselbe Objekt — bewusst Last-Write-Wins, kein Clobber-Schutz (siehe [ADR-0004](../../docs/adr/0004-eigenstaendiges-nuxt-frontend-monorepo-browser-editing.md)).
 
 ## Language
 

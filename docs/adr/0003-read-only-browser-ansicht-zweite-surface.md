@@ -1,5 +1,7 @@
 # Read-only Browser-Ansicht als zweite Worker-Surface mit eigenem View-Secret
 
+Status: teilweise superseded by [ADR-0004](./0004-eigenstaendiges-nuxt-frontend-monorepo-browser-editing.md) — die hier verworfene Option „separates Frontend" und der offene Single-Writer-Punkt sind dort aufgelöst (eigenständiges Nuxt-Frontend, Browser-Editing, Last-Write-Wins). Auch die **read-only-Eigenschaft des View-Secrets** ist gelockert: im Frontend gewährt dasselbe Secret read+edit der eigenen Steuerung (weiterhin enger als das volle MCP-`pathsecret`). Die schlichte read-only HTML-Ansicht im Worker selbst bleibt unverändert bestehen.
+
 Der Worker bekommt eine **menschen-gerichtete, read-only HTML-Ansicht** auf den Steuerungs-Store (`/{secret}/steuerung` = Steuerungsplan + Wochenliste, `/{secret}/steuerung/{kw}` = eine Woche). Damit ist er nicht mehr *reiner* MCP-Endpunkt (vgl. [ADR-0001](./0001-athlete-mcp-ein-worker-mehrere-kontexte.md)), sondern bedient eine **zweite Surface**. Diese wird über ein **eigenes, read-only View-Secret** authentifiziert (`viewsecret:<secret> → userId` im KV), getrennt vom MCP-Pfad-Secret. Serverseitig gerendert (Markdown→HTML via `marked` + Inline-CSS), kein Frontend/Build.
 
 ## Considered Options
