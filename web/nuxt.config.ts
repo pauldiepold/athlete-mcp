@@ -23,5 +23,10 @@ export default defineNuxtConfig({
   // Dev-Server darf Dateien außerhalb von web/ lesen (../src).
   vite: {
     server: { fs: { allow: ['..'] } },
-  },
+    optimizeDeps: {
+      include: [
+        'marked',
+      ]
+    }
+  }
 })
