@@ -9,6 +9,10 @@ const { data, error } = await useFetch(`/api/${secret}/steuerung/plan`)
 if (error.value) {
   throw createError({ statusCode: 404, statusMessage: 'Not found' })
 }
+
+useHead({
+  title: data.value?.user ? `Steuerungsplan · ${data.value.user}` : 'Steuerungsplan',
+})
 </script>
 
 <template>

@@ -17,6 +17,10 @@ const { data, error } = await useFetch(`/api/${secret}/steuerung/woche/${kw}`)
 if (error.value) {
   throw createError({ statusCode: 404, statusMessage: 'Not found' })
 }
+
+useHead({
+  title: data.value?.user ? `${kw} · ${data.value.user}` : kw,
+})
 </script>
 
 <template>
