@@ -167,23 +167,30 @@ export class AthleteMCP extends McpAgent<Env, unknown, Props> {
     );
   }
 
-  /** Garmin-Kontext: archive-first aus D1 lesen, fehlende Tage live nachladen + upserten. */
+  /** Garmin-Kontext: archive-first aus D1 lesen; heute/gestern und Lücken live nachladen + upserten. */
   private async initGarmin() {
     const { userId } = this.props;
     const client = await buildGarminClient(this.env.SESSION_KV, userId);
     const archive = new KoerperdatenArchive(this.env.ATHLETE_DB);
     const fetchLive = (date: string) => fetchKoerperdatenLive(client, date);
 
+    // Hinweise zu gescheiterten Live-Abrufen gehen als eigener Text-Block VOR das
+    // JSON; das JSON selbst bleibt ein nacktes Array, damit die Skills nicht brechen.
     const fetchRange = async (start: string, end: string) => {
-      const koerperdaten = await getKoerperdatenRange(
-        archive,
+      const { koerperdaten, hinweise } = await getKoerperdatenRange({
+        store: archive,
         fetchLive,
         userId,
         start,
         end,
-      );
+        heute: todayInBerlin(),
+      });
+      const hinweisBlock = hinweise.length
+        ? [{ type: "text" as const, text: hinweise.join("\n") }]
+        : [];
       return {
         content: [
+          ...hinweisBlock,
           { type: "text" as const, text: JSON.stringify(koerperdaten, null, 2) },
         ],
       };
@@ -191,7 +198,7 @@ export class AthleteMCP extends McpAgent<Env, unknown, Props> {
 
     this.server.tool(
       "get_koerperdaten",
-      `Körperdaten für ein explizites Datum (aus dem Archiv, fehlender Tag wird live nachgeladen). ${BODY_HINT}`,
+      `Körperdaten für ein explizites Datum (archive-first; heute und gestern immer live). ${BODY_HINT}`,
       {
         date: z.string().describe("Datum YYYY-MM-DD"),
       },
@@ -200,7 +207,7 @@ export class AthleteMCP extends McpAgent<Env, unknown, Props> {
 
     this.server.tool(
       "get_koerperdaten_range",
-      `Körperdaten für einen Datumsbereich (aus dem Archiv, fehlende Tage werden live nachgeladen). ${BODY_HINT}`,
+      `Körperdaten für einen Datumsbereich (archive-first; heute und gestern immer live). ${BODY_HINT}`,
       {
         start_date: z.string().describe("Startdatum YYYY-MM-DD (inklusive)"),
         end_date: z.string().describe("Enddatum YYYY-MM-DD (inklusive)"),

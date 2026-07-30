@@ -3,13 +3,16 @@ import { getKoerperdatenRange } from "./koerperdatenReadThrough.js";
 import type { KoerperdatenStore } from "./koerperdatenReadThrough.js";
 import type { Koerperdaten } from "./formatKoerperdaten.js";
 
-/** Minimaler Koerperdaten-Datensatz für ein Datum (nur date relevant für die Tests). */
-function daten(date: string): Koerperdaten {
+/**
+ * Minimaler Koerperdaten-Datensatz für ein Datum. Über stressAvg lassen sich
+ * zwei Stände desselben Tages (archiviert vs. live) unterscheiden.
+ */
+function daten(date: string, stressAvg: number | null = null): Koerperdaten {
   return {
     date,
     hrv: null,
     sleep: null,
-    stress: null,
+    stress: stressAvg === null ? null : { avg: stressAvg, max: null },
     body_battery: null,
     training_readiness: null,
     skin_temp: null,
@@ -39,15 +42,16 @@ describe("getKoerperdatenRange", () => {
     const { archive } = makeStore([daten("2026-06-13"), daten("2026-06-14")]);
     const fetchLive = vi.fn();
 
-    const result = await getKoerperdatenRange(
-      archive,
+    const { koerperdaten } = await getKoerperdatenRange({
+      store: archive,
       fetchLive,
-      "paul",
-      "2026-06-13",
-      "2026-06-14",
-    );
+      userId: "paul",
+      start: "2026-06-13",
+      end: "2026-06-14",
+      heute: "2026-06-20",
+    });
 
-    expect(result).toEqual([daten("2026-06-13"), daten("2026-06-14")]);
+    expect(koerperdaten).toEqual([daten("2026-06-13"), daten("2026-06-14")]);
     expect(fetchLive).not.toHaveBeenCalled();
   });
 
@@ -55,13 +59,14 @@ describe("getKoerperdatenRange", () => {
     const { archive, store } = makeStore();
     const fetchLive = vi.fn(async (date: string) => daten(date));
 
-    const result = await getKoerperdatenRange(
-      archive,
+    const { koerperdaten } = await getKoerperdatenRange({
+      store: archive,
       fetchLive,
-      "paul",
-      "2026-06-13",
-      "2026-06-13",
-    );
+      userId: "paul",
+      start: "2026-06-13",
+      end: "2026-06-13",
+      heute: "2026-06-20",
+    });
 
     expect(fetchLive).toHaveBeenCalledWith("2026-06-13");
     expect(archive.upsert).toHaveBeenCalledWith(
@@ -70,23 +75,24 @@ describe("getKoerperdatenRange", () => {
       daten("2026-06-13"),
     );
     expect(store.get("2026-06-13")).toEqual(daten("2026-06-13"));
-    expect(result).toEqual([daten("2026-06-13")]);
+    expect(koerperdaten).toEqual([daten("2026-06-13")]);
   });
 
   it("mischt vorhandene und nachgeladene Tage, sortiert und fetcht nur die Lücken", async () => {
     const { archive } = makeStore([daten("2026-06-12"), daten("2026-06-14")]);
     const fetchLive = vi.fn(async (date: string) => daten(date));
 
-    const result = await getKoerperdatenRange(
-      archive,
+    const { koerperdaten } = await getKoerperdatenRange({
+      store: archive,
       fetchLive,
-      "paul",
-      "2026-06-12",
-      "2026-06-14",
-    );
+      userId: "paul",
+      start: "2026-06-12",
+      end: "2026-06-14",
+      heute: "2026-06-20",
+    });
 
     expect(fetchLive.mock.calls).toEqual([["2026-06-13"]]);
-    expect(result).toEqual([
+    expect(koerperdaten).toEqual([
       daten("2026-06-12"),
       daten("2026-06-13"),
       daten("2026-06-14"),
@@ -97,13 +103,14 @@ describe("getKoerperdatenRange", () => {
     const { archive } = makeStore();
     const fetchLive = vi.fn(async (date: string) => daten(date));
 
-    const result = await getKoerperdatenRange(
-      archive,
+    const { koerperdaten } = await getKoerperdatenRange({
+      store: archive,
       fetchLive,
-      "paul",
-      "2026-06-13",
-      "2026-06-15",
-    );
+      userId: "paul",
+      start: "2026-06-13",
+      end: "2026-06-15",
+      heute: "2026-06-20",
+    });
 
     expect(fetchLive.mock.calls).toEqual([
       ["2026-06-13"],
@@ -111,10 +118,122 @@ describe("getKoerperdatenRange", () => {
       ["2026-06-15"],
     ]);
     expect(archive.upsert).toHaveBeenCalledTimes(3);
-    expect(result.map((d) => d.date)).toEqual([
+    expect(koerperdaten.map((d) => d.date)).toEqual([
       "2026-06-13",
       "2026-06-14",
       "2026-06-15",
     ]);
+  });
+
+  it("holt heute live nach, obwohl der Tag schon im Archiv liegt", async () => {
+    const { archive, store } = makeStore([daten("2026-06-20", 20)]);
+    const fetchLive = vi.fn(async (date: string) => daten(date, 44));
+
+    const { koerperdaten, hinweise } = await getKoerperdatenRange({
+      store: archive,
+      fetchLive,
+      userId: "paul",
+      start: "2026-06-20",
+      end: "2026-06-20",
+      heute: "2026-06-20",
+    });
+
+    expect(fetchLive).toHaveBeenCalledWith("2026-06-20");
+    expect(koerperdaten).toEqual([daten("2026-06-20", 44)]);
+    expect(store.get("2026-06-20")).toEqual(daten("2026-06-20", 44));
+    expect(hinweise).toEqual([]);
+  });
+
+  it("holt auch gestern live nach, weil der Cron erst morgens läuft", async () => {
+    const { archive, store } = makeStore([daten("2026-06-19", 20)]);
+    const fetchLive = vi.fn(async (date: string) => daten(date, 44));
+
+    const { koerperdaten } = await getKoerperdatenRange({
+      store: archive,
+      fetchLive,
+      userId: "paul",
+      start: "2026-06-19",
+      end: "2026-06-19",
+      heute: "2026-06-20",
+    });
+
+    expect(fetchLive).toHaveBeenCalledWith("2026-06-19");
+    expect(koerperdaten).toEqual([daten("2026-06-19", 44)]);
+    expect(store.get("2026-06-19")).toEqual(daten("2026-06-19", 44));
+  });
+
+  it("lässt vorgestern und älter im Archiv, holt nur heute und gestern live", async () => {
+    const { archive } = makeStore([
+      daten("2026-06-17", 20),
+      daten("2026-06-18", 20),
+      daten("2026-06-19", 20),
+      daten("2026-06-20", 20),
+    ]);
+    const fetchLive = vi.fn(async (date: string) => daten(date, 44));
+
+    const { koerperdaten } = await getKoerperdatenRange({
+      store: archive,
+      fetchLive,
+      userId: "paul",
+      start: "2026-06-17",
+      end: "2026-06-20",
+      heute: "2026-06-20",
+    });
+
+    expect(fetchLive.mock.calls).toEqual([["2026-06-19"], ["2026-06-20"]]);
+    expect(koerperdaten).toEqual([
+      daten("2026-06-17", 20),
+      daten("2026-06-18", 20),
+      daten("2026-06-19", 44),
+      daten("2026-06-20", 44),
+    ]);
+  });
+
+  it("liefert bei fehlgeschlagenem Live-Abruf den archivierten Stand plus Hinweis", async () => {
+    const { archive } = makeStore([daten("2026-06-18", 20), daten("2026-06-20", 20)]);
+    const fetchLive = vi.fn(async (date: string) => {
+      if (date === "2026-06-20") throw new Error("Garmin 502");
+      return daten(date, 44);
+    });
+
+    const { koerperdaten, hinweise } = await getKoerperdatenRange({
+      store: archive,
+      fetchLive,
+      userId: "paul",
+      start: "2026-06-18",
+      end: "2026-06-20",
+      heute: "2026-06-20",
+    });
+
+    expect(koerperdaten).toEqual([
+      daten("2026-06-18", 20),
+      daten("2026-06-19", 44),
+      daten("2026-06-20", 20),
+    ]);
+    expect(hinweise).toHaveLength(1);
+    expect(hinweise[0]).toContain("2026-06-20");
+    expect(hinweise[0]).toMatch(/archiviert/i);
+  });
+
+  it("lässt den Tag weg, wenn der Live-Abruf scheitert und nichts archiviert ist", async () => {
+    const { archive } = makeStore([daten("2026-06-19", 20)]);
+    const fetchLive = vi.fn(async (date: string) => {
+      if (date === "2026-06-20") throw new Error("Garmin 502");
+      return daten(date, 44);
+    });
+
+    const { koerperdaten, hinweise } = await getKoerperdatenRange({
+      store: archive,
+      fetchLive,
+      userId: "paul",
+      start: "2026-06-19",
+      end: "2026-06-20",
+      heute: "2026-06-20",
+    });
+
+    expect(koerperdaten).toEqual([daten("2026-06-19", 44)]);
+    expect(hinweise).toHaveLength(1);
+    expect(hinweise[0]).toContain("2026-06-20");
+    expect(hinweise[0]).toMatch(/kein archivierter Stand/i);
   });
 });
