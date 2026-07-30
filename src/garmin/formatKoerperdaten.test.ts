@@ -51,17 +51,90 @@ describe("formatKoerperdaten", () => {
       body_battery: {
         charged: 43,
         drained: 47,
+        events: [
+          {
+            type: "SLEEP",
+            start: "2026-06-12T23:17",
+            duration_minutes: 435,
+            impact: 41,
+            feedback: "NONE",
+          },
+          {
+            type: "ACTIVITY",
+            start: "2026-06-13T08:15",
+            duration_minutes: 505,
+            impact: -26,
+            feedback: "MAINTAINING_AEROBIC_BASE",
+          },
+        ],
       },
-      training_readiness: {
-        score: 70,
-        level: "MODERATE",
-        feedback: "GOOD_SLEEP_HISTORY",
-      },
+      training_readiness: [
+        {
+          time: "2026-06-13T06:37",
+          score: 73,
+          level: "MODERATE",
+          feedback: "GOOD_SLEEP_HISTORY",
+          trigger: "AFTER_WAKEUP_RESET",
+          recovery_time_minutes: 752,
+          acute_load: 436,
+        },
+        {
+          time: "2026-06-13T17:22",
+          score: 70,
+          level: "MODERATE",
+          feedback: "GOOD_SLEEP_HISTORY",
+          trigger: "AFTER_POST_EXERCISE_RESET",
+          recovery_time_minutes: 1048,
+          acute_load: 502,
+        },
+      ],
       skin_temp: {
         deviation_celsius: 0.3,
         data_exists: true,
       },
     });
+  });
+
+  it("lässt body_battery.events weg, wenn die Antwort keine Events trägt", () => {
+    const result = formatKoerperdaten(
+      "2026-06-13",
+      hrvVollstaendig as any,
+      sleepVollstaendig as any,
+      stressVollstaendig as any,
+      [{ charged: 43, drained: 47 }],
+      trainingReadinessVollstaendig as any,
+    );
+
+    expect(result.body_battery).toEqual({ charged: 43, drained: 47 });
+    expect(result.body_battery).not.toHaveProperty("events");
+  });
+
+  it("rechnet Event-Zeiten über den timezoneOffset der Antwort, nicht über eine feste Zone", () => {
+    const result = formatKoerperdaten(
+      "2026-06-13",
+      hrvVollstaendig as any,
+      sleepVollstaendig as any,
+      stressVollstaendig as any,
+      [
+        {
+          charged: 43,
+          drained: 47,
+          bodyBatteryActivityEvent: [
+            {
+              eventType: "ACTIVITY",
+              eventStartTimeGmt: "2026-06-13T06:15:27.0",
+              timezoneOffset: -25_200_000, // UTC-7, Trainingslager statt Berlin
+              durationInMilliseconds: 30_300_000,
+              bodyBatteryImpact: -26,
+              shortFeedback: "MAINTAINING_AEROBIC_BASE",
+            },
+          ],
+        },
+      ],
+      trainingReadinessVollstaendig as any,
+    );
+
+    expect(result.body_battery?.events?.[0]?.start).toBe("2026-06-12T23:15");
   });
 
   it("liefert null für alle Felder wenn keine Daten vorhanden (Tag ohne Uhr)", () => {

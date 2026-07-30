@@ -38,12 +38,53 @@ export interface RawStress {
 export interface RawBodyBattery {
   charged?: number | null;
   drained?: number | null;
+  bodyBatteryActivityEvent?: RawBodyBatteryEvent[] | null;
+}
+
+export interface RawBodyBatteryEvent {
+  eventType?: string | null;
+  eventStartTimeGmt?: string | null;
+  timezoneOffset?: number | null;
+  durationInMilliseconds?: number | null;
+  bodyBatteryImpact?: number | null;
+  shortFeedback?: string | null;
 }
 
 export interface RawTrainingReadiness {
+  timestampLocal?: string | null;
   score?: number | null;
   level?: string | null;
   feedbackShort?: string | null;
+  inputContext?: string | null;
+  recoveryTime?: number | null;
+  acuteLoad?: number | null;
+}
+
+/**
+ * Ein Schlaf- oder Aktivitäts-Ereignis, das die Body Battery bewegt hat.
+ * `start` kann im Vortag liegen — ein Schlaf-Event beginnt am Abend davor.
+ */
+export interface BodyBatteryEvent {
+  type: string | null;
+  start: string | null;
+  duration_minutes: number | null;
+  impact: number | null;
+  feedback: string | null;
+}
+
+/**
+ * Ein einzelnes Training-Readiness-Reading. Garmin rechnet den Score mehrfach am
+ * Tag neu (nach dem Aufwachen, nach einer Aktivität) — `trigger` sagt, welche
+ * Neuberechnung es war. Vgl. ADR-0002.
+ */
+export interface TrainingReadinessReading {
+  time: string | null;
+  score: number | null;
+  level: string | null;
+  feedback: string | null;
+  trigger: string | null;
+  recovery_time_minutes: number | null;
+  acute_load: number | null;
 }
 
 export interface Koerperdaten {
@@ -73,16 +114,32 @@ export interface Koerperdaten {
   body_battery: {
     charged: number | null;
     drained: number | null;
+    events?: BodyBatteryEvent[];
   } | null;
-  training_readiness: {
-    score: number | null;
-    level: string | null;
-    feedback: string | null;
-  } | null;
+  training_readiness: TrainingReadinessReading[] | null;
   skin_temp: {
     deviation_celsius: number | null;
     data_exists: boolean | null;
   } | null;
+}
+
+/** `"2026-06-13T06:37:51.0"` → `"2026-06-13T06:37"`. */
+function kappeSekunden(timestampLocal: string | null | undefined): string | null {
+  return timestampLocal ? timestampLocal.slice(0, 16) : null;
+}
+
+/**
+ * GMT-Zeitstempel plus Garmins `timezoneOffset` (ms) als lokale Zeit — die Zone
+ * kommt aus der Antwort, nicht aus einer Annahme über den Wohnort des Athleten.
+ */
+function lokaleZeit(
+  eventStartTimeGmt: string | null | undefined,
+  timezoneOffset: number | null | undefined,
+): string | null {
+  if (!eventStartTimeGmt) return null;
+  const gmt = Date.parse(`${eventStartTimeGmt}Z`);
+  if (Number.isNaN(gmt)) return null;
+  return new Date(gmt + (timezoneOffset ?? 0)).toISOString().slice(0, 16);
 }
 
 export function formatKoerperdaten(
@@ -96,13 +153,39 @@ export function formatKoerperdaten(
   const hrvSummary = hrv.hrvSummary ?? null;
   const sleepDTO = sleep.dailySleepDTO ?? null;
   const bb = bodyBattery[0] ?? null;
-  const tr = trainingReadiness[0] ?? null;
+
+  const events = (bb?.bodyBatteryActivityEvent ?? []).map(
+    (e): BodyBatteryEvent => ({
+      type: e.eventType ?? null,
+      start: lokaleZeit(e.eventStartTimeGmt, e.timezoneOffset),
+      duration_minutes:
+        e.durationInMilliseconds != null
+          ? Math.round(e.durationInMilliseconds / 60_000)
+          : null,
+      impact: e.bodyBatteryImpact ?? null,
+      feedback: e.shortFeedback ?? null,
+    }),
+  );
+
+  const readings = trainingReadiness
+    .map(
+      (r): TrainingReadinessReading => ({
+        time: kappeSekunden(r.timestampLocal),
+        score: r.score ?? null,
+        level: r.level ?? null,
+        feedback: r.feedbackShort ?? null,
+        trigger: r.inputContext ?? null,
+        recovery_time_minutes: r.recoveryTime ?? null,
+        acute_load: r.acuteLoad ?? null,
+      }),
+    )
+    .sort((a, b) => (a.time ?? "").localeCompare(b.time ?? ""));
 
   const hasHrv = hrvSummary !== null;
   const hasSleep = sleepDTO?.sleepTimeSeconds != null;
   const hasStress = stress.avgStressLevel != null || stress.maxStressLevel != null;
   const hasBb = bb?.charged != null || bb?.drained != null;
-  const hasTr = tr !== null;
+  const hasTr = readings.length > 0;
   const hasSkinTemp = sleep.skinTempDataExists != null;
 
   return {
@@ -139,15 +222,10 @@ export function formatKoerperdaten(
       ? {
           charged: bb!.charged ?? null,
           drained: bb!.drained ?? null,
+          ...(events.length > 0 ? { events } : {}),
         }
       : null,
-    training_readiness: hasTr
-      ? {
-          score: tr!.score ?? null,
-          level: tr!.level ?? null,
-          feedback: tr!.feedbackShort ?? null,
-        }
-      : null,
+    training_readiness: hasTr ? readings : null,
     skin_temp: hasSkinTemp
       ? {
           deviation_celsius: sleep.avgSkinTempDeviationC ?? null,

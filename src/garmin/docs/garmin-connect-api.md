@@ -144,14 +144,32 @@ Feld in Klammern.
 
   "body_battery": {                // bodyBattery/reports/daily -> [0]
     "charged": 43,                 // .charged
-    "drained": 47                  // .drained
+    "drained": 47,                 // .drained
+    "events": [                    // .bodyBatteryActivityEvent, fehlt wenn leer
+      { "type": "SLEEP",           // .eventType
+        "start": "2026-06-12T23:17",  // .eventStartTimeGmt + .timezoneOffset (lokal!)
+        "duration_minutes": 435,   // .durationInMilliseconds / 60000
+        "impact": 41,              // .bodyBatteryImpact
+        "feedback": "NONE" },      // .shortFeedback (nicht .feedbackType)
+      { "type": "ACTIVITY", "start": "2026-06-13T08:15",
+        "duration_minutes": 505, "impact": -26,
+        "feedback": "MAINTAINING_AEROBIC_BASE" }
+    ]
   },
 
-  "training_readiness": {          // trainingreadiness -> [0]
-    "score": 70,                   // .score (0–100, Training Readiness, vgl. Glossar)
-    "level": "MODERATE",           // .level
-    "feedback": "GOOD_SLEEP_HISTORY" // .feedbackShort
-  },
+  "training_readiness": [          // trainingreadiness, alle Readings des Tages,
+                                   // aufsteigend nach time; null wenn keine
+    { "time": "2026-06-13T06:37",  // .timestampLocal, Sekunden gekappt
+      "score": 73,                 // .score (0–100, Training Readiness, vgl. Glossar)
+      "level": "MODERATE",         // .level
+      "feedback": "GOOD_SLEEP_HISTORY", // .feedbackShort
+      "trigger": "AFTER_WAKEUP_RESET",  // .inputContext, roh durchgereicht
+      "recovery_time_minutes": 752,     // .recoveryTime (ist bereits Minuten)
+      "acute_load": 436 },              // .acuteLoad
+    { "time": "2026-06-13T17:22", "score": 70, "level": "MODERATE",
+      "feedback": "GOOD_SLEEP_HISTORY", "trigger": "AFTER_POST_EXERCISE_RESET",
+      "recovery_time_minutes": 1048, "acute_load": 502 }
+  ],
 
   "skin_temp": {                   // aus dailySleepData (kein eigener Endpoint)
     "deviation_celsius": 0.3,      // avgSkinTempDeviationC
@@ -160,7 +178,63 @@ Feld in Klammern.
 }
 ```
 
-Diese Form ist bewusst flach und interpretationsfrei (rohe *Körperdaten*, nicht
-die abgeleitete *Tagesform* — vgl. [CONTEXT.md](../CONTEXT.md)). Sie ist der
-Vorschlag aus dem Spike; die genaue Feldauswahl wird beim Bau von
-`formatKoerperdaten` final geschärft.
+Diese Form ist bewusst interpretationsfrei (rohe *Körperdaten*, nicht die
+abgeleitete *Tagesform* — vgl. [CONTEXT.md](../CONTEXT.md)).
+
+Die **Asymmetrie ist beabsichtigt**: Was sich über den Tag ändert, steht als
+Liste (Training Readiness, Body-Battery-Events); was mit dem Aufwachen feststeht
+(HRV, Schlaf, Hauttemperatur, Ruhepuls), bleibt skalar. Die Form folgt damit der
+Änderungscharakteristik der Quelle — vgl.
+[ADR-0002](./adr/0002-koerperdaten-intraday-ereignisbasiert.md).
+
+Zur Unterscheidung „leer" vs. „nicht vorhanden": `training_readiness` ist `null`,
+wenn Garmin keine Readings liefert — nie `[]`. `body_battery.events` fehlt ganz,
+wenn keine Events in der Antwort stehen.
+
+### Leitlinie für `formatKoerperdaten`
+
+**So wenig an Garmins Werten ändern wie möglich.** Umgeformt wird nur, wo die
+Rohform für Claude im Chat schlecht lesbar wäre:
+
+- **Schlüssel** werden nach `snake_case` umbenannt und flach geschachtelt.
+- **Werte** bleiben unverändert — kein Enum-Mapping, keine Übersetzung.
+  Unbekannte Garmin-Codes (`inputContext`, `feedbackShort`) reichen wir roh
+  durch; ein unvollständiges Mapping würde stillschweigend Werte verschlucken.
+  Einzige Ausnahme sind **Einheiten**: Millisekunden werden zu Minuten gerundet
+  (`durationInMilliseconds` → `duration_minutes`), Zeitstempel auf die Minute
+  gekappt. Das ändert keine Aussage, nur die Lesbarkeit im Chat.
+- **Weggelassen** wird nur, was (a) Metadaten ohne Aussage sind (`userProfilePK`,
+  `deviceId`, `calendarDate`) oder (b) an anderer Stelle im Blob schon steht.
+  Beispiel: Jedes Training-Readiness-Reading trägt `hrvWeeklyAverage` und
+  `sleepScore` mit — identisch zu `hrv.weekly_avg` bzw. `sleep.score`. Bei
+  mehreren Readings pro Tag wäre das reine Vervielfachung.
+
+Kürzen ist also kein Widerspruch zur Leitlinie: Wir verlieren keine Information,
+wir wiederholen sie nur nicht.
+
+## 4. Ungenutzte Intraday-Zeitreihen
+
+Die Antworten enthalten neben den Summary-Feldern **dichte Messreihen über den
+Tag**, die `formatKoerperdaten` bewusst verwirft. Hier dokumentiert, falls ein
+späterer Anwendungsfall sie braucht — sie kosten **keinen zusätzlichen Abruf**,
+sie liegen in den Antworten, die wir ohnehin holen.
+
+| Feld | Endpoint | Form | Raster |
+|---|---|---|---|
+| `stressValuesArray` | `dailyStress/{date}` | `[epoch_ms, stressLevel]` | 3 min (~480 Punkte/Tag) |
+| `bodyBatteryValuesArray` | `bodyBattery/reports/daily` | `[epoch_ms, bodyBatteryLevel]` | ungeprüft, Fixture ist getrimmt |
+| `hrvReadings` | `hrv-service/hrv/{date}` | `{hrvValue, readingTimeLocal}` | 5 min, **nur während des Schlafs** |
+| `sleepLevels` | `dailySleepData` | Schlafphasen-Segmente | Phasenwechsel |
+
+**Falle:** `dailyStress` enthält ebenfalls ein `bodyBatteryValuesArray` — das
+trägt aber den `bodyBatteryStatus` (`"MEASURED"`), nicht den Level. Der Level
+steht nur in `bodyBattery/reports/daily`.
+
+**Warum ungenutzt:** Für die Trainingssteuerung zählt *warum* sich ein Wert
+geändert hat, nicht der Minutenverlauf — das beantworten die ereignisbasierten
+Felder (`trainingreadiness[].inputContext`, `bodyBatteryActivityEvent[]`) zu
+einem Bruchteil der Tokens. Ein Tag Kurvendaten ist rund 50× so groß wie der
+gesamte übrige Körperdaten-Blob und würde `get_koerperdaten_range` über eine
+Woche unbrauchbar aufblähen. Käme ein Anwendungsfall dazu (z. B.
+Regenerationsgeschwindigkeit nach Intervallen), gehören die Kurven in eine
+eigene Tabelle und hinter ein eigenes Tool — nicht in den Tagesblob.
