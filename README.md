@@ -50,9 +50,50 @@ Optionale Env-Variablen statt interaktiver Eingabe:
 (der MFA-Code bleibt immer interaktiv). Die beiden Hosts sind überschreibbar via
 `--base-url` (MCP-Worker) und `--web-base-url` (Nuxt-Target mit der Steuerung).
 
-### Re-Seed
+### Re-Seed (Onboarding)
 
 Ein erneuter Lauf für einen bestehenden Nutzer stellt einen abgerissenen
 Garmin-Refresh-Token wieder her (KV-`put` ist Upsert) und verwendet das
 vorhandene Pfad-Secret wieder — die MCP-URL des Nutzers bleibt stabil. Keine
 Code-Änderung nötig.
+
+## Körperdaten-Backfill
+
+Ändert sich die Form der Körperdaten (zuletzt mit
+[ADR-0002](./src/garmin/docs/adr/0002-koerperdaten-intraday-ereignisbasiert.md):
+`training_readiness` vom Objekt zur Liste), tragen archivierte Zeilen noch die
+alte Form. Zwei lokale CLIs ziehen sie nach — beide setzen wie das Onboarding
+ein angemeldetes `npx wrangler login` voraus und sprechen KV und D1 der
+Produktion an.
+
+**Erst prüfen**, was Garmin für ein altes Datum überhaupt noch liefert:
+
+```bash
+npm run probe:koerperdaten -- --user <name> --date 2026-06-20 [--json]
+```
+
+Die Probe schreibt nichts. Sie stellt die Live-Antwort der archivierten Zeile
+Block für Block gegenüber und warnt, wenn ein Block live **fehlt**, der im
+Archiv steht — der Backfill ersetzt die Zeile komplett, eine gealterte
+Garmin-Antwort würde also Daten kosten.
+
+**Dann schreiben:**
+
+```bash
+npm run backfill:koerperdaten -- --user <name> [--start YYYY-MM-DD] [--end YYYY-MM-DD] \
+                                  [--delay 1200] [--yes]
+```
+
+- Ohne `--start`/`--end` läuft der gesamte archivierte Bereich des Nutzers.
+- Bearbeitet werden **vorhandene Archivzeilen**, keine Kalenderlücken; Lücken zu
+  füllen bleibt Sache der Read-through-Orchestrierung im Worker.
+- Zeilen, die bereits eine Liste tragen, werden übersprungen. Ein Lauf nach
+  Fehlern holt damit von selbst nur das Fehlende nach.
+- Vor dem Lauf läuft die Probe auf dem ältesten offenen Tag und fragt nach
+  (`--yes` überspringt die Rückfrage).
+- Abrufe laufen **sequentiell mit Pause** — die Connect-API ist inoffiziell und
+  ratelimitet ([ADR-0001](./src/garmin/docs/adr/0001-koerperdaten-live-api-archive-first.md)).
+  Ein Tag sind fünf Garmin-Endpoints plus ein D1-Schreibvorgang über einen
+  wrangler-Subprozess; rechne mit rund fünf Sekunden pro Tag.
+- Ein Fehler bricht den Lauf nicht ab; am Ende stehen die fehlgeschlagenen Tage
+  und eine Verifikation, wie viele Zeilen im Bereich jetzt welche Form tragen.

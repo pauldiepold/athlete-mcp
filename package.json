@@ -7,6 +7,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "onboard": "tsx scripts/onboard.ts",
+    "probe:koerperdaten": "tsx scripts/probe-koerperdaten.ts",
+    "backfill:koerperdaten": "tsx scripts/backfill-koerperdaten.ts",
     "dev": "wrangler dev",
     "deploy": "wrangler deploy",
     "typecheck": "tsc --noEmit",

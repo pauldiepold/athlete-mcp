@@ -16,11 +16,11 @@ import { formatWorkout } from "./finalsurge/formatWorkout.js";
 import { FinalSurgeClient, login } from "./finalsurge/finalSurgeClient.js";
 import { SessionCache } from "./finalsurge/sessionCache.js";
 import { TenantResolver } from "./tenantResolver.js";
-import { formatKoerperdaten } from "./garmin/formatKoerperdaten.js";
-import type { Koerperdaten } from "./garmin/formatKoerperdaten.js";
-import { GarminAuth, refreshTokens } from "./garmin/garminAuth.js";
-import { GarminClient } from "./garmin/garminClient.js";
 import { KoerperdatenArchive } from "./garmin/koerperdatenArchive.js";
+import {
+  buildGarminClient,
+  fetchKoerperdatenLive,
+} from "./garmin/koerperdatenLive.js";
 import { getKoerperdatenRange } from "./garmin/koerperdatenReadThrough.js";
 import { SteuerungStore } from "./steuerung/steuerungStore.js";
 import { handleSteuerungView } from "./steuerung/steuerungView.js";
@@ -48,34 +48,6 @@ function addDays(isoDate: string, days: number): string {
   const d = new Date(`${isoDate}T00:00:00Z`);
   d.setUTCDate(d.getUTCDate() + days);
   return d.toISOString().slice(0, 10);
-}
-
-/** Baut den GarminClient eines Nutzers (per-user Token-Bündel + displayName aus dem KV). */
-async function buildGarminClient(
-  kv: KVNamespace,
-  userId: string,
-): Promise<GarminClient> {
-  const profile = (await kv.get(`user:${userId}:garmin:profile`, "json")) as {
-    display_name?: string;
-  } | null;
-  const auth = new GarminAuth(kv, userId, refreshTokens);
-  return new GarminClient(auth, profile?.display_name ?? "");
-}
-
-/** Live-Fetcher für die Read-through-Orchestrierung: roh holen → schlanke Form. */
-async function fetchKoerperdatenLive(
-  client: GarminClient,
-  date: string,
-): Promise<Koerperdaten> {
-  const raw = await client.getKoerperdaten(date);
-  return formatKoerperdaten(
-    date,
-    raw.hrv,
-    raw.sleep,
-    raw.stress,
-    raw.bodyBattery,
-    raw.trainingReadiness,
-  );
 }
 
 /** Alle userIds mit einem Garmin-Token-Bündel im KV (`user:<id>:garmin`). */

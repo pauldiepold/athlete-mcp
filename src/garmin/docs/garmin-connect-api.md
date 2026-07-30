@@ -191,6 +191,15 @@ Zur Unterscheidung „leer" vs. „nicht vorhanden": `training_readiness` ist `n
 wenn Garmin keine Readings liefert — nie `[]`. `body_battery.events` fehlt ganz,
 wenn keine Events in der Antwort stehen.
 
+**Beobachtete `trigger`-Werte** (`.inputContext`): `AFTER_WAKEUP_RESET`,
+`AFTER_POST_EXERCISE_RESET`, `UPDATE_REALTIME_VARIABLES`. Bei Readings von 2024
+fehlt das Feld ganz (`trigger: null`) — die Liste ist also nicht abgeschlossen.
+
+**Rückwirkende Verfügbarkeit:** Die Intraday-Historie liefert Garmin auch für
+lange zurückliegende Tage mit. Proben über 40 Tage und über zwei Jahre zurück
+gaben Readings samt Zeitpunkt und die Body-Battery-Events zurück, ohne dass ein
+Block gegenüber der archivierten Zeile fehlte (`npm run probe:koerperdaten`).
+
 ### Leitlinie für `formatKoerperdaten`
 
 **So wenig an Garmins Werten ändern wie möglich.** Umgeformt wird nur, wo die
