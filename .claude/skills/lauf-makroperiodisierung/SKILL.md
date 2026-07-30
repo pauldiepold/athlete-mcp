@@ -19,7 +19,7 @@ Der strategische Bogen bis zum Zielrennen. Während die Wochensteuerung die näc
 
 Für die Makro-Sicht längere Aktivitäts-Historie ziehen (`list_activities` über Wochen/Monate; Schlüsseleinheiten via `get_activity_performance`/`get_activity_streams`). ⚠️ Aktivitäts-Connectoren liefern Titel + Metriken, **nicht** die private Notiz — Subjektives steht in den Wochen-Keys oder kommt vom Athleten. ⚠️ Ein Coach-Plan kann Einträge **anderer Athleten** enthalten → geplantes ≠ vom Athleten gelaufenes Rennen, bestätigen.
 
-Pace immer in **min/km** (`M:SS/km`), nie m/s oder km/h; aus m/s: `60 / (m_pro_s × 3,6)`. Distanz in km, Höhe in m.
+Pace immer in **min/km** (`M:SS/km`), nie m/s oder km/h; aus m/s: `60 / (m_pro_s × 3,6)`. Distanz in km, Höhe in m. Kadenz immer in **Schritten pro Minute** (`spm`, beide Beine, typisch ~160–185) — Connector-Werte sind pro Bein (~80–92) und werden **mit 2 multipliziert**, bevor sie irgendwo auftauchen.
 
 ## Plan pflegen (Whole-Object)
 

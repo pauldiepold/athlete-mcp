@@ -50,6 +50,8 @@ Alle Daten über **MCP-Tools** (keine lokalen Dateien). Typischer Ablauf: erst S
 
 Pace **immer in min/km** (Format `M:SS/km`). **Niemals m/s oder km/h** – in keiner Tabelle, Zwischenrechnung, keinem Nebensatz. Aktivitäts-Connectoren liefern oft m/s: umrechnen mit `min/km = 60 / (m_pro_s × 3,6)`, Ergebnis als `M:SS`. Distanzen in km (Meter ÷ 1000), Höhe in m.
 
+Kadenz **immer in Schritten pro Minute** (`spm`, beide Beine — so wie Garmin es anzeigt, typisch ~160–185). Aktivitäts-Connectoren (Strava `average_cadence`, Cadence-Streams) liefern **Schritte pro Bein und Minute** (~80–92): **mit 2 multiplizieren**, bevor der Wert irgendwo auftaucht. Gilt für Tabellen, Splits, Zwischenrechnungen und jeden Nebensatz. Ein einstelliger/80er Kadenzwert in der Ausgabe ist immer ein Fehler.
+
 ## Wochentabelle: km pro Tag + Wochensumme (hart, immer)
 
 Jede Tages-Tabelle einer Woche (Verlauf bzw. Entwurf B) trägt **rechts eine km-Spalte** und **unten eine Summenzeile** mit den Wochenkilometern. Gilt für KW-Rückblick, Entwurf der Folgewoche und jede ad-hoc gezeigte Wochentabelle.
@@ -148,4 +150,4 @@ Rohes Markdown, grob: **Konfiguration** (Coach + Quelle, Zielrennen) · **Wer & 
 
 ## Output
 
-Sprache wie der Athlet (hier Deutsch). Eher ausführlich, Tabellen okay. Pace in min/km, Wochentabellen mit km-Spalte + Σ. Direkt und ehrlich – keine Beschönigung, keine künstliche Härte.
+Sprache wie der Athlet (hier Deutsch). Eher ausführlich, Tabellen okay. Pace in min/km, Kadenz in spm (beide Beine), Wochentabellen mit km-Spalte + Σ. Direkt und ehrlich – keine Beschönigung, keine künstliche Härte.
