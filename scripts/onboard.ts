@@ -30,7 +30,10 @@ import {
 import type { GarminSeed } from "../src/cli/seeding.js";
 import { login } from "../src/finalsurge/finalSurgeClient.js";
 
+// Zwei Hosts seit ADR-0004: der MCP-Endpunkt liegt auf dem Worker `athlete-mcp`,
+// die Steuerung im Browser auf dem Nuxt-Target `athlete-web`.
 const DEFAULT_BASE_URL = "https://athlete-mcp.pauldiepold.workers.dev";
+const DEFAULT_WEB_BASE_URL = "https://athlete-web.pauldiepold.workers.dev";
 
 /** Fortschritt/Hinweise auf stderr, damit stdout nur die fertige URL trägt. */
 function log(msg: string): void {
@@ -43,15 +46,17 @@ function die(msg: string): never {
 }
 
 /** Minimales `--flag value`-Parsing; nur was dieses CLI braucht. */
-function parseArgs(argv: string[]): { user: string; baseUrl: string } {
+function parseArgs(argv: string[]): { user: string; baseUrl: string; webBaseUrl: string } {
   let user: string | undefined;
   let baseUrl = DEFAULT_BASE_URL;
+  let webBaseUrl = DEFAULT_WEB_BASE_URL;
   for (let i = 0; i < argv.length; i++) {
     if (argv[i] === "--user") user = argv[++i];
     else if (argv[i] === "--base-url") baseUrl = argv[++i]!;
+    else if (argv[i] === "--web-base-url") webBaseUrl = argv[++i]!;
   }
   if (!user) die("--user <name> ist erforderlich");
-  return { user, baseUrl };
+  return { user, baseUrl, webBaseUrl };
 }
 
 /** Sichtbarer Prompt (Email o. Ä.). */
@@ -108,7 +113,7 @@ function findExistingSecret(userId: string, prefix: string): string | null {
 }
 
 async function main(): Promise<void> {
-  const { user: userId, baseUrl } = parseArgs(process.argv.slice(2));
+  const { user: userId, baseUrl, webBaseUrl } = parseArgs(process.argv.slice(2));
   log(`== Onboarding für Nutzer "${userId}" ==`);
 
   // --- Final Surge: Creds erfragen und durch einen echten Login verifizieren ---
@@ -175,7 +180,7 @@ async function main(): Promise<void> {
   // --- Ergebnis: MCP-URL + read-only Browser-URL (einzige Ausgabe auf stdout) ---
   log(">> Fertig. MCP-URL und read-only Browser-Ansicht:");
   process.stdout.write(`${buildMcpUrl(baseUrl, pathSecret)}\n`);
-  process.stdout.write(`${buildViewUrl(baseUrl, viewSecret)}\n`);
+  process.stdout.write(`${buildViewUrl(webBaseUrl, viewSecret)}\n`);
 }
 
 main().catch((err) => die((err as Error).message));

@@ -13,9 +13,12 @@ export default defineNuxtConfig({
   // GitHub-OAuth-Credentials liest nuxt-auth-utils selbst aus NUXT_SESSION_PASSWORD
   // bzw. NUXT_OAUTH_GITHUB_CLIENT_ID/SECRET — hier nur Defaults, real per Env-Secret.
   runtimeConfig: {
-    // Basis-URL des MCP-Workers für die im Admin-Directory gebauten MCP-/View-Links
-    // (Issue #15) — dieselbe Quelle wie scripts/onboard.ts. Override per NUXT_MCP_BASE_URL.
+    // Die beiden Hosts für die im Admin-Directory gebauten Nutzer-Links (Issue #15).
+    // Getrennt, weil MCP-Endpunkt und Browser-Steuerung seit ADR-0004 auf zwei
+    // Workern liegen — dieselben Defaults wie scripts/onboard.ts. Override per
+    // NUXT_MCP_BASE_URL bzw. NUXT_WEB_BASE_URL.
     mcpBaseUrl: 'https://athlete-mcp.pauldiepold.workers.dev',
+    webBaseUrl: 'https://athlete-web.pauldiepold.workers.dev',
     session: {
       // sealed-cookie-Session statt URL-Secret (ADR-0005). Echter Wert per Env-Secret.
       password: '',
