@@ -99,9 +99,16 @@ Körperdaten als **Belastungs-/Regenerations-Schicht** über die Lauf-Daten lege
 - **Ruhepuls (RHR):** verlässlichstes Signal, Wochentrend gegen die Baseline.
 - **HRV:** **Wochenmittel** gegen die Baseline-Spanne, nicht Einzelnächte (volatil).
 - **Schlaf:** Phasen, Dauer, `resting_heart_rate`. Kurznächte crashen die Folgetag-Marker.
-- **Stress** (avg/max), **Hauttemp** (`deviation_celsius`), **Body Battery** (`charged`/`drained`, kein verlässlicher Absolutstand).
+- **Stress** (avg/max), **Hauttemp** (`deviation_celsius`), **Body Battery** (`charged`/`drained`, kein verlässlicher Absolutstand). Die `events`-Liste zeigt, *was* die Batterie bewegt hat (Schlaf/Aktivität mit `impact`) — nützlich, um einen schlechten Tag einer Einheit statt der Erholung zuzuordnen.
 
-**Training Readiness** (aggregierter Score): als **nachrangiger Korroborations-Indikator** lesen, nicht als Primär-Call. Deckt er sich mit den Roh-Markern → bestätigend (das tut er in der Praxis oft). **Widerspricht er, schlagen Roh-Marker + Trainingskontext den Aggregat** — ein niedriger Score kippt keine geplante harte Einheit, wenn RHR/HRV/Schlaf sauber sind. Hintergrund: konservativ verzerrt für Ausdauerathleten (bestraft niedrige absolute HRV und geplante Block-Last), und als Aggregat versteckt er, *welcher* Marker sich bewegt hat.
+**Training Readiness** (aggregierter Score): als **nachrangiger Korroborations-Indikator** lesen, nicht als Primär-Call. Deckt er sich mit den Roh-Markern → bestätigend (das tut er in der Praxis oft). **Widerspricht er, schlagen Roh-Marker + Trainingskontext den Aggregat** — ein niedriger Score kippt keine geplante harte Einheit, wenn RHR/HRV/Schlaf sauber sind. Hintergrund: konservativ verzerrt für Ausdauerathleten (bestraft niedrige absolute HRV und geplante Block-Last).
+
+Readiness kommt als **Liste von Readings** pro Tag — Garmin rechnet mehrfach neu, jedes Reading trägt `time` und `trigger`:
+- Ein Reading mit `trigger: "AFTER_POST_EXERCISE_RESET"` ist **keine Aussage über die Tagesform**. Es misst den Zustand *nach* der Belastung und ist erwartungsgemäß niedrig — das ist die normale Trainingsantwort, kein Warnsignal. **Niemals als Beleg für schlechte Erholung lesen.**
+- Für die Steuerung zählt das letzte Reading **vor** der Einheit (typisch `AFTER_WAKEUP_RESET`).
+- `trigger` ist ein **roher Garmin-Code**, keine feste Auswahl: neben `AFTER_WAKEUP_RESET` und `AFTER_POST_EXERCISE_RESET` kommen weitere vor (z. B. `UPDATE_REALTIME_VARIABLES`, eine automatische Neuberechnung), bei zurückliegenden Tagen fehlt er teils ganz (`null`). Ist er unbekannt oder leer, entscheidet die **Uhrzeit** relativ zur Einheit, nicht der Code. Ältere Tage tragen oft nur **ein** Reading — daraus keinen Schluss auf den Tagesverlauf ziehen.
+- Springt `recovery_time_minutes` über den Tag deutlich (z. B. 750 → 1050), ist das die Belastungsantwort auf das absolvierte Training. Erwartbar nach harten Einheiten; auffällig nur, wenn es nach *leichten* Einheiten passiert.
+- **Kein Cherry-Picking:** Die Ausnahme gilt nur für Post-Exercise-Readings. Ein niedriger Morgen-Score wird nicht dadurch entwertet, dass später ein besseres Reading kommen könnte.
 
 **Warnsignal-Cluster (proaktiv flaggen):** RHR hoch **+** HRV am Floor **+** Stress hoch **+** Hauttemp deutlich positiv (>~1 °C) = beginnende Überlastung oder Infekt → Training rausnehmen/reduzieren. Einzelne Marker schwanken; erst das Cluster ist das Signal.
 

@@ -61,7 +61,7 @@ Dieser Skill liest den **chronischen Trend** über Wochen/Monate (`get_koerperda
 - **HRV-Baseline-Drift:** Wandert das HRV-Wochenmittel über die Wochen nach oben (Adaptation) oder schleichend nach unten (Eingraben)? Beim Volumen-Sprung in den Block das zentrale Frühwarnsystem.
 - **Chronischer RHR-Trend:** Bleibt der Ruhepuls bei steigendem Umfang stabil auf Baseline oder driftet er dauerhaft nach oben?
 
-Relative Bewegungen gegen die Baseline lesen, nicht absolute Scores. **Training Readiness** als nachrangigen Korroborations-Indikator behandeln (deckt sich in der Praxis oft, aber bei Widerspruch schlagen Roh-Marker + Kontext den Aggregat) — fürs Makro zählt ohnehin der Roh-Trend, nicht der Tages-Score. Kippt die Baseline-Drift, ist nicht mehr Umfang die Antwort, sondern Erholung (Schlaf/Stress).
+Relative Bewegungen gegen die Baseline lesen, nicht absolute Scores. **Training Readiness** als nachrangigen Korroborations-Indikator behandeln (deckt sich in der Praxis oft, aber bei Widerspruch schlagen Roh-Marker + Kontext den Aggregat) — fürs Makro zählt ohnehin der Roh-Trend, nicht einzelne Readings. Kippt die Baseline-Drift, ist nicht mehr Umfang die Antwort, sondern Erholung (Schlaf/Stress).
 
 ## Haltung
 

@@ -16,4 +16,4 @@ _Vermeide_: Readiness (für die abgeleitete Gesamteinschätzung), Recovery-Score
 Garmins über mehrere Nächte gemittelte Herzfrequenzvariabilität samt Einordnung (z. B. „ausgeglichen"). Ein einzelner Körperdaten-Wert, nicht die Tagesform selbst.
 
 **Training Readiness**:
-Garmins eigener Tages-Score (0–100) aus Schlaf, Erholung, HRV und Belastung. Ein Körperdaten-Wert der Quelle — Rohwert, nicht unsere abgeleitete *Tagesform*.
+Garmins eigener Score (0–100) aus Schlaf, Erholung, HRV und Belastung. **Kein Tageswert**: Garmin rechnet ihn mehrfach am Tag neu — nach dem Aufwachen, nach einer Aktivität — und jede Neuberechnung trägt ihren eigenen Zeitpunkt und Auslöser. Ein Score nach dem Abendtraining ist deshalb nicht mit einem Morgen-Score vergleichbar. Rohwert der Quelle, nicht unsere abgeleitete *Tagesform*.
