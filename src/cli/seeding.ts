@@ -20,9 +20,10 @@ function base64url(bytes: Uint8Array): string {
 }
 
 /**
- * Erzeugt ein nicht erratbares, URL-sicheres Pfad-Secret (24 Zufallsbytes →
- * 32 base64url-Zeichen). Es identifiziert den Nutzer in der MCP-URL — die einzige
- * Mandantentrennung; daher kryptografische Zufälligkeit.
+ * Erzeugt ein nicht erratbares, URL-sicheres Secret (24 Zufallsbytes →
+ * 32 base64url-Zeichen). Identifiziert den Nutzer in einer URL (MCP-Pfad-Secret
+ * oder read-only View-Secret) — die einzige Mandantentrennung; daher
+ * kryptografische Zufälligkeit.
  */
 export function generatePathSecret(): string {
   const bytes = new Uint8Array(24);
@@ -33,6 +34,11 @@ export function generatePathSecret(): string {
 /** Die fertige, an den Nutzer ausgegebene MCP-URL: `<base>/{secret}/mcp`. */
 export function buildMcpUrl(baseUrl: string, pathSecret: string): string {
   return `${baseUrl.replace(/\/+$/, "")}/${pathSecret}/mcp`;
+}
+
+/** Die fertige read-only Browser-URL der Steuerung: `<base>/{secret}/steuerung`. */
+export function buildViewUrl(baseUrl: string, viewSecret: string): string {
+  return `${baseUrl.replace(/\/+$/, "")}/${viewSecret}/steuerung`;
 }
 
 /** Ein KV-Eintrag im `wrangler kv bulk put`-Format. */
@@ -52,16 +58,19 @@ export interface GarminSeed {
 export interface SeedInput {
   userId: string;
   pathSecret: string;
+  viewSecret: string;
   finalSurge: { email: string; password: string };
   garmin: GarminSeed;
 }
 
 /**
- * Erzeugt die vier Per-Nutzer-KV-Einträge. Bewusst explizit pro Feld, damit kein
- * Garmin-Passwort und keine Quervermischung in einen falschen Key gelangt.
+ * Erzeugt die fünf Per-Nutzer-KV-Einträge. Bewusst explizit pro Feld, damit kein
+ * Garmin-Passwort und keine Quervermischung in einen falschen Key gelangt. Das
+ * View-Secret (`viewsecret:`) liegt in einem eigenen Namespace, getrennt vom
+ * MCP-Schreib-Secret (`pathsecret:`) — siehe ADR-0003.
  */
 export function buildSeedEntries(input: SeedInput): KvEntry[] {
-  const { userId, pathSecret, finalSurge, garmin } = input;
+  const { userId, pathSecret, viewSecret, finalSurge, garmin } = input;
   return [
     {
       key: `user:${userId}:finalsurge`,
@@ -84,6 +93,10 @@ export function buildSeedEntries(input: SeedInput): KvEntry[] {
     },
     {
       key: `pathsecret:${pathSecret}`,
+      value: userId,
+    },
+    {
+      key: `viewsecret:${viewSecret}`,
       value: userId,
     },
   ];

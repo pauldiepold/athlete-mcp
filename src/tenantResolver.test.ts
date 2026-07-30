@@ -35,4 +35,26 @@ describe("TenantResolver", () => {
     expect(await resolver.resolve("/s3cret/mcp/extra")).toBeNull();
     expect(await resolver.resolve("/s3cret/sse")).toBeNull();
   });
+
+  it("löst ein View-Secret aus dem getrennten viewsecret-Namespace auf", async () => {
+    const kv = makeKv({ "viewsecret:v13w": "paul" });
+    const resolver = new TenantResolver(kv);
+
+    expect(await resolver.resolveViewSecret("v13w")).toBe("paul");
+  });
+
+  it("trennt View- und MCP-Secret-Namespace (kein Cross-Resolve)", async () => {
+    const kv = makeKv({ "pathsecret:s3cret": "paul" });
+    const resolver = new TenantResolver(kv);
+
+    // Das MCP-Secret darf nicht über den View-Namespace auflösbar sein.
+    expect(await resolver.resolveViewSecret("s3cret")).toBeNull();
+  });
+
+  it("liefert null für ein unbekanntes View-Secret", async () => {
+    const kv = makeKv({ "viewsecret:v13w": "paul" });
+    const resolver = new TenantResolver(kv);
+
+    expect(await resolver.resolveViewSecret("fremd")).toBeNull();
+  });
 });

@@ -24,6 +24,7 @@ import * as readline from "node:readline";
 import {
   buildSeedEntries,
   buildMcpUrl,
+  buildViewUrl,
   generatePathSecret,
 } from "../src/cli/seeding.js";
 import type { GarminSeed } from "../src/cli/seeding.js";
@@ -92,15 +93,16 @@ function wrangler(args: string[], stdio: "pipe" | "inherit" = "pipe"): string {
 }
 
 /**
- * Sucht ein bereits vergebenes Pfad-Secret für die userId, damit ein Re-Seed die
- * MCP-URL des Nutzers nicht ändert. Scan über `pathsecret:*` (wenige Nutzer).
+ * Sucht ein bereits vergebenes Secret der userId unter `prefix` (z. B.
+ * `pathsecret:` oder `viewsecret:`), damit ein Re-Seed die URLs des Nutzers nicht
+ * ändert. Scan über `<prefix>*` (wenige Nutzer).
  */
-function findExistingSecret(userId: string): string | null {
-  const listed = wrangler(["key", "list", "--prefix", "pathsecret:"]);
+function findExistingSecret(userId: string, prefix: string): string | null {
+  const listed = wrangler(["key", "list", "--prefix", prefix]);
   const keys = JSON.parse(listed) as { name: string }[];
   for (const { name } of keys) {
     const value = wrangler(["key", "get", name]).trim();
-    if (value === userId) return name.replace(/^pathsecret:/, "");
+    if (value === userId) return name.slice(prefix.length);
   }
   return null;
 }
@@ -143,15 +145,20 @@ async function main(): Promise<void> {
     if (!garmin[field]) die(`Garmin-Seed-Login ohne ${field}.`);
   }
 
-  // --- Pfad-Secret: vorhandenes wiederverwenden, sonst neu (stabile URL) ---
-  const existing = findExistingSecret(userId);
+  // --- Secrets: vorhandene wiederverwenden, sonst neu (stabile URLs) ---
+  const existing = findExistingSecret(userId, "pathsecret:");
   const pathSecret = existing ?? generatePathSecret();
   log(existing ? ">> Re-Seed: bestehendes Pfad-Secret wiederverwendet." : ">> Neues Pfad-Secret erzeugt.");
+
+  const existingView = findExistingSecret(userId, "viewsecret:");
+  const viewSecret = existingView ?? generatePathSecret();
+  log(existingView ? ">> Re-Seed: bestehendes View-Secret wiederverwendet." : ">> Neues View-Secret erzeugt.");
 
   // --- KV schreiben: eine Bulk-Invocation, Secrets in temporärer Datei (nicht in argv) ---
   const entries = buildSeedEntries({
     userId,
     pathSecret,
+    viewSecret,
     finalSurge: { email: fsEmail, password: fsPassword },
     garmin,
   });
@@ -165,9 +172,10 @@ async function main(): Promise<void> {
     rmSync(dir, { recursive: true, force: true });
   }
 
-  // --- Ergebnis: die fertige MCP-URL (einzige Ausgabe auf stdout) ---
-  log(">> Fertig. MCP-URL:");
+  // --- Ergebnis: MCP-URL + read-only Browser-URL (einzige Ausgabe auf stdout) ---
+  log(">> Fertig. MCP-URL und read-only Browser-Ansicht:");
   process.stdout.write(`${buildMcpUrl(baseUrl, pathSecret)}\n`);
+  process.stdout.write(`${buildViewUrl(baseUrl, viewSecret)}\n`);
 }
 
 main().catch((err) => die((err as Error).message));

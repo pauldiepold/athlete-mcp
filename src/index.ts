@@ -23,6 +23,7 @@ import { GarminClient } from "./garmin/garminClient.js";
 import { KoerperdatenArchive } from "./garmin/koerperdatenArchive.js";
 import { getKoerperdatenRange } from "./garmin/koerperdatenReadThrough.js";
 import { SteuerungStore } from "./steuerung/steuerungStore.js";
+import { handleSteuerungView } from "./steuerung/steuerungView.js";
 
 export interface Env {
   MCP_OBJECT: DurableObjectNamespace;
@@ -280,6 +281,17 @@ export default {
     ctx: ExecutionContext,
   ): Promise<Response> {
     const { pathname } = new URL(request.url);
+
+    // Zweite Surface: read-only HTML-Ansicht auf den Steuerungs-Store (eigenes
+    // View-Secret, siehe ADR-0003). Liefert null, wenn es keine View-Route ist.
+    const view = await handleSteuerungView(
+      pathname,
+      env.SESSION_KV,
+      env.ATHLETE_DB,
+    );
+    if (view) {
+      return view;
+    }
 
     const userId = await new TenantResolver(env.SESSION_KV).resolve(pathname);
     if (!userId) {

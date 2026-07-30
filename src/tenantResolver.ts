@@ -4,6 +4,10 @@
  * Unbekanntes oder fehlendes Secret → null (der fetch-Handler antwortet dann 404).
  * Kritisch für die Mandantentrennung: ein falsches Mapping würde fremde Daten
  * ausliefern. Siehe docs/adr/0001-athlete-mcp-ein-worker-mehrere-kontexte.md.
+ *
+ * Daneben löst `resolveViewSecret` das getrennte read-only View-Secret der
+ * Browser-Ansicht auf (`viewsecret:<secret>`, siehe docs/adr/0003). Bewusst ein
+ * anderer KV-Namespace, damit ein geleaktes View-URL keinen MCP-Schreibzugriff gibt.
  */
 
 const PATH_PATTERN = /^\/([^/]+)\/mcp$/;
@@ -20,5 +24,10 @@ export class TenantResolver {
 
     const secret = match[1];
     return (await this.kv.get(`pathsecret:${secret}`)) ?? null;
+  }
+
+  /** View-Secret → userId; null bei unbekanntem Secret. Read-only-Surface. */
+  async resolveViewSecret(secret: string): Promise<string | null> {
+    return (await this.kv.get(`viewsecret:${secret}`)) ?? null;
   }
 }
