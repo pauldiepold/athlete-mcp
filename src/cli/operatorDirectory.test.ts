@@ -21,7 +21,11 @@ function fakeKv(entries: Record<string, string>): KVNamespace {
   } as unknown as KVNamespace;
 }
 
-const BASE = "https://athlete-mcp.example.dev";
+// Bewusst zwei verschiedene Hosts (ADR-0004): so schlägt ein Vertauschen der
+// Bases im Test fehl, statt unentdeckt zu bleiben.
+const MCP = "https://athlete-mcp.example.dev";
+const WEB = "https://athlete-web.example.dev";
+const BASES = { mcpBaseUrl: MCP, webBaseUrl: WEB };
 
 describe("listOnboardedUsers", () => {
   it("löst MCP- und View-URL je Nutzer korrekt aus dem Reverse-Mapping auf", async () => {
@@ -33,13 +37,13 @@ describe("listOnboardedUsers", () => {
       "user:paul:garmin:profile": "{}",
     });
 
-    const users = await listOnboardedUsers(kv, BASE);
+    const users = await listOnboardedUsers(kv, BASES);
 
     expect(users).toHaveLength(1);
     expect(users[0]).toEqual({
       userId: "paul",
-      mcpUrl: `${BASE}/paul-path/mcp`,
-      viewUrl: `${BASE}/paul-view/steuerung`,
+      mcpUrl: `${MCP}/paul-path/mcp`,
+      viewUrl: `${WEB}/paul-view/steuerung`,
       seededContexts: { finalSurge: true, garmin: true, view: true },
     });
   });
@@ -54,13 +58,13 @@ describe("listOnboardedUsers", () => {
       "user:ann:garmin": "{}",
     });
 
-    const users = await listOnboardedUsers(kv, BASE);
+    const users = await listOnboardedUsers(kv, BASES);
 
     expect(users.map((u) => u.userId)).toEqual(["ann", "zoe"]);
-    expect(users[0]!.mcpUrl).toBe(`${BASE}/ann-path/mcp`);
-    expect(users[0]!.viewUrl).toBe(`${BASE}/ann-view/steuerung`);
-    expect(users[1]!.mcpUrl).toBe(`${BASE}/zoe-path/mcp`);
-    expect(users[1]!.viewUrl).toBe(`${BASE}/zoe-view/steuerung`);
+    expect(users[0]!.mcpUrl).toBe(`${MCP}/ann-path/mcp`);
+    expect(users[0]!.viewUrl).toBe(`${WEB}/ann-view/steuerung`);
+    expect(users[1]!.mcpUrl).toBe(`${MCP}/zoe-path/mcp`);
+    expect(users[1]!.viewUrl).toBe(`${WEB}/zoe-view/steuerung`);
   });
 
   it("liefert viewUrl=null und view=false für einen Nutzer ohne View-Secret", async () => {
@@ -69,11 +73,11 @@ describe("listOnboardedUsers", () => {
       "user:paul:garmin": "{}",
     });
 
-    const users = await listOnboardedUsers(kv, BASE);
+    const users = await listOnboardedUsers(kv, BASES);
 
     expect(users[0]!.viewUrl).toBeNull();
     expect(users[0]!.seededContexts.view).toBe(false);
-    expect(users[0]!.mcpUrl).toBe(`${BASE}/paul-path/mcp`);
+    expect(users[0]!.mcpUrl).toBe(`${MCP}/paul-path/mcp`);
   });
 
   it("matcht `:garmin` nicht gegen `:garmin:profile` (kein falscher Kontext)", async () => {
@@ -83,7 +87,7 @@ describe("listOnboardedUsers", () => {
       "user:paul:garmin:profile": "{}",
     });
 
-    const users = await listOnboardedUsers(kv, BASE);
+    const users = await listOnboardedUsers(kv, BASES);
 
     expect(users[0]!.seededContexts.garmin).toBe(false);
     expect(users[0]!.seededContexts.finalSurge).toBe(false);
@@ -91,6 +95,6 @@ describe("listOnboardedUsers", () => {
 
   it("ist leer, wenn kein Nutzer ein Pfad-Secret hat", async () => {
     const kv = fakeKv({ "viewsecret:orphan-view": "orphan" });
-    expect(await listOnboardedUsers(kv, BASE)).toEqual([]);
+    expect(await listOnboardedUsers(kv, BASES)).toEqual([]);
   });
 });

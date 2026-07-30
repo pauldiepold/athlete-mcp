@@ -13,6 +13,6 @@ export default defineEventHandler(async (event) => {
   }
 
   const env = event.context.cloudflare.env as unknown as Env
-  const baseUrl = useRuntimeConfig(event).mcpBaseUrl
-  return listOnboardedUsers(env.SESSION_KV, baseUrl)
+  const { mcpBaseUrl, webBaseUrl } = useRuntimeConfig(event)
+  return listOnboardedUsers(env.SESSION_KV, { mcpBaseUrl, webBaseUrl })
 })

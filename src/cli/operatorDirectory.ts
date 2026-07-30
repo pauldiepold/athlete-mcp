@@ -2,7 +2,8 @@
  * Operator-Directory (Issue #15): listet die onboardeten Nutzer und löst pro
  * Nutzer das Pfad-Secret (MCP-Schreib-URL) und das View-Secret rückwärts auf
  * (`userId → Secret`), um die fertigen URLs zu bauen und die geseedeten Kontexte
- * zu melden.
+ * zu melden. Die beiden URLs liegen auf verschiedenen Workern (ADR-0004) und
+ * bekommen deshalb je eine eigene Base — siehe DirectoryBaseUrls.
  *
  * Sicherheitskritisch wie das Seeding (PRD-Testing-Decision): ein falsches
  * Reverse-Mapping würde einem Nutzer die URL eines anderen zuordnen. Deshalb rein
@@ -62,13 +63,26 @@ async function resolveSecretsByUser(
 }
 
 /**
+ * Die beiden Hosts, auf denen die Nutzer-URLs liegen. Seit ADR-0004 sind das
+ * zwei getrennte Worker: der MCP-Endpunkt bedient `athlete-mcp`, die Steuerung
+ * im Browser das Nuxt-Target `athlete-web`. Benannt statt positional, damit zwei
+ * gleichgetypte Bases nicht vertauscht werden können.
+ */
+export interface DirectoryBaseUrls {
+  /** Basis des MCP-Workers — trägt `/{pathsecret}/mcp`. */
+  mcpBaseUrl: string;
+  /** Basis des Web-Targets — trägt `/{viewsecret}/steuerung`. */
+  webBaseUrl: string;
+}
+
+/**
  * Die onboardeten Nutzer samt aufgelöster MCP-/View-URL und geseedeten Kontexten,
  * nach userId sortiert. Nutzer-Menge = alle mit Pfad-Secret (das MCP-Secret ist
  * der verbindliche Onboarding-Marker; ein Nutzer ohne es hätte keine MCP-URL).
  */
 export async function listOnboardedUsers(
   kv: KVNamespace,
-  baseUrl: string,
+  { mcpBaseUrl, webBaseUrl }: DirectoryBaseUrls,
 ): Promise<OnboardedUser[]> {
   const pathSecrets = await resolveSecretsByUser(kv, "pathsecret:");
   const viewSecrets = await resolveSecretsByUser(kv, "viewsecret:");
@@ -89,8 +103,8 @@ export async function listOnboardedUsers(
     const viewSecret = viewSecrets.get(userId) ?? null;
     users.push({
       userId,
-      mcpUrl: buildMcpUrl(baseUrl, pathSecret),
-      viewUrl: viewSecret ? buildViewUrl(baseUrl, viewSecret) : null,
+      mcpUrl: buildMcpUrl(mcpBaseUrl, pathSecret),
+      viewUrl: viewSecret ? buildViewUrl(webBaseUrl, viewSecret) : null,
       seededContexts: {
         finalSurge: finalSurgeUsers.has(userId),
         garmin: garminUsers.has(userId),

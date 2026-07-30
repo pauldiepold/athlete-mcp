@@ -47,7 +47,8 @@ Ablauf (interaktiv, HITL):
 
 Optionale Env-Variablen statt interaktiver Eingabe:
 `FINALSURGE_EMAIL`, `FINALSURGE_PASSWORD`, `GARMIN_EMAIL`, `GARMIN_PASSWORD`
-(der MFA-Code bleibt immer interaktiv). Basis-URL überschreibbar via `--base-url`.
+(der MFA-Code bleibt immer interaktiv). Die beiden Hosts sind überschreibbar via
+`--base-url` (MCP-Worker) und `--web-base-url` (Nuxt-Target mit der Steuerung).
 
 ### Re-Seed
 
