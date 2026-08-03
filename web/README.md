@@ -23,9 +23,18 @@ Siehe `../docs/adr/0004-eigenstaendiges-nuxt-frontend-monorepo-browser-editing.m
   nie im Client-Bundle.
 - **Körperdaten nur lesend, nur aus dem Archiv:** über dasselbe `KoerperdatenArchive`
   wie der MCP-Worker, kein Live-Abruf bei Garmin. Der Bereichs-Endpunkt liefert die
-  bereits abgeleiteten Serien (`@shared/garmin/koerperdatenSerien`), nicht die Rohblobs.
+  bereits abgeleiteten Serien **und Kennzahlen** (`@shared/garmin/koerperdatenSerien`),
+  nicht die Rohblobs.
+- **Ein Zeitraum für die ganze Fläche:** 30 / 90 / Alles, Standard 30, als
+  `?zeitraum=`-Query in der URL (`shared/zeitraum.ts`). Charts und Kacheln folgen ihm
+  gemeinsam; „Alles" beginnt am ersten archivierten Tag.
 - **Charts clientseitig:** Chart.js über `vue-chartjs` hinter `ZeitreihenChart`; Farben
   kommen aus den CSS-Variablen von Nuxt UI, damit Hell/Dunkel ohne Sonderweg trägt.
+  Der Wrapper trägt Linien, Flächen, (gestapelte) Balken und eine zweite y-Achse — was
+  ein Verlauf braucht, wird dort ergänzt statt daran vorbei gebaut.
+- **Kacheln ohne Client-JS:** die Mini-Kurven (`MiniKurve`) und das HRV-Baseline-Band
+  (`BaselineBand`) sind serverseitig gerendertes Inline-SVG — sie stehen beim ersten
+  Rendern da, ohne Chart-Bibliothek.
 - **Gleiche Bindings wie der MCP-Worker:** identische `binding`-Namen und `id`s in
   `wrangler.jsonc` → dasselbe physische D1/KV. Das Web-Target hat bewusst **keine**
   Durable Objects, Crons oder Migrations (die bleiben beim MCP-Worker).

@@ -18,7 +18,13 @@ const VARIABLEN = {
   primaer: '--ui-primary',
   /** Zweite, ruhigere Linie (z. B. ein Wochenschnitt). */
   sekundaer: '--ui-info',
-  /** Achsenbeschriftung, Legende. */
+  /** Dritte Reihe, wo drei Kurven nebeneinander unterscheidbar sein müssen. */
+  tertiaer: '--ui-secondary',
+  /** Die gute Richtung — Ladetage, Schlafscore. */
+  erfolg: '--ui-success',
+  /** Die zehrende Richtung — Zehrtage, Wachanteil, Temperatur-Abweichung. */
+  warnung: '--ui-warning',
+  /** Achsenbeschriftung, Legende — und ruhige, abgeleitete Linien. */
   gedaempft: '--ui-text-muted',
   /** Gitterlinien. */
   gitter: '--ui-border',

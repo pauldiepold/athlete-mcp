@@ -21,3 +21,13 @@ _Vermeide_: Zeitreihe (im Repo für die dichten Intraday-Messkurven reserviert, 
 
 **Training Readiness**:
 Garmins eigener Score (0–100) aus Schlaf, Erholung, HRV und Belastung. **Kein Tageswert**: Garmin rechnet ihn mehrfach am Tag neu — nach dem Aufwachen, nach einer Aktivität — und jede Neuberechnung trägt ihren eigenen Zeitpunkt und Auslöser. Ein Score nach dem Abendtraining ist deshalb nicht mit einem Morgen-Score vergleichbar. Rohwert der Quelle, nicht unsere abgeleitete *Tagesform*.
+
+**Morgenwert der Training Readiness**:
+Der Score genau des Readings mit dem Auslöser `AFTER_WAKEUP_RESET` — der einzige, der sich über Tage hinweg vergleichen lässt, und damit der Wert, der in einen Verlauf gehört. Ein Tag ohne ein solches Reading (auch: ältere Readings, die gar keinen Auslöser tragen) ist eine **Lücke**; das früheste Reading des Tages ersatzweise zu nehmen, würde genau die Vermischung wiederherstellen, die [ADR-0002](./docs/adr/0002-koerperdaten-intraday-ereignisbasiert.md) beseitigt hat.
+_Vermeide_: Tages-Readiness, Readiness-Score (ohne Angabe, welches Reading gemeint ist)
+
+**Akute Last**:
+Garmins `acuteLoad`, gelesen vom **spätesten** Reading eines Tages — der Tagesendstand. Anders als beim Morgenwert ist hier gerade der jüngste Stand gefragt: die Belastung des Tages ist erst am Abend vollständig.
+
+**Body-Battery-Bilanz**:
+Geladen minus verbraucht über einen Tag. Positiv an einem Ladetag, negativ an einem Zehrtag. Fehlt eine der beiden Seiten, ist die Bilanz eine Lücke — eine fehlende Seite als Null zu rechnen würde einen Tag erfinden.
