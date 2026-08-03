@@ -90,16 +90,18 @@ describe("buildMcpUrl", () => {
 });
 
 describe("buildViewUrl", () => {
-  it("setzt die fertige /{secret}/steuerung-URL zusammen", () => {
+  // Seit Issue #24 zeigt der Nutzer-Link auf die Dashboard-Startseite, nicht mehr
+  // auf die Steuerung — die ist von dort aus einen Klick entfernt.
+  it("setzt die fertige /{secret}-URL zusammen", () => {
     expect(
-      buildViewUrl("https://athlete-mcp.pauldiepold.workers.dev", "v13w"),
-    ).toBe("https://athlete-mcp.pauldiepold.workers.dev/v13w/steuerung");
+      buildViewUrl("https://athlete-web.pauldiepold.workers.dev", "v13w"),
+    ).toBe("https://athlete-web.pauldiepold.workers.dev/v13w");
   });
 
   it("toleriert einen Trailing-Slash in der Basis-URL", () => {
     expect(
-      buildViewUrl("https://athlete-mcp.pauldiepold.workers.dev/", "v13w"),
-    ).toBe("https://athlete-mcp.pauldiepold.workers.dev/v13w/steuerung");
+      buildViewUrl("https://athlete-web.pauldiepold.workers.dev/", "v13w"),
+    ).toBe("https://athlete-web.pauldiepold.workers.dev/v13w");
   });
 });
 

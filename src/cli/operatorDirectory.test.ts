@@ -43,7 +43,7 @@ describe("listOnboardedUsers", () => {
     expect(users[0]).toEqual({
       userId: "paul",
       mcpUrl: `${MCP}/paul-path/mcp`,
-      viewUrl: `${WEB}/paul-view/steuerung`,
+      viewUrl: `${WEB}/paul-view`,
       seededContexts: { finalSurge: true, garmin: true, view: true },
     });
   });
@@ -62,9 +62,9 @@ describe("listOnboardedUsers", () => {
 
     expect(users.map((u) => u.userId)).toEqual(["ann", "zoe"]);
     expect(users[0]!.mcpUrl).toBe(`${MCP}/ann-path/mcp`);
-    expect(users[0]!.viewUrl).toBe(`${WEB}/ann-view/steuerung`);
+    expect(users[0]!.viewUrl).toBe(`${WEB}/ann-view`);
     expect(users[1]!.mcpUrl).toBe(`${MCP}/zoe-path/mcp`);
-    expect(users[1]!.viewUrl).toBe(`${WEB}/zoe-view/steuerung`);
+    expect(users[1]!.viewUrl).toBe(`${WEB}/zoe-view`);
   });
 
   it("liefert viewUrl=null und view=false für einen Nutzer ohne View-Secret", async () => {

@@ -41,7 +41,13 @@ async function save() {
 
 <template>
   <div class="flex h-dvh flex-col">
-    <SteuerungHeader :user="user" :secret="secret" :wochen="wochen" :current-kw="currentKw">
+    <AthletHeader
+      :user="user"
+      :secret="secret"
+      bereich="steuerung"
+      :wochen="wochen"
+      :current-kw="currentKw"
+    >
       <template #actions>
         <template v-if="editing">
           <span class="text-sm text-muted">{{ dirty ? 'Ungespeicherte Änderungen' : 'Gespeichert' }}</span>
@@ -50,7 +56,7 @@ async function save() {
         </template>
         <UButton v-else variant="soft" @click="editing = true">Bearbeiten</UButton>
       </template>
-    </SteuerungHeader>
+    </AthletHeader>
 
     <UContainer class="flex w-full max-w-5xl flex-1 min-h-0 flex-col py-6">
       <h1 class="mb-4 text-xl font-semibold">{{ title }}</h1>

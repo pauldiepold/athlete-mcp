@@ -177,8 +177,8 @@ async function main(): Promise<void> {
     rmSync(dir, { recursive: true, force: true });
   }
 
-  // --- Ergebnis: MCP-URL + read-only Browser-URL (einzige Ausgabe auf stdout) ---
-  log(">> Fertig. MCP-URL und read-only Browser-Ansicht:");
+  // --- Ergebnis: MCP-URL + Browser-URL (einzige Ausgabe auf stdout) ---
+  log(">> Fertig. MCP-URL und Browser-Link (Dashboard-Startseite):");
   process.stdout.write(`${buildMcpUrl(baseUrl, pathSecret)}\n`);
   process.stdout.write(`${buildViewUrl(webBaseUrl, viewSecret)}\n`);
 }
