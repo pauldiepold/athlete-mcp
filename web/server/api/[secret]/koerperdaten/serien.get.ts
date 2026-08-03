@@ -3,12 +3,15 @@ import {
   berechneSerien,
   letzteTage,
 } from '@shared/garmin/koerperdatenSerien'
+import { berechneIndex } from '@shared/garmin/koerperdatenIndex'
 import { ZEITRAEUME, alsZeitraumName } from '#shared/zeitraum'
 
 // Bereichs-Endpunkt der Körperdaten-Verläufe (Issue #24, erweitert in #25): liefert die
 // **abgeleiteten Serien** eines Zeitraums, nicht die Rohblobs — ein Tag wiegt so rund
 // 120 Byte statt rund 1,5 kB, und die Lückenbehandlung liegt im getesteten Modul statt
-// in der Vue-Schicht. Dazu die Kennzahlen der Kachelzeile, aus derselben Rechnung.
+// in der Vue-Schicht. Dazu die Kennzahlen der Kachelzeile und der Körperdaten-Index
+// (Issue #26) — Verlauf und aktueller Stand samt Aufschlüsselung, ebenfalls fertig
+// gerechnet: die gesamte Bewertungspolitik liegt in koerperdatenIndex, nicht hier.
 // Gelesen über das bestehende KoerperdatenArchive (resolveKoerperdaten), unbekanntes
 // Secret → 404.
 
@@ -46,5 +49,6 @@ export default defineEventHandler(async (event) => {
     bis: zeitraum.bis,
     serien,
     kennzahlen: berechneKennzahlen(serien),
+    index: berechneIndex(serien),
   }
 })

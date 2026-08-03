@@ -25,6 +25,12 @@ Siehe `../docs/adr/0004-eigenstaendiges-nuxt-frontend-monorepo-browser-editing.m
   wie der MCP-Worker, kein Live-Abruf bei Garmin. Der Bereichs-Endpunkt liefert die
   bereits abgeleiteten Serien **und Kennzahlen** (`@shared/garmin/koerperdatenSerien`),
   nicht die Rohblobs.
+- **Der Körperdaten-Index wird nicht in der Vue-Schicht gerechnet:** Verlauf, aktueller
+  Stand und Beitragsaufschlüsselung kommen fertig aus `@shared/garmin/koerperdatenIndex`.
+  Die gesamte Bewertungspolitik (Gewichte, Schwellen, Renormalisierung) liegt dort in
+  `KALIBRIERUNG` an einer Stelle — eine Änderung fasst die Oberfläche nicht an. Die
+  Fläche zeigt ihn als **Rechnung mit sichtbaren Bestandteilen**, nicht als Urteil, und
+  beansprucht keine Tagesform-Einschätzung (`../docs/adr/0006-…`).
 - **Ein Zeitraum für die ganze Fläche:** 30 / 90 / Alles, Standard 30, als
   `?zeitraum=`-Query in der URL (`shared/zeitraum.ts`). Charts und Kacheln folgen ihm
   gemeinsam; „Alles" beginnt am ersten archivierten Tag.

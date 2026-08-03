@@ -51,6 +51,11 @@ function kurz(datum: string): string {
       </div>
 
       <template v-if="data">
+        <!-- Der Körperdaten-Index steht als einzelne große Kachel über der
+             Kachelzeile: eine Zahl zum Einstieg, die auf Klick zeigt, woraus sie
+             sich rechnet. Bewusst keine Tagesform-Einschätzung, siehe ADR-0006. -->
+        <KoerperdatenIndexKachel class="mb-3" :index="data.index" />
+
         <!-- Kachelzeile: der aktuelle Stand. Auf dem Handy zwei Spalten, damit die
              Zahlen groß genug bleiben. -->
         <div class="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
@@ -106,6 +111,17 @@ function kurz(datum: string): string {
         </div>
 
         <div class="space-y-4">
+          <!-- Der Index zuerst: das grobe Bild vor seinen Bestandteilen. An Tagen,
+               an denen zu viele Marker fehlten, bleibt die Linie offen — der Index
+               wird dort nicht geschätzt. -->
+          <ZeitreihenChart
+            titel="Körperdaten-Index: die vier Marker zu einer Zahl gerechnet"
+            :tage="data.serien.tage"
+            :reihen="[
+              { label: 'Körperdaten-Index', werte: data.index.serie, farbe: 'primaer' },
+            ]"
+          />
+
           <ZeitreihenChart
             titel="HRV gegen das eigene Baseline-Band"
             einheit="ms"

@@ -19,6 +19,13 @@ const props = defineProps<{
   stellen?: number
   /** Tailwind-Strichklasse der Mini-Kurve, z. B. `stroke-info`. */
   strich?: string
+  /**
+   * Größere Typografie für eine Kachel, die allein über der Kachelzeile steht —
+   * dieselbe Kachel, nur lauter (Issue #26).
+   */
+  gross?: boolean
+  /** Was statt des Deltas steht, wenn es keinen Wert gibt. */
+  leerText?: string
 }>()
 
 const zahl = (wert: number, stellen = props.stellen ?? 0) =>
@@ -43,16 +50,19 @@ const deltaText = computed(() => {
 </script>
 
 <template>
-  <UCard :ui="{ body: 'p-3' }">
-    <p class="truncate text-xs text-muted">{{ titel }}</p>
+  <UCard :ui="{ body: gross ? 'p-4 sm:p-5' : 'p-3' }">
+    <p class="truncate text-muted" :class="gross ? 'text-sm' : 'text-xs'">{{ titel }}</p>
 
-    <p class="mt-0.5 text-xl font-semibold tabular-nums sm:text-2xl">
+    <p
+      class="mt-0.5 font-semibold tabular-nums"
+      :class="gross ? 'text-4xl sm:text-5xl' : 'text-xl sm:text-2xl'"
+    >
       {{ wertText }}<span v-if="einheit && kennzahl.wert !== null" class="ml-1 text-xs font-normal text-muted">{{ einheit }}</span>
     </p>
 
-    <p class="mt-0.5 text-xs text-dimmed tabular-nums">
+    <p class="mt-0.5 text-dimmed tabular-nums" :class="gross ? 'text-sm' : 'text-xs'">
       <template v-if="deltaText">{{ deltaText }} zum 7-Tage-Schnitt</template>
-      <template v-else>keine Messung im Zeitraum</template>
+      <template v-else>{{ leerText ?? 'keine Messung im Zeitraum' }}</template>
     </p>
 
     <!-- Platz für Zusätze einzelner Marker, z. B. das HRV-Baseline-Band. -->

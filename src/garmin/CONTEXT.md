@@ -9,8 +9,15 @@ Die täglichen physiologischen Messwerte eines Nutzers aus Garmin (HRV-Status, S
 _Vermeide_: Wellness, Gesundheitsdaten, Vitaldaten, Metriken
 
 **Tagesform**:
-Die *interpretierte* Lesart der Körperdaten — die abgeleitete Einschätzung „wie erholt/belastbar bin ich heute", die später auf den rohen Körperdaten aufsetzt. Heute noch nicht implementiert; hier benannt, damit die Ebene einen festen Namen hat.
-_Vermeide_: Readiness (für die abgeleitete Gesamteinschätzung), Recovery-Score
+Die *interpretierte* Lesart der Körperdaten — die abgeleitete Einschätzung „wie erholt/belastbar bin ich heute", die im Chat aus Plan, Kontext und Körperdaten entsteht. Weiterhin **nicht implementiert**; hier benannt, damit die Ebene einen festen Namen hat. Ausdrücklich **nicht** der *Körperdaten-Index*: der ist gerechnet, die Tagesform ist gedeutet, und der Index ist ihr Rohmaterial, keine Vorwegnahme. Siehe [ADR-0006](../../docs/adr/0006-koerperdaten-index-gerechnete-zahl-neben-der-tagesform.md).
+_Vermeide_: Readiness (für die abgeleitete Gesamteinschätzung), Recovery-Score, Körperdaten-Index (für die Deutung)
+
+**Körperdaten-Index**:
+Eine mechanisch aus vier Markern gerechnete Zahl von 0 bis 100 (HRV 35 %, Schlaf 25 %, Ruhepuls 20 %, Bereitschaft 20 %) — der schnelle Gesamteindruck auf der Verlaufsfläche. **Gerechnet, nicht gedeutet**: zu jedem Index gehört die Aufschlüsselung, aus welchen Punkten und Gewichten er entstanden ist, und die Oberfläche zeigt ihn als Rechnung, nie als Urteil. Fehlt ein Marker, tragen die übrigen seinen Anteil renormalisiert mit; fehlen mehr als zwei, gibt es keinen Index — eine Lücke statt einer Schätzung. Die Kalibrierung ist eine Setzung und liegt an genau einer Stelle (`koerperdatenIndex.KALIBRIERUNG`). Nicht die *Tagesform*, siehe [ADR-0006](../../docs/adr/0006-koerperdaten-index-gerechnete-zahl-neben-der-tagesform.md).
+_Vermeide_: Tagesform, Readiness-Score, Score (ohne Angabe, welcher gemeint ist)
+
+**Beitrag (einer Achse)**:
+Was ein einzelner Marker zum Körperdaten-Index eines Tages beisteuert: seine Punkte (0–100), sein an diesem Tag geltendes Gewicht und beides multipliziert. Die vier Beiträge summieren sich zum Index — die Aufschlüsselung ist Teil des Modul-Vertrags, damit an der Oberfläche steht, welcher Marker heute nach unten zieht.
 
 **HRV-Status**:
 Garmins über mehrere Nächte gemittelte Herzfrequenzvariabilität samt Einordnung (z. B. „ausgeglichen"). Ein einzelner Körperdaten-Wert, nicht die Tagesform selbst.

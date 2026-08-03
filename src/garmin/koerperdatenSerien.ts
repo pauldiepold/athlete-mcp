@@ -62,7 +62,7 @@ const AUSLOESER_MORGEN = "AFTER_WAKEUP_RESET";
  * um einer Änderung zu folgen, lang genug, um eine einzelne Nacht nicht
  * durchschlagen zu lassen.
  */
-const MITTEL_FENSTER = 7;
+export const MITTEL_FENSTER = 7;
 
 /**
  * Die Bereitschafts-Sicht: der über Tage vergleichbare Morgenwert gegen den
