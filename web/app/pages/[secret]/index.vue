@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { isValidKw } from '@shared/steuerung/steuerungStore'
 import { alsZeitraumName } from '#shared/zeitraum'
 
 // Dashboard — die Startseite des per-User-Links (Issue #24, ausgebaut in #25). Wer
@@ -17,16 +18,19 @@ const secret = route.params.secret as string
 // folgen. useFetch beobachtet ihn und lädt beim Umschalten neu.
 const zeitraum = computed(() => alsZeitraumName(route.query.zeitraum))
 
-// Der Rücksprung vom Körperdaten-Streifen der Steuerungs-Wochenseite (Issue #28):
-// ein explizites `?von=…&bis=…` statt eines der drei benannten Ausschnitte. Ersetzt
-// `zeitraum` vollständig, statt daneben zu bestehen — keiner der Umschalter-Knöpfe
-// ist dann „aktiv", bis der Athlet selbst wieder einen wählt.
-const vonBis = computed(() => {
-  const { von, bis } = route.query
-  return typeof von === 'string' && typeof bis === 'string' ? { von, bis } : null
+// Eine einzelne Kalenderwoche als Ausschnitt (`?kw=YYYY-Www`) — die vierte Wahl neben
+// den drei benannten Zeiträumen. Sie kommt aus der Wochenliste unten und aus dem
+// Körperdaten-Streifen der Steuerungs-Wochenseite (Issue #28) und ersetzt `zeitraum`
+// vollständig, statt daneben zu bestehen: keiner der Umschalter-Knöpfe ist dann
+// „aktiv", bis der Athlet selbst wieder einen wählt.
+const kw = computed(() => {
+  const wert = route.query.kw
+  return typeof wert === 'string' && isValidKw(wert) ? wert : null
 })
 
-const serienQuery = computed(() => vonBis.value ?? { zeitraum: zeitraum.value })
+const serienQuery = computed(() =>
+  kw.value ? { kw: kw.value } : { zeitraum: zeitraum.value },
+)
 
 const { data, error } = await useFetch(`/api/${secret}/koerperdaten/serien`, {
   query: serienQuery,
@@ -39,6 +43,10 @@ if (error.value) {
 // Endpunkt über die volle Historie, unabhängig vom Zeitraum-Umschalter der Charts
 // darüber — sie ist ein Rückblick über Wochen, kein weiterer gezoomter Verlauf.
 const { data: wochenData } = await useFetch(`/api/${secret}/koerperdaten/wochen`)
+
+// Dieselben Wochen speisen die Liste unten und die Wochen-Auswahl oben im Umschalter:
+// eine Quelle, damit dort nichts wählbar ist, was es hier nicht gibt.
+const wochenKws = computed(() => (wochenData.value?.wochen ?? []).map(w => w.kw))
 
 useHead({
   title: data.value?.user ? `Körperdaten · ${data.value.user}` : 'Körperdaten',
@@ -66,25 +74,44 @@ function oeffneTag(tag: string) {
       <div class="mb-4 flex flex-wrap items-center justify-between gap-2">
         <div>
           <h1 class="text-xl font-semibold">Körperdaten</h1>
-          <p class="text-sm text-muted">Ein Klick auf einen Tag im Verlauf öffnet seine Details.</p>
+          <!-- Der Untertitel sagt, was diese Fläche ist — nicht, wie man sie bedient.
+               Bedienhinweise stehen dort, wo sie gelten (siehe über den Verläufen). -->
+          <p class="text-sm text-muted">
+            Dein Archiv als Verlauf: der Stand von heute und die Wochen dahinter.
+          </p>
         </div>
-        <div class="flex flex-wrap items-center gap-3">
-          <p v-if="data" class="text-sm text-muted tabular-nums">
+        <div class="flex flex-wrap items-center gap-2">
+          <p v-if="data" class="mr-1 text-sm text-muted tabular-nums">
             {{ kurz(data.von) }} – {{ kurz(data.bis) }}
           </p>
-          <ZeitraumUmschalter :model-value="vonBis ? null : zeitraum" />
+          <ZeitraumUmschalter :zeitraum="zeitraum" :kw="kw" :wochen="wochenKws" />
         </div>
       </div>
 
-      <template v-if="data">
-        <!-- Der Körperdaten-Index steht als einzelne große Kachel über der
-             Kachelzeile: eine Zahl zum Einstieg, die auf Klick zeigt, woraus sie
-             sich rechnet. Bewusst keine Tagesform-Einschätzung, siehe ADR-0006. -->
-        <KoerperdatenIndexKachel class="mb-3" :index="data.index" />
+      <!-- Bei gewählter Woche der Weg in ihren Steuerungseintrag — bewusst in einer
+           eigenen Zeile unter der Zeitraum-Wahl: das ist keine weitere Zeitraum-Wahl,
+           sondern ein Wechsel der Fläche, und stünde er dazwischen, läse er sich wie
+           ein vierter Ausschnitt. -->
+      <div v-if="kw" class="mb-4 flex justify-end">
+        <UButton
+          :to="`/${secret}/steuerung/${kw}`"
+          color="neutral"
+          variant="ghost"
+          size="xs"
+          trailing-icon="i-lucide-arrow-right"
+        >{{ kw }} in der Steuerung öffnen</UButton>
+      </div>
 
+      <template v-if="data">
         <!-- Kachelzeile: der aktuelle Stand. Auf dem Handy zwei Spalten, damit die
-             Zahlen groß genug bleiben. -->
-        <div class="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+             Zahlen groß genug bleiben; darüber vier, sodass Index (doppelt breit) und
+             die sechs Marker genau zwei volle Reihen füllen. -->
+        <div class="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
+          <!-- Der Körperdaten-Index eröffnet die Zeile als doppelt breite Kachel: eine
+               Zahl zum Einstieg, die auf Klick zeigt, woraus sie sich rechnet. Bewusst
+               keine Tagesform-Einschätzung, siehe ADR-0006. -->
+          <KoerperdatenIndexKachel class="col-span-2" :index="data.index" />
+
           <KoerperdatenKachel
             titel="HRV"
             einheit="ms"
@@ -135,6 +162,14 @@ function oeffneTag(tag: string) {
             :serie="data.serien.bereitschaft.akute_last"
           />
         </div>
+
+        <!-- Der Bedienhinweis zu den Verläufen: klein, mit Icon und direkt über dem,
+             wofür er gilt — als Untertitel der Seite hätte er wie deren Beschreibung
+             ausgesehen, obwohl er nur eine Geste erklärt. -->
+        <p class="mb-2 flex items-center gap-1.5 text-xs text-dimmed">
+          <UIcon name="i-lucide-mouse-pointer-click" class="size-3.5 shrink-0" />
+          Ein Klick auf einen Tag im Verlauf öffnet seine Details.
+        </p>
 
         <div class="space-y-4">
           <!-- Der Index zuerst: das grobe Bild vor seinen Bestandteilen. An Tagen,
@@ -250,7 +285,12 @@ function oeffneTag(tag: string) {
         <!-- Die Steuerungs-Brücke, Richtung 1 (Issue #28): pro Woche das
              Körperdaten-Aggregat neben dem Auszug des Steuerungs-Wocheneintrags —
              "das hatte ich geplant" neben "so hat mein Körper die Woche erlebt". -->
-        <WochenListe class="mt-4" :wochen="wochenData?.wochen ?? []" :secret="secret" />
+        <WochenListe
+          class="mt-4"
+          :wochen="wochenData?.wochen ?? []"
+          :secret="secret"
+          :aktive-kw="kw"
+        />
       </template>
     </UContainer>
   </div>

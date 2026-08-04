@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import { wochenZeitraum } from '@shared/garmin/isoWoche'
 import type { WochenAggregat } from '@shared/garmin/koerperdatenWochen'
 
 // Der Körperdaten-Streifen über dem Wochendokument der Steuerung (Issue #28,
@@ -33,12 +32,12 @@ const schlafText = computed(() =>
 )
 const hrvSerie = computed(() => props.woche?.hrvSerie ?? [])
 
-// Derselbe Zeitraum, den auch der Server für das Aggregat dieser Woche liest
-// (wochenZeitraum/isoWoche) — eine Kalender-Arithmetik, an einer Stelle.
-const dashboardLink = computed(() => {
-  const { von, bis } = wochenZeitraum(props.kw)
-  return { path: `/${props.secret}`, query: { von, bis } }
-})
+// Der Wochen-Key reist als er selbst ins Dashboard — die Umrechnung in sieben
+// Kalendertage (wochenZeitraum) macht dort der Bereichs-Endpunkt, an einer Stelle.
+const dashboardLink = computed(() => ({
+  path: `/${props.secret}`,
+  query: { kw: props.kw },
+}))
 </script>
 
 <template>

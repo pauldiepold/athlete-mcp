@@ -20,8 +20,8 @@ const props = defineProps<{
   /** Tailwind-Strichklasse der Mini-Kurve, z. B. `stroke-info`. */
   strich?: string
   /**
-   * Größere Typografie für eine Kachel, die allein über der Kachelzeile steht —
-   * dieselbe Kachel, nur lauter (Issue #26).
+   * Größere Typografie für eine Kachel, die doppelt so breit in der Kachelzeile
+   * steht — dieselbe Kachel, nur lauter (Issue #26).
    */
   gross?: boolean
   /** Was statt des Deltas steht, wenn es keinen Wert gibt. */
@@ -50,12 +50,12 @@ const deltaText = computed(() => {
 </script>
 
 <template>
-  <UCard :ui="{ body: gross ? 'p-4 sm:p-5' : 'p-3' }">
+  <UCard :ui="{ body: gross ? 'p-3 sm:p-4' : 'p-3' }">
     <p class="truncate text-muted" :class="gross ? 'text-sm' : 'text-xs'">{{ titel }}</p>
 
     <p
       class="mt-0.5 font-semibold tabular-nums"
-      :class="gross ? 'text-4xl sm:text-5xl' : 'text-xl sm:text-2xl'"
+      :class="gross ? 'text-3xl sm:text-4xl' : 'text-xl sm:text-2xl'"
     >
       {{ wertText }}<span v-if="einheit && kennzahl.wert !== null" class="ml-1 text-xs font-normal text-muted">{{ einheit }}</span>
     </p>

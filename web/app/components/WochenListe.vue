@@ -7,12 +7,26 @@ import type { WochenAggregat } from '@shared/garmin/koerperdatenWochen'
 // Steuerungseintrag erscheint trotzdem, nur ohne Auszug — der Link führt dann in eine
 // noch leere Woche, die sich durch Speichern anlegt (wie überall in der Steuerung).
 //
-// Rein lesend: ein Klick verlässt das Dashboard in Richtung Steuerung, editiert wird
-// hier nichts.
+// Die Liste ist zugleich die Wochen-Auswahl des Zeitraums: ein Klick auf die
+// Kalenderwoche stellt die Charts darüber auf genau diese Woche (`?kw=`), statt die
+// Seite zu verlassen — „diese Woche" ist der Ausschnitt, den kein Fenster aus
+// 30/90/allen Tagen trifft. Erst „Steuerung öffnen ›" wechselt in die Steuerung.
+// Beides rein lesend, editiert wird hier nichts.
 const props = defineProps<{
   wochen: (WochenAggregat & { auszug: string | null })[]
   secret: string
+  /** Die aktuell als Zeitraum gewählte Woche — sie wird in der Liste hervorgehoben. */
+  aktiveKw?: string | null
 }>()
+
+/**
+ * Die Wochenwahl wirkt oben — in den Kacheln und Charts, nicht hier in der Liste.
+ * Ohne den Sprung nach oben bliebe der Athlet unten stehen und bekäme von seiner
+ * eigenen Auswahl nichts zu sehen; der Link sähe schlicht kaputt aus.
+ */
+function nachObenScrollen() {
+  window.scrollTo({ top: 0, behavior: 'smooth' })
+}
 
 // Neueste zuerst — die Liste liest sich wie ein Rückblick, nicht wie eine Zeitachse
 // zum Abklappern.
@@ -32,6 +46,9 @@ const text = (wert: number | null, stellen = 0, einheit = '') =>
   <UCard :ui="{ body: 'p-3 sm:p-4' }">
     <template #header>
       <h2 class="text-sm font-medium sm:text-base">Wochen</h2>
+      <p class="mt-0.5 text-xs text-muted">
+        Ein Klick auf die Kalenderwoche zeigt oben genau ihre sieben Tage.
+      </p>
     </template>
 
     <p v-if="absteigend.length === 0" class="text-sm text-muted italic">
@@ -42,11 +59,14 @@ const text = (wert: number | null, stellen = 0, einheit = '') =>
       <li
         v-for="woche in absteigend"
         :key="woche.kw"
-        class="flex flex-wrap items-center gap-x-4 gap-y-1 py-2.5 first:pt-0 last:pb-0"
+        class="-mx-2 flex flex-wrap items-center gap-x-4 gap-y-1 px-2 py-2.5 first:pt-0 last:pb-0"
+        :class="woche.kw === aktiveKw ? 'rounded-md bg-elevated/60' : ''"
       >
         <ULink
-          :to="`/${secret}/steuerung/${woche.kw}`"
-          class="w-20 shrink-0 font-medium text-default hover:text-primary"
+          :to="{ path: `/${secret}`, query: { kw: woche.kw } }"
+          class="w-20 shrink-0 font-medium underline decoration-dotted underline-offset-4 hover:text-primary"
+          :class="woche.kw === aktiveKw ? 'text-primary' : 'text-default'"
+          @click="nachObenScrollen"
         >
           {{ woche.kw }}
         </ULink>
@@ -66,7 +86,7 @@ const text = (wert: number | null, stellen = 0, einheit = '') =>
           :to="`/${secret}/steuerung/${woche.kw}`"
           class="shrink-0 text-xs text-muted hover:text-primary sm:text-sm"
         >
-          Woche öffnen ›
+          Steuerung öffnen ›
         </ULink>
       </li>
     </ul>

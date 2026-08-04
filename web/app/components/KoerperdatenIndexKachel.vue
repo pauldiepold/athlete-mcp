@@ -2,9 +2,9 @@
 import type { Achse, KoerperdatenIndex } from '@shared/garmin/koerperdatenIndex'
 import { KALIBRIERUNG } from '@shared/garmin/koerperdatenIndex'
 
-// Die große Kachel des Körperdaten-Index (Issue #26). Sie steht allein über der
-// Kachelzeile und ist dieselbe Kachel wie die darunter, nur lauter — deshalb setzt
-// sie auf KoerperdatenKachel auf statt daneben.
+// Die große Kachel des Körperdaten-Index (Issue #26). Sie steht als erste Kachel der
+// Kachelzeile und ist dieselbe Kachel wie die übrigen, nur doppelt so breit und
+// lauter — deshalb setzt sie auf KoerperdatenKachel auf statt daneben.
 //
 // Der Index ist **gerechnet, nicht gedeutet**. Die Kachel formuliert ihn deshalb
 // durchgehend als Rechnung mit sichtbaren Bestandteilen: die Aufschlüsselung ist
@@ -12,6 +12,10 @@ import { KALIBRIERUNG } from '@shared/garmin/koerperdatenIndex'
 // zu sehen ist, welcher Marker heute nach unten zieht. Sie beansprucht ausdrücklich
 // **nicht**, eine Tagesform-Einschätzung zu liefern; die entsteht im Chat aus Plan
 // und Kontext, nicht aus vier gewichteten Zahlen (ADR-0006).
+//
+// Der Hinweis, was der Index ist und was nicht, steht **im** aufklappbaren Teil: er
+// gehört zur Erklärung, nicht in die Kachelzeile, wo er gegen die Zahl anschreit und
+// die Kachel auf Kosten aller anderen aufbläht.
 //
 // Die Schwellen im Text kommen aus KALIBRIERUNG statt aus der Vorlage: wer die
 // Gewichte nachjustiert, muss diese Datei nicht anfassen.
@@ -76,15 +80,7 @@ const gemessen = computed(
     :kennzahl="index.aktuell"
     :serie="index.serie"
   >
-    <p class="text-xs text-dimmed">
-      Gerechnet aus vier Markern mit festen Gewichten — keine Einschätzung, wie es dir
-      heute geht.
-      <template v-if="index.aktuell.tag">
-        Stand {{ kurz(index.aktuell.tag) }}.
-      </template>
-    </p>
-
-    <UCollapsible v-if="zeilen.length" class="mt-2">
+    <UCollapsible v-if="zeilen.length">
       <template #default="{ open }">
         <UButton
           block
@@ -101,6 +97,14 @@ const gemessen = computed(
       </template>
 
       <template #content>
+        <p class="mt-2 text-xs text-dimmed">
+          Gerechnet aus vier Markern mit festen Gewichten — keine Einschätzung, wie es dir
+          heute geht.
+          <template v-if="index.aktuell.tag">
+            Stand {{ kurz(index.aktuell.tag) }}.
+          </template>
+        </p>
+
         <!-- Die Rechnung Zeile für Zeile: Punkte × Gewicht = Beitrag. Auf schmalen
              Geräten darf die Tabelle für sich scrollen, statt die Seite zu sprengen. -->
         <div class="mt-2 overflow-x-auto">
