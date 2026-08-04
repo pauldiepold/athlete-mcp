@@ -1,0 +1,26 @@
+{
+  // Spike zu Issue #38 — eigenes, wegwerfbares Deploy-Target neben athlete-mcp.
+  // Bewusst getrennt: der Produktions-Worker soll von diesem Experiment nichts
+  // wissen, und am Ende des Spikes wird hier ersatzlos geloescht.
+  "$schema": "../../node_modules/wrangler/config-schema.json",
+  "name": "athlete-spike-garmin-login",
+  "main": "index.ts",
+  "compatibility_date": "2026-06-04",
+  "compatibility_flags": ["nodejs_compat"],
+  "observability": {
+    "enabled": true
+  },
+  // Stuendlich ein Login-Versuch. Zehn Stunden ergeben die Quote, die das Issue
+  // verlangt — und zwar ohne dass irgendwo ein Laptop laufen muss.
+  "triggers": {
+    "crons": ["0 * * * *"]
+  },
+  "kv_namespaces": [
+    {
+      // Haelt ausschliesslich den MFA-Zwischenzustand mit 10 Minuten TTL.
+      // Eigener Namespace, nicht SESSION_KV: hier landet nichts Dauerhaftes.
+      "binding": "SPIKE_KV",
+      "id": "27b11859168e4ed3a25cee1f49aa11f1"
+    }
+  ]
+}
