@@ -12,3 +12,24 @@ export async function resolveSteuerung(
 
   return { userId, store: new SteuerungStore(env.ATHLETE_DB) }
 }
+
+/**
+ * Der Auszug eines Wocheneintrags für die Dashboard-Wochenliste (Issue #28): die
+ * erste nicht-leere Zeile des Markdowns — ob Überschrift oder Fließtext —, ohne
+ * führende `#`-Zeichen und auf eine handliche Länge gekürzt. Ein leerer Eintrag
+ * ergibt eine leere Zeichenkette, keinen Fehler: „ohne Auszug" ist ein normaler
+ * Fall der Liste, keiner, den man extra behandeln müsste.
+ */
+export function wochenAuszug(markdown: string): string {
+  const ersteZeile = markdown
+    .split('\n')
+    .map((zeile) => zeile.trim())
+    .find((zeile) => zeile.length > 0) ?? ''
+
+  const ohneUeberschriftenzeichen = ersteZeile.replace(/^#+\s*/, '')
+
+  const MAX_LAENGE = 140
+  return ohneUeberschriftenzeichen.length > MAX_LAENGE
+    ? `${ohneUeberschriftenzeichen.slice(0, MAX_LAENGE - 1)}…`
+    : ohneUeberschriftenzeichen
+}

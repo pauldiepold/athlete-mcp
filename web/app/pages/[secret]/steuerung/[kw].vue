@@ -21,6 +21,14 @@ if (error.value) {
 useHead({
   title: data.value?.user ? `${kw} · ${data.value.user}` : kw,
 })
+
+// Der Körperdaten-Streifen (Issue #28, Richtung 2 der Steuerungs-Brücke): eigener,
+// nicht blockierender Fetch — misslingt er, bleibt die Steuerung trotzdem lesbar und
+// editierbar, das ist hier die Hauptsache. Eine Woche ohne Körperdaten liefert
+// `wochen: []`; der Streifen zeigt dann seine Platzhalter, kein Fehler.
+const { data: koerperdatenData } = await useFetch(`/api/${secret}/koerperdaten/wochen`, {
+  query: { kw },
+})
 </script>
 
 <template>
@@ -33,5 +41,9 @@ useHead({
     :endpoint="`/api/${secret}/steuerung/woche/${kw}`"
     :placeholder="`# ${kw}…`"
     :initial-markdown="data?.markdown ?? ''"
-  />
+  >
+    <template #vor-dokument>
+      <KoerperdatenStreifen :secret="secret" :kw="kw" :woche="koerperdatenData?.wochen?.[0]" />
+    </template>
+  </SteuerungDoc>
 </template>

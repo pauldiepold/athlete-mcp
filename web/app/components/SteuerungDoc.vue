@@ -61,6 +61,12 @@ async function save() {
     <UContainer class="flex w-full max-w-5xl flex-1 min-h-0 flex-col py-6">
       <h1 class="mb-4 text-xl font-semibold">{{ title }}</h1>
 
+      <!-- Der Körperdaten-Streifen der Wochenseite (Issue #28, Richtung 2 der
+           Steuerungs-Brücke) — leer auf dem Steuerungsplan, der diesen Slot nicht
+           füllt. Schmal mit fester Höhe: das Editieren bleibt die Hauptsache der
+           Seite, der Streifen verdrängt sie nicht. -->
+      <slot name="vor-dokument" />
+
       <UAlert
         v-if="saveError"
         color="error"

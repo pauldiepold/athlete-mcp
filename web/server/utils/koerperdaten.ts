@@ -16,3 +16,14 @@ export async function resolveKoerperdaten(
 
   return { userId, archiv: new KoerperdatenArchive(env.ATHLETE_DB) }
 }
+
+/**
+ * Heutiges Datum in der Zeitzone des Athleten als YYYY-MM-DD (en-CA liefert
+ * ISO-Reihenfolge). Garmin datiert die Tagesblobs lokal — über UTC gerechnet läge
+ * der Zeitraum nachts um einen Tag daneben. Geteilt zwischen dem Bereichs- und
+ * dem Wochen-Aggregat-Endpunkt (Issue #24/#28), damit beide auf denselben
+ * "heute" kommen.
+ */
+export function heuteInBerlin(): string {
+  return new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Berlin' }).format(new Date())
+}

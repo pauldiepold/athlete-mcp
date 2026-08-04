@@ -8,7 +8,12 @@ import type { ZeitraumName } from '#shared/zeitraum'
 // Die Wahl steht in der URL statt in einem lokalen Ref: so überlebt sie einen Reload,
 // ist teilbar, und die Seite wird serverseitig direkt mit dem richtigen Ausschnitt
 // gerendert.
-defineProps<{ modelValue: ZeitraumName }>()
+//
+// `null` steht für ein explizites `?von=…&bis=…` (Issue #28, der Rücksprung vom
+// Körperdaten-Streifen der Steuerungs-Wochenseite): keiner der drei Knöpfe passt auf
+// den Zeitraum genau einer Woche, also ist auch keiner aktiv — ein Klick auf einen der
+// drei ersetzt ihn wieder durch einen benannten Ausschnitt.
+defineProps<{ modelValue: ZeitraumName | null }>()
 
 const AUSWAHL: { wert: ZeitraumName, label: string }[] = [
   { wert: '30', label: '30 Tage' },

@@ -45,3 +45,41 @@ export function isoWoche(datum: string): string {
   // lexikografische Sortierung der Wochen-Keys zerlegen würde.
   return `${jahr}-W${String(woche).padStart(2, "0")}`;
 }
+
+/** `YYYY-Www` — das Format, das `SteuerungStore` verlangt (`isValidKw`). */
+const KW_PATTERN = /^(\d{4})-W(\d{2})$/;
+
+/**
+ * Die sieben Kalendertage der Woche `kw`, Montag bis Sonntag — die Umkehrung
+ * von `isoWoche`: für jeden Tag `t` im zurückgegebenen Zeitraum gilt
+ * `isoWoche(t) === kw`. Gebraucht von der Steuerungs-Brücke (Issue #28): der
+ * Körperdaten-Streifen einer Steuerungs-Woche braucht genau ihre sieben Tage,
+ * nicht die ganze Archiv-Historie.
+ *
+ * Wirft bei einem `kw`, das nicht dem Format `YYYY-Www` entspricht.
+ */
+export function wochenZeitraum(kw: string): { von: string; bis: string } {
+  const match = KW_PATTERN.exec(kw);
+  if (!match) {
+    throw new Error(`Ungültiger Wochen-Key "${kw}": erwartet YYYY-Www.`);
+  }
+
+  const jahr = Number(match[1]);
+  const woche = Number(match[2]);
+
+  // Der 4. Januar liegt nach ISO 8601 immer in Woche 1 (er ist niemals mehr als
+  // drei Tage vom Jahresanfang entfernt) — sein Montag ist der Ankerpunkt, von
+  // dem aus jede weitere Woche in Sieben-Tage-Schritten folgt.
+  const jan4 = new Date(Date.UTC(jahr, 0, 4));
+  const seitMontag = (jan4.getUTCDay() + 6) % 7;
+  const montag = new Date(jan4);
+  montag.setUTCDate(jan4.getUTCDate() - seitMontag + (woche - 1) * 7);
+
+  const sonntag = new Date(montag);
+  sonntag.setUTCDate(montag.getUTCDate() + 6);
+
+  return {
+    von: montag.toISOString().slice(0, 10),
+    bis: sonntag.toISOString().slice(0, 10),
+  };
+}

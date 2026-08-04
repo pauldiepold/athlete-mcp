@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { isValidKw } from "../steuerung/steuerungStore.js";
-import { isoWoche } from "./isoWoche.js";
+import { isoWoche, wochenZeitraum } from "./isoWoche.js";
 
 /** Jeder Kalendertag von `von` bis `bis` (inklusive). */
 function tageVon(von: string, bis: string): string[] {
@@ -96,5 +96,67 @@ describe("isoWoche", () => {
     expect(() => isoWoche("13.06.2026")).toThrow();
     expect(() => isoWoche("2026-13-45")).toThrow();
     expect(() => isoWoche("")).toThrow();
+  });
+});
+
+// Die Umkehrung: aus dem Wochen-Key die sieben Kalendertage zurückrechnen.
+// Gebraucht von der Steuerungs-Brücke (Issue #28), die für den
+// Körperdaten-Streifen einer Steuerungs-Woche genau deren sieben Tage braucht,
+// nicht die ganze Archiv-Historie.
+describe("wochenZeitraum", () => {
+  it("gibt der Woche 2026-W24 genau den Montag bis Sonntag, die isoWoche ihr zuordnet", () => {
+    expect(wochenZeitraum("2026-W24")).toEqual({
+      von: "2026-06-08",
+      bis: "2026-06-14",
+    });
+  });
+
+  it("führt eine Woche über den Jahreswechsel als einen zusammenhängenden Sieben-Tage-Block", () => {
+    // Dieselben Tage, die isoWoche oben der 2020-W01 zuordnet.
+    expect(wochenZeitraum("2020-W01")).toEqual({
+      von: "2019-12-30",
+      bis: "2020-01-05",
+    });
+  });
+
+  it("kennt die 53. Woche", () => {
+    const { von, bis } = wochenZeitraum("2026-W53");
+    expect(isoWoche(von)).toBe("2026-W53");
+    expect(isoWoche(bis)).toBe("2026-W53");
+  });
+
+  it("liefert für jede Woche genau die sieben Tage, die isoWoche wieder auf sie zurückrechnet", () => {
+    // Rundreise über zwei Jahreswechsel: jede in diesem Fenster vorkommende
+    // Woche muss aus wochenZeitraum exakt sieben zusammenhängende Tage liefern,
+    // die alle wieder auf denselben Schlüssel zurückführen.
+    const alleTage: string[] = [];
+    for (
+      const d = new Date("2019-12-01T00:00:00Z");
+      d <= new Date("2027-01-31T00:00:00Z");
+      d.setUTCDate(d.getUTCDate() + 1)
+    ) {
+      alleTage.push(d.toISOString().slice(0, 10));
+    }
+
+    const wochen = new Set(alleTage.map(isoWoche));
+    for (const kw of wochen) {
+      const { von, bis } = wochenZeitraum(kw);
+      const tage: string[] = [];
+      for (
+        const d = new Date(`${von}T00:00:00Z`);
+        d <= new Date(`${bis}T00:00:00Z`);
+        d.setUTCDate(d.getUTCDate() + 1)
+      ) {
+        tage.push(d.toISOString().slice(0, 10));
+      }
+
+      expect(tage).toHaveLength(7);
+      expect(tage.every((t) => isoWoche(t) === kw)).toBe(true);
+    }
+  });
+
+  it("wirft bei einem Wochen-Key, der keiner ist", () => {
+    expect(() => wochenZeitraum("2026-6")).toThrow();
+    expect(() => wochenZeitraum("")).toThrow();
   });
 });

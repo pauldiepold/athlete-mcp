@@ -17,12 +17,28 @@ const secret = route.params.secret as string
 // folgen. useFetch beobachtet ihn und lädt beim Umschalten neu.
 const zeitraum = computed(() => alsZeitraumName(route.query.zeitraum))
 
+// Der Rücksprung vom Körperdaten-Streifen der Steuerungs-Wochenseite (Issue #28):
+// ein explizites `?von=…&bis=…` statt eines der drei benannten Ausschnitte. Ersetzt
+// `zeitraum` vollständig, statt daneben zu bestehen — keiner der Umschalter-Knöpfe
+// ist dann „aktiv", bis der Athlet selbst wieder einen wählt.
+const vonBis = computed(() => {
+  const { von, bis } = route.query
+  return typeof von === 'string' && typeof bis === 'string' ? { von, bis } : null
+})
+
+const serienQuery = computed(() => vonBis.value ?? { zeitraum: zeitraum.value })
+
 const { data, error } = await useFetch(`/api/${secret}/koerperdaten/serien`, {
-  query: { zeitraum },
+  query: serienQuery,
 })
 if (error.value) {
   throw createError({ statusCode: 404, statusMessage: 'Not found' })
 }
+
+// Die Wochenliste (Issue #28, Richtung 1 der Steuerungs-Brücke): ein eigener
+// Endpunkt über die volle Historie, unabhängig vom Zeitraum-Umschalter der Charts
+// darüber — sie ist ein Rückblick über Wochen, kein weiterer gezoomter Verlauf.
+const { data: wochenData } = await useFetch(`/api/${secret}/koerperdaten/wochen`)
 
 useHead({
   title: data.value?.user ? `Körperdaten · ${data.value.user}` : 'Körperdaten',
@@ -56,7 +72,7 @@ function oeffneTag(tag: string) {
           <p v-if="data" class="text-sm text-muted tabular-nums">
             {{ kurz(data.von) }} – {{ kurz(data.bis) }}
           </p>
-          <ZeitraumUmschalter :model-value="zeitraum" />
+          <ZeitraumUmschalter :model-value="vonBis ? null : zeitraum" />
         </div>
       </div>
 
@@ -230,6 +246,11 @@ function oeffneTag(tag: string) {
             @tag-klick="oeffneTag"
           />
         </div>
+
+        <!-- Die Steuerungs-Brücke, Richtung 1 (Issue #28): pro Woche das
+             Körperdaten-Aggregat neben dem Auszug des Steuerungs-Wocheneintrags —
+             "das hatte ich geplant" neben "so hat mein Körper die Woche erlebt". -->
+        <WochenListe class="mt-4" :wochen="wochenData?.wochen ?? []" :secret="secret" />
       </template>
     </UContainer>
   </div>
