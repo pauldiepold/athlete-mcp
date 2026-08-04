@@ -16,6 +16,7 @@ import { formatWorkout } from "./finalsurge/formatWorkout.js";
 import { FinalSurgeClient, login } from "./finalsurge/finalSurgeClient.js";
 import { SessionCache } from "./finalsurge/sessionCache.js";
 import { TenantResolver } from "./tenantResolver.js";
+import { resolveDashboardLinks } from "./dashboardLink.js";
 import { KoerperdatenArchive } from "./garmin/koerperdatenArchive.js";
 import {
   buildGarminClient,
@@ -29,6 +30,8 @@ export interface Env {
   MCP_OBJECT: DurableObjectNamespace;
   SESSION_KV: KVNamespace;
   ATHLETE_DB: D1Database;
+  /** Basis-URL des Nuxt-Targets (eigener Worker, ADR-0004) für den Browser-Link. */
+  WEB_BASE_URL: string;
 }
 
 /** Per-Request-Kontext, im fetch-Handler über den TenantResolver aufgelöst. */
@@ -82,6 +85,12 @@ const STEUERUNG_HINT =
   "der Steuerungsplan (Block/Periodisierung/Form-Snapshot) plus Wocheneinträge. " +
   "set-Tools überschreiben das jeweilige Objekt komplett.";
 
+const DASHBOARD_HINT =
+  "Die persönliche Browser-Fläche des Athleten: Körperdaten-Dashboard (Verläufe, " +
+  "Körperdaten-Index, Tages-Detail) und darunter die Steuerung zum Lesen/Editieren. " +
+  "Der Link enthält das persönliche View-Secret und ist damit die Anmeldung — " +
+  "nur an den Athleten selbst ausgeben, nie weitergeben.";
+
 export class AthleteMCP extends McpAgent<Env, unknown, Props> {
   server = new McpServer({ name: "athlete-mcp", version: "1.0.0" });
 
@@ -89,6 +98,7 @@ export class AthleteMCP extends McpAgent<Env, unknown, Props> {
     await this.initFinalSurge();
     await this.initGarmin();
     await this.initSteuerung();
+    await this.initDashboard();
   }
 
   /** Final-Surge-Kontext: per-user Creds + gecachte Session aus dem KV. */
@@ -248,6 +258,32 @@ export class AthleteMCP extends McpAgent<Env, unknown, Props> {
       async ({ kw, content }) => {
         await store.setWoche(userId, kw, content);
         return ok;
+      },
+    );
+  }
+
+  /** Eigener Browser-Link: View-Secret rückwärts auflösen und die URLs ausgeben. */
+  private async initDashboard() {
+    const { userId } = this.props;
+
+    this.server.tool(
+      "get_dashboard_link",
+      `Liefert den persönlichen Browser-Link des Athleten zu seinem Körperdaten-Dashboard. ${DASHBOARD_HINT}`,
+      {},
+      async () => {
+        const links = await resolveDashboardLinks(
+          this.env.SESSION_KV,
+          userId,
+          this.env.WEB_BASE_URL,
+        );
+        const text = links
+          ? [
+              `Dashboard (Körperdaten-Verläufe): ${links.dashboard}`,
+              `Steuerung (Plan + Wochen): ${links.steuerung}`,
+              `Tages-Detail: ${links.tagVorlage} (Datum einsetzen)`,
+            ].join("\n")
+          : "Für diesen Nutzer ist keine Browser-Fläche eingerichtet (kein View-Secret geseedet).";
+        return { content: [{ type: "text" as const, text }] };
       },
     );
   }

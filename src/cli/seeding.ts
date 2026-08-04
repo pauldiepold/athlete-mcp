@@ -36,9 +36,13 @@ export function buildMcpUrl(baseUrl: string, pathSecret: string): string {
   return `${baseUrl.replace(/\/+$/, "")}/${pathSecret}/mcp`;
 }
 
-/** Die fertige read-only Browser-URL der Steuerung: `<base>/{secret}/steuerung`. */
+/**
+ * Die fertige, an den Nutzer ausgegebene Browser-URL: `<base>/{secret}`. Zeigt
+ * seit Issue #24 auf das Körperdaten-Dashboard, die Startseite des per-User-Links;
+ * die Steuerung liegt darunter (`/{secret}/steuerung`).
+ */
 export function buildViewUrl(baseUrl: string, viewSecret: string): string {
-  return `${baseUrl.replace(/\/+$/, "")}/${viewSecret}/steuerung`;
+  return `${baseUrl.replace(/\/+$/, "")}/${viewSecret}`;
 }
 
 /** Ein KV-Eintrag im `wrangler kv bulk put`-Format. */

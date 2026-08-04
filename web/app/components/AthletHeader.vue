@@ -1,13 +1,18 @@
 <script setup lang="ts">
-// Sticky-Kopfzeile der Steuerungs-Seiten (Issue #13) — trägt die gesamte Navigation,
-// damit Blättern UND Speichern beim Scrollen immer erreichbar bleiben. Drei Zonen:
-//   links  – Athlet-Identität (Avatar + Name), verlinkt auf die Übersicht (Heimat)
-//   mitte  – Wochen-Switcher: die 3 neuesten als Shortcut-Chips (der häufige Fall),
-//            ein "Ältere"-Dropdown als Zugang zu den alten Wochen, ‹ › zum Blättern
+// Sticky-Kopfzeile aller Athleten-Seiten (Issue #13, erweitert in #24) — trägt die
+// gesamte Navigation, damit Blättern UND Speichern beim Scrollen immer erreichbar
+// bleiben. Vier Zonen:
+//   links  – Athlet-Identität (Avatar + Name), verlinkt aufs Dashboard (Heimat)
+//   danach – Umschalter zwischen den beiden Flächen: Dashboard und Steuerung
+//   mitte  – Wochen-Switcher, nur im Steuerungs-Kontext: die 3 neuesten als
+//            Shortcut-Chips (der häufige Fall), ein "Ältere"-Dropdown als Zugang zu
+//            den alten Wochen, ‹ › zum Blättern
 //   rechts – Actions-Slot (z. B. Speichern), nur im Edit-Kontext gefüllt
 const props = defineProps<{
   user: string
   secret: string
+  /** Welche Fläche gerade offen ist — steuert Umschalter und Wochen-Navigation. */
+  bereich: 'dashboard' | 'steuerung'
   wochen?: string[]
   currentKw?: string
 }>()
@@ -15,6 +20,7 @@ const props = defineProps<{
 // Athlet-Key großgeschrieben (z. B. "paul" → "Paul"); Avatar = Initial.
 const displayName = computed(() => props.user.charAt(0).toUpperCase() + props.user.slice(1))
 
+const dashboardBase = computed(() => `/${props.secret}`)
 const base = computed(() => `/${props.secret}/steuerung`)
 
 // Store liefert kw aufsteigend; defensiv sortieren (lexikografisch = chronologisch).
@@ -50,16 +56,31 @@ function short(kw: string): string {
   >
     <UContainer class="flex flex-wrap items-center gap-3 py-3">
       <ULink
-        :to="base"
+        :to="dashboardBase"
         class="flex items-center gap-2.5 text-default hover:text-primary"
       >
         <UAvatar :text="displayName.charAt(0)" size="sm" />
         <span class="font-medium">{{ displayName }}</span>
       </ULink>
 
+      <div class="flex items-center gap-1">
+        <UButton
+          :to="dashboardBase"
+          :color="bereich === 'dashboard' ? 'primary' : 'neutral'"
+          :variant="bereich === 'dashboard' ? 'soft' : 'ghost'"
+          size="sm"
+        >Dashboard</UButton>
+        <UButton
+          :to="base"
+          :color="bereich === 'steuerung' ? 'primary' : 'neutral'"
+          :variant="bereich === 'steuerung' ? 'soft' : 'ghost'"
+          size="sm"
+        >Steuerung</UButton>
+      </div>
+
       <div class="flex-1" />
 
-      <div v-if="sorted.length" class="flex items-center gap-1">
+      <div v-if="bereich === 'steuerung' && sorted.length" class="flex items-center gap-1">
         <UButton
           v-if="currentKw"
           :to="prev ? `${base}/${prev}` : undefined"

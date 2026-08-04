@@ -41,7 +41,13 @@ async function save() {
 
 <template>
   <div class="flex h-dvh flex-col">
-    <SteuerungHeader :user="user" :secret="secret" :wochen="wochen" :current-kw="currentKw">
+    <AthletHeader
+      :user="user"
+      :secret="secret"
+      bereich="steuerung"
+      :wochen="wochen"
+      :current-kw="currentKw"
+    >
       <template #actions>
         <template v-if="editing">
           <span class="text-sm text-muted">{{ dirty ? 'Ungespeicherte Änderungen' : 'Gespeichert' }}</span>
@@ -50,10 +56,16 @@ async function save() {
         </template>
         <UButton v-else variant="soft" @click="editing = true">Bearbeiten</UButton>
       </template>
-    </SteuerungHeader>
+    </AthletHeader>
 
     <UContainer class="flex w-full max-w-5xl flex-1 min-h-0 flex-col py-6">
       <h1 class="mb-4 text-xl font-semibold">{{ title }}</h1>
+
+      <!-- Der Körperdaten-Streifen der Wochenseite (Issue #28, Richtung 2 der
+           Steuerungs-Brücke) — leer auf dem Steuerungsplan, der diesen Slot nicht
+           füllt. Schmal mit fester Höhe: das Editieren bleibt die Hauptsache der
+           Seite, der Streifen verdrängt sie nicht. -->
+      <slot name="vor-dokument" />
 
       <UAlert
         v-if="saveError"

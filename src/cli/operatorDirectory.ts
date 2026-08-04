@@ -3,7 +3,9 @@
  * Nutzer das Pfad-Secret (MCP-Schreib-URL) und das View-Secret rückwärts auf
  * (`userId → Secret`), um die fertigen URLs zu bauen und die geseedeten Kontexte
  * zu melden. Die beiden URLs liegen auf verschiedenen Workern (ADR-0004) und
- * bekommen deshalb je eine eigene Base — siehe DirectoryBaseUrls.
+ * bekommen deshalb je eine eigene Base — siehe DirectoryBaseUrls. Die Nutzer-URL
+ * zeigt seit Issue #24 auf die Dashboard-Startseite (`/{viewsecret}`), von der aus
+ * die Steuerung erreichbar ist.
  *
  * Sicherheitskritisch wie das Seeding (PRD-Testing-Decision): ein falsches
  * Reverse-Mapping würde einem Nutzer die URL eines anderen zuordnen. Deshalb rein
@@ -28,7 +30,7 @@ export interface OnboardedUser {
   userId: string;
   /** Immer vorhanden: jeder onboardete Nutzer hat ein MCP-Pfad-Secret. */
   mcpUrl: string;
-  /** null, wenn der Nutzer (noch) kein read-only View-Secret hat. */
+  /** Dashboard-Startseite; null, wenn der Nutzer (noch) kein View-Secret hat. */
   viewUrl: string | null;
   seededContexts: SeededContexts;
 }
@@ -71,7 +73,7 @@ async function resolveSecretsByUser(
 export interface DirectoryBaseUrls {
   /** Basis des MCP-Workers — trägt `/{pathsecret}/mcp`. */
   mcpBaseUrl: string;
-  /** Basis des Web-Targets — trägt `/{viewsecret}/steuerung`. */
+  /** Basis des Web-Targets — trägt `/{viewsecret}`, die Dashboard-Startseite. */
   webBaseUrl: string;
 }
 

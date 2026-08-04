@@ -1,7 +1,8 @@
 <script setup lang="ts">
-// Operator-Übersicht (Issue #15): listet die onboardeten Nutzer mit read-only
-// View-Link und MCP-Schreib-Link. Hinter GitHub-OAuth (middleware/admin.ts +
-// OAuth-Callback): nur die allowlistete Betreiber-Identität erreicht die Seite.
+// Operator-Übersicht (Issue #15): listet die onboardeten Nutzer mit ihrem
+// Browser-Link (seit Issue #24 die Dashboard-Startseite) und MCP-Schreib-Link.
+// Hinter GitHub-OAuth (middleware/admin.ts + OAuth-Callback): nur die
+// allowlistete Betreiber-Identität erreicht die Seite.
 // Rein lesend — keine Re-Seed-/Rotate-/Deboard-Aktionen. Die MCP-Schreib-URL ist
 // das hochwertigste Secret und wird daher nie im Klartext gerendert, nur kopiert.
 import type { OnboardedUser } from '@shared/cli/operatorDirectory'
@@ -101,16 +102,16 @@ async function logout() {
               variant="solid"
               icon="i-lucide-external-link"
             >
-              Steuerung öffnen
+              Dashboard öffnen
             </UButton>
             <UButton
               v-if="u.viewUrl"
               color="neutral"
               variant="subtle"
               icon="i-lucide-copy"
-              @click="copy(u.viewUrl, 'Steuerungs-URL')"
+              @click="copy(u.viewUrl, 'Dashboard-URL')"
             >
-              Steuerungs-URL
+              Dashboard-URL
             </UButton>
             <UButton
               color="neutral"

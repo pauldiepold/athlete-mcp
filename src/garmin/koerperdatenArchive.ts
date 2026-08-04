@@ -39,6 +39,20 @@ export class KoerperdatenArchive implements KoerperdatenStore {
     return results.map((r) => JSON.parse(r.data) as Koerperdaten);
   }
 
+  /**
+   * Der früheste archivierte Tag eines Nutzers (null, wenn nichts archiviert
+   * ist). Der Anfang seines Verlaufs — die Verlaufs-Oberfläche braucht ihn für
+   * die „Alles"-Ansicht, sonst müsste sie den Zeitraum raten und würde Jahre
+   * leerer Achse zeichnen.
+   */
+  async firstDate(userId: string): Promise<string | null> {
+    const row = await this.db
+      .prepare("SELECT MIN(date) AS date FROM koerperdaten WHERE user_id = ?")
+      .bind(userId)
+      .first<{ date: string | null }>();
+    return row?.date ?? null;
+  }
+
   /** Schreibt/überschreibt einen Tag (Upsert auf dem (user_id, date)-Schlüssel). */
   async upsert(
     userId: string,

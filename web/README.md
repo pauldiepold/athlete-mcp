@@ -1,9 +1,14 @@
 # athlete-web
 
 Eigenständiges **Nuxt-Frontend** und zweites Cloudflare-Deploy-Target neben dem
-MCP-Worker (`../`). Der Athlet liest und editiert seine **Steuerung** (Steuerungsplan
-+ Wochen) im Browser; Markdown bleibt das kanonische Speicherformat, byte-genau das,
-was der Agent über MCP liest/schreibt.
+MCP-Worker (`../`). Zwei Flächen unter demselben per-User-Link, umschaltbar über die
+Kopfzeile:
+
+- **Dashboard** (`/{view-secret}`) — die Startseite: Verläufe der **Körperdaten** aus
+  dem Archiv, rein lesend.
+- **Steuerung** (`/{view-secret}/steuerung`) — Steuerungsplan + Wochen, lesen und
+  editieren; Markdown bleibt das kanonische Speicherformat, byte-genau das, was der
+  Agent über MCP liest/schreibt.
 
 Siehe `../docs/adr/0004-eigenstaendiges-nuxt-frontend-monorepo-browser-editing.md`.
 
@@ -12,8 +17,30 @@ Siehe `../docs/adr/0004-eigenstaendiges-nuxt-frontend-monorepo-browser-editing.m
 - **Geteilte Module statt Duplikat:** `SteuerungStore` und `TenantResolver` werden via
   `@shared`-Alias direkt aus `../src` importiert — Single Source of Truth fürs Schema,
   keine Drift (`nuxt.config.ts`).
-- **Auth server-seitig:** Das per-User **View-Secret** aus der URL wird im Nitro-Server
-  aufgelöst (`server/utils/steuerung.ts`); D1/KV-Bindings landen nie im Client-Bundle.
+- **Auth server-seitig, an einer Stelle:** Das per-User **View-Secret** aus der URL
+  wird im Nitro-Server aufgelöst (`server/utils/athlet.ts`) — darauf setzen Steuerungs-
+  und Körperdaten-Routes gemeinsam auf, unbekanntes Secret → 404. D1/KV-Bindings landen
+  nie im Client-Bundle.
+- **Körperdaten nur lesend, nur aus dem Archiv:** über dasselbe `KoerperdatenArchive`
+  wie der MCP-Worker, kein Live-Abruf bei Garmin. Der Bereichs-Endpunkt liefert die
+  bereits abgeleiteten Serien **und Kennzahlen** (`@shared/garmin/koerperdatenSerien`),
+  nicht die Rohblobs.
+- **Der Körperdaten-Index wird nicht in der Vue-Schicht gerechnet:** Verlauf, aktueller
+  Stand und Beitragsaufschlüsselung kommen fertig aus `@shared/garmin/koerperdatenIndex`.
+  Die gesamte Bewertungspolitik (Gewichte, Schwellen, Renormalisierung) liegt dort in
+  `KALIBRIERUNG` an einer Stelle — eine Änderung fasst die Oberfläche nicht an. Die
+  Fläche zeigt ihn als **Rechnung mit sichtbaren Bestandteilen**, nicht als Urteil, und
+  beansprucht keine Tagesform-Einschätzung (`../docs/adr/0006-…`).
+- **Ein Zeitraum für die ganze Fläche:** 30 / 90 / Alles, Standard 30, als
+  `?zeitraum=`-Query in der URL (`shared/zeitraum.ts`). Charts und Kacheln folgen ihm
+  gemeinsam; „Alles" beginnt am ersten archivierten Tag.
+- **Charts clientseitig:** Chart.js über `vue-chartjs` hinter `ZeitreihenChart`; Farben
+  kommen aus den CSS-Variablen von Nuxt UI, damit Hell/Dunkel ohne Sonderweg trägt.
+  Der Wrapper trägt Linien, Flächen, (gestapelte) Balken und eine zweite y-Achse — was
+  ein Verlauf braucht, wird dort ergänzt statt daran vorbei gebaut.
+- **Kacheln ohne Client-JS:** die Mini-Kurven (`MiniKurve`) und das HRV-Baseline-Band
+  (`BaselineBand`) sind serverseitig gerendertes Inline-SVG — sie stehen beim ersten
+  Rendern da, ohne Chart-Bibliothek.
 - **Gleiche Bindings wie der MCP-Worker:** identische `binding`-Namen und `id`s in
   `wrangler.jsonc` → dasselbe physische D1/KV. Das Web-Target hat bewusst **keine**
   Durable Objects, Crons oder Migrations (die bleiben beim MCP-Worker).
@@ -31,7 +58,7 @@ pnpm dev          # http://localhost:3000
 (via `nitro-cloudflare-dev`) werden die **echten** Cloudflare-Ressourcen gelesen,
 nichts lokal dupliziert. Erfordert wrangler-Auth (OAuth-Login bzw. `CLOUDFLARE_API_TOKEN`).
 
-Aufruf einer Steuerung: `/{view-secret}/steuerung`.
+Aufruf eines Athleten: `/{view-secret}` (Dashboard), `/{view-secret}/steuerung`.
 
 ## Build & Deploy
 
