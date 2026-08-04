@@ -38,6 +38,12 @@ const props = defineProps<{
   einheitRechts?: string
 }>()
 
+// Ein Klick auf den Chart meint einen **Tag**, nicht einen Punkt: die Seite bekommt
+// das Datum und entscheidet selbst, was damit geschieht (im Dashboard: die
+// Tages-Detailansicht öffnen, Issue #27). Chart.js bleibt auch dafür hier drin —
+// welcher Tag getroffen wurde, weiß nur die Skala.
+const emit = defineEmits<{ tagKlick: [tag: string] }>()
+
 Chart.register(
   LineController,
   LineElement,
@@ -56,6 +62,35 @@ const { farbe } = useChartFarben()
 // Ohne eigenes Label taucht ein Datensatz nicht in der Legende auf — so trägt das
 // Band einen Legendeneintrag statt zweier Grenzlinien.
 const OHNE_LEGENDE = ''
+
+/** Der Teil der x-Skala, den die Tag-Zuordnung braucht (Chart.js, strukturell). */
+interface Zeitskala {
+  /** Zeitstempel des ersten Tages der Achse. */
+  min: number
+  getValueForPixel: (pixel: number) => number | undefined
+}
+
+const EIN_TAG_MS = 86_400_000
+
+/**
+ * Welcher Tag der Achse unter dieser Pixel-Position liegt.
+ *
+ * Bewusst über die **Skala** gerechnet und nicht über die getroffenen Datenpunkte:
+ * sonst wäre ausgerechnet ein Tag ohne Messwert nicht anklickbar — der Tag also,
+ * dessen Lücke man erklärt haben will. Die Achse ist eine dichte Kalender-Achse
+ * (ein Eintrag je Tag, `koerperdatenSerien`), deshalb ist der Abstand zum ersten
+ * Tag in Tagen zugleich der Index. Die Stunde, die eine Sommerzeit-Umstellung
+ * verschiebt, ist gegen den halben Tag Rundungsspielraum ohne Belang.
+ */
+function tagAnPixel(skala: Zeitskala | undefined, pixel: number | null): string | undefined {
+  if (!skala || pixel === null) return undefined
+
+  const zeit = skala.getValueForPixel(pixel)
+  if (zeit === undefined) return undefined
+
+  const i = Math.round((zeit - skala.min) / EIN_TAG_MS)
+  return props.tage[Math.min(Math.max(i, 0), props.tage.length - 1)]
+}
 
 /** Auf welcher Achse eine Reihe liegt — die Achsen-Id in der Chart.js-Konfiguration. */
 function achsenId(reihe: Reihe): 'y' | 'y2' {
@@ -157,6 +192,15 @@ const options = computed(() => {
     // Eine Lücke ist eine Lücke — nichts wird überbrückt.
     spanGaps: false,
     interaction: { mode: 'index' as const, intersect: false },
+    // Ein Klick irgendwo im Chart meint den Tag unter dem Zeiger.
+    onClick: (
+      evt: { x: number | null },
+      _aktive: unknown[],
+      chart: { scales: Record<string, unknown> },
+    ) => {
+      const tag = tagAnPixel(chart.scales.x as Zeitskala | undefined, evt.x)
+      if (tag) emit('tagKlick', tag)
+    },
     scales: {
       x: {
         type: 'time' as const,
@@ -208,6 +252,7 @@ const options = computed(() => {
 
 <template>
   <!-- Basistyp bar: gemischte Charts (Balken plus Linie) brauchen einen Basistyp,
-       den einzelne Datensätze überschreiben. -->
-  <ChartComponent type="bar" :data="data" :options="options" />
+       den einzelne Datensätze überschreiben. Der Zeiger zeigt an, dass jeder Tag
+       anklickbar ist (Issue #27). -->
+  <ChartComponent type="bar" class="cursor-pointer" :data="data" :options="options" />
 </template>

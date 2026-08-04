@@ -36,5 +36,9 @@ _Vermeide_: Tages-Readiness, Readiness-Score (ohne Angabe, welches Reading gemei
 **Akute Last**:
 Garmins `acuteLoad`, gelesen vom **spätesten** Reading eines Tages — der Tagesendstand. Anders als beim Morgenwert ist hier gerade der jüngste Stand gefragt: die Belastung des Tages ist erst am Abend vollständig.
 
+**Wochen-Key**:
+Der Schlüssel `YYYY-Www`, unter dem die [Steuerung](../steuerung/CONTEXT.md) ihre *Wochen* ablegt und den sie streng validiert. `isoWoche` rechnet einen Körperdaten-Tag darauf um — die einzige Stelle, an der ein Tag seine Woche erfährt. Das Jahr darin ist das **Wochen-Jahr**, nicht zwingend das Kalenderjahr des Tages: nach ISO 8601 entscheidet der Donnerstag der Woche, weshalb ein 1. Januar oft noch in die letzte Woche des Vorjahres fällt. Ein falsch gerechneter Schlüssel wirft nicht, er verbände den Tag still mit dem falschen Wocheneintrag.
+_Vermeide_: Kalenderwoche (mehrdeutig zwischen Nummer und Schlüssel), KW-Nummer
+
 **Body-Battery-Bilanz**:
 Geladen minus verbraucht über einen Tag. Positiv an einem Ladetag, negativ an einem Zehrtag. Fehlt eine der beiden Seiten, ist die Bilanz eine Lücke — eine fehlende Seite als Null zu rechnen würde einen Tag erfinden.

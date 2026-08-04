@@ -27,6 +27,11 @@ const props = defineProps<{
   einheitRechts?: string
 }>()
 
+// Der Klick auf einen Tag wird nur durchgereicht: welcher Tag getroffen wurde, weiß
+// das Canvas, was daraus folgt (die Tages-Detailansicht, Issue #27) die Seite. Der
+// Wrapper kennt weder Chart.js noch Routen.
+const emit = defineEmits<{ tagKlick: [tag: string] }>()
+
 // Kein einziger Messwert im Zeitraum → gar keinen Chart zeigen. Eine leere Achse
 // mit Gitternetz sieht nach Defekt aus; der Satz sagt, was tatsächlich los ist.
 const hatWerte = computed(() =>
@@ -56,6 +61,7 @@ const hatWerte = computed(() =>
           :band="band"
           :einheit="einheit"
           :einheit-rechts="einheitRechts"
+          @tag-klick="tag => emit('tagKlick', tag)"
         />
         <template #fallback>
           <div class="h-full animate-pulse rounded bg-elevated" />

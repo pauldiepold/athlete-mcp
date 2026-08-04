@@ -33,6 +33,13 @@ function kurz(datum: string): string {
   const [, monat, tag] = datum.split('-')
   return `${tag}.${monat}.`
 }
+
+// Der Weg vom Verlauf in den einzelnen Tag (Issue #27): ein Klick auf einen Tag in
+// irgendeinem Verlauf öffnet dessen Detailansicht. Jeder Chart ist ein Eingang —
+// wer eine auffällige Nacht sieht, soll nicht erst suchen müssen, wo man klickt.
+function oeffneTag(tag: string) {
+  return navigateTo(`/${secret}/tag/${tag}`)
+}
 </script>
 
 <template>
@@ -41,7 +48,10 @@ function kurz(datum: string): string {
 
     <UContainer class="w-full max-w-5xl flex-1 py-6">
       <div class="mb-4 flex flex-wrap items-center justify-between gap-2">
-        <h1 class="text-xl font-semibold">Körperdaten</h1>
+        <div>
+          <h1 class="text-xl font-semibold">Körperdaten</h1>
+          <p class="text-sm text-muted">Ein Klick auf einen Tag im Verlauf öffnet seine Details.</p>
+        </div>
         <div class="flex flex-wrap items-center gap-3">
           <p v-if="data" class="text-sm text-muted tabular-nums">
             {{ kurz(data.von) }} – {{ kurz(data.bis) }}
@@ -120,6 +130,7 @@ function kurz(datum: string): string {
             :reihen="[
               { label: 'Körperdaten-Index', werte: data.index.serie, farbe: 'primaer' },
             ]"
+            @tag-klick="oeffneTag"
           />
 
           <ZeitreihenChart
@@ -135,6 +146,7 @@ function kurz(datum: string): string {
               { label: 'Nachtwert', werte: data.serien.hrv.nachtwert, farbe: 'primaer' },
               { label: 'Wochenschnitt', werte: data.serien.hrv.wochenschnitt, farbe: 'sekundaer' },
             ]"
+            @tag-klick="oeffneTag"
           />
 
           <!-- Die akute Last liegt als ruhige Fläche hinter dem Morgenwert: sie ist
@@ -157,6 +169,7 @@ function kurz(datum: string): string {
                 farbe: 'primaer',
               },
             ]"
+            @tag-klick="oeffneTag"
           />
 
           <ZeitreihenChart
@@ -171,6 +184,7 @@ function kurz(datum: string): string {
               { label: 'Ø 7 Tage (gesamt)', werte: data.serien.schlaf.gesamt_mittel_7, gestrichelt: true, farbe: 'gedaempft' },
               { label: 'Schlafscore', werte: data.serien.schlaf.score, achse: 'rechts', farbe: 'erfolg' },
             ]"
+            @tag-klick="oeffneTag"
           />
 
           <!-- Ruhepuls und Hauttemperatur gehören zusammen (das klassische
@@ -190,6 +204,7 @@ function kurz(datum: string): string {
                 farbe: 'warnung',
               },
             ]"
+            @tag-klick="oeffneTag"
           />
 
           <ZeitreihenChart
@@ -203,6 +218,7 @@ function kurz(datum: string): string {
                 vorzeichenfarben: true,
               },
             ]"
+            @tag-klick="oeffneTag"
           />
 
           <ZeitreihenChart
@@ -211,6 +227,7 @@ function kurz(datum: string): string {
             :reihen="[
               { label: 'Stress', werte: data.serien.stress, farbe: 'warnung' },
             ]"
+            @tag-klick="oeffneTag"
           />
         </div>
       </template>
