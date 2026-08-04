@@ -1,0 +1,45 @@
+# OAuth-Identität statt URL-Secrets — und dafür ein einziges Deployable
+
+Status: accepted (zwei Spikes offen, siehe unten) — supersedet in Teilen [ADR-0003](./0003-read-only-browser-ansicht-zweite-surface.md), [ADR-0004](./0004-eigenstaendiges-nuxt-frontend-monorepo-browser-editing.md) und [ADR-0005](./0005-admin-operator-surface-github-oauth.md)
+
+Nutzer melden sich künftig per **Google-OAuth** an, statt sich durch ein Secret in der URL auszuweisen. Das zwingt den MCP-Endpunkt und die Weboberfläche auf **eine Origin** und damit in **ein einziges Nuxt-Deployable**: der eigenständige MCP-Worker entfällt, `/mcp` wird eine Nitro-Route. Pfad-Secret und View-Secret sterben beide; `userId` bleibt als interne Identität unverändert, sodass **keine Datenmigration** in D1 nötig ist.
+
+## Warum Auth die Konsolidierung erzwingt
+
+Für einen Claude-Connector reicht es nicht, OAuth-*Client* zu sein (Nutzer meldet sich per Google an). Der Server muss selbst **OAuth-2.1-Authorization-Server** sein: Claude entdeckt ihn über `/.well-known/oauth-protected-resource` (RFC 9728), registriert sich per Dynamic Client Registration (RFC 7591), schickt den Nutzer durch `/authorize` (PKCE) und holt sich ein Bearer-Token.
+
+Die Spec erlaubt den AS auf fremder Origin — claude.ai ist daran aber reihenweise gescheitert (anthropics/claude-ai-mcp#82: bei fehlgeschlagener Discovery synthetisiert Claude `/authorize`, `/token`, `/register` **auf der Origin des MCP-Servers**). Inzwischen gefixt, aber der Pfad des geringsten Widerstands liegt eindeutig bei *einer* Origin. Und weil der AS eine Login-**UI** braucht und die in Nuxt liegt, ist die Origin die des Frontends.
+
+## Folgen für die Identität
+
+- **Pfad-Secret ist tot.** Das Bearer-Token trägt die Identität; der Endpunkt wird zu **einer für alle gleichen URL** (`/mcp`). `TenantResolver.resolve(pathname)` entfällt.
+- **View-Secret ist tot.** Aus `/{viewsecret}/steuerung` wird `/steuerung` hinter der Session; `resolveAthlet` liest die Session statt der URL.
+- **`userId` bleibt** Primärschlüssel in D1 (`koerperdaten`, `steuerungsplan`, `steuerung_woche`) und Präfix im KV (`user:<id>:<context>`) — sprechende Namen, vom Operator vergeben.
+- **Neu ist nur ein Mapping** `google:<sub> → userId` im KV, an der Stelle, die `pathsecret:` freimacht. Bewusst auf `sub`, **nicht auf die E-Mail-Adresse**: sonst bricht ein späterer Apple-Login mit „Hide My Email" das Konto.
+- **Invite-Code** ist der einzige Weg zu einem Konto. Der Operator erzeugt ihn, der Nutzer löst ihn beim ersten Login ein, dabei entsteht das Mapping, danach verbrennt er. Er verknüpft die vier Bestandsnutzer mit ihrer neuen Identität *und* ist dauerhaft das Invite-Tor — ohne Code kein Konto.
+- **Nur Google.** Apple ist technisch möglich, kostet aber 99 USD/Jahr Developer Program plus ein halbjährlich neu zu signierendes ES256-JWT als Client-Secret. Bei fünf Nutzern kein Verhältnis. Durch das `sub`-Mapping bleibt es jederzeit nachrüstbar.
+
+## Considered Options
+
+- **Ein Deployable, `/mcp` als Nitro-Route** (gewählt) — eine Origin, ein Build, ein Auth-Kontext. Genau die Konsolidierung, die ADR-0004 als „spätere, bewusste" Option offengehalten hat.
+- **Zwei Worker unter einer Custom Domain per Worker-Routes** — verworfen: kauft Origin-Einheit, lässt aber zwei Build-Pipelines und duplizierte Binding-IDs stehen, und der OAuth-Grant-Store müsste zwischen beiden geteilt werden.
+- **Zwei Origins lassen** — verworfen: wettet auf das Wohlverhalten eines fremden Clients, den man nicht debuggen kann.
+- **Externer IdP als Authorization Server** (Auth0, WorkOS, Stytch) — verworfen: führt den AS auf fremde Origin zurück. Um das zu heilen, müsste man die drei Endpunkte durch die eigene Domain proxyen — also den Selbstbau *plus* einen Vendor.
+- **View-Secrets als bequemen Handy-Shortcut parallel weiterlaufen lassen** — verworfen: zwei Auth-Wege auf dieselben Daten, und der schwächere (ratbares URL-Secret in Chatverläufen und Screenshots) bestimmt das Sicherheitsniveau.
+
+## Consequences
+
+- **Der Durable Object entfällt.** `McpAgent` hält im DO nur MCP-*Session*-Zustand (SSE-Resumability, server-initiierte Notifications). Alle zehn Tools sind reine Request/Response-Aufrufe gegen KV/D1 — Streamable HTTP **stateless** (POST-only, kein SSE-GET) leistet funktional dasselbe. Erst dadurch schrumpft die Konsolidierung von „DO-Agent migrieren" auf „einen fetch-Handler schreiben". Preis: keine langlaufenden Tools mit Progress-Updates mehr möglich, ohne den DO zurückzuholen.
+- **Gekoppelter Blast Radius beim Deploy.** Ein fehlgeschlagener `nuxt build` nimmt künftig den MCP-Endpunkt mit. Bewusst akzeptiert bei fünf Nutzern.
+- **ADR-0005 verliert seinen Sprengstoff.** Die Admin-Fläche wurde dort als „stärkstes Gate im System" begründet, *weil sie alle Schreib-`pathsecret`s aggregiert*, samt Vorsichtsmaßnahme „MCP-URL nur hinter explizitem Anzeigen". Ohne Secret-URLs listet sie nur noch Athleten und Invite-Codes.
+- **Ein Login, zwei Rollen — GitHub-OAuth fliegt raus.** ADR-0005 hielt Operator und Athlet über zwei technisch unverbundene Mechanismen getrennt (GitHub-Session vs. URL-Secret). In einer App mit zwei OAuth-Logins wäre diese Trennung nur noch zwei parallele Session-Systeme mit der dauerhaften Frage, welche Session wo gilt. Stattdessen: **eine** Google-Anmeldung, und ein Flag bzw. eine Allowlist der Operator-`sub` schaltet `/admin` frei. Bewusst in Kauf genommen: wer das Google-Konto des Operators übernimmt, hat sofort beide Rollen und kann sich Invite-Codes für fremde Konten ausstellen. Die Gegenmaßnahme ist 2FA auf diesem Konto, nicht ein zweites Login — beide Konten hingen ohnehin an derselben E-Mail und derselben Wiederherstellungskette, die Trennung hätte im Ernstfall kaum gehalten.
+- **Der Link ist nicht mehr die Anmeldung.** Heute tippt man den Link im Chat an und ist auf jedem Gerät sofort drin. Künftig braucht es einmal pro Gerät einen Google-Login. Das trifft die „auch vom Handy"-Eigenschaft aus der CONTEXT-MAP; die Session hält danach. `get_dashboard_link` gibt nur noch eine statische URL aus.
+- **Der Cron zieht mit** in Nitro (Tasks + `triggers.crons`) statt in den `scheduled`-Export des MCP-Workers.
+- **Teil-Onboarding wird der Normalfall.** Bisher schrieb `buildSeedEntries` alle Per-Athleten-KV-Einträge in einem Bulk-Put — ein Athlet existierte komplett oder gar nicht. Mit Self-Service ist „Konto da, noch nichts verbunden" der erste Zustand jedes neuen Athleten. Entscheidung: **alle Tools bleiben immer registriert** und antworten bei fehlendem Connector *fachlich* („Final Surge ist für dich noch nicht verbunden — hier einrichten: …") statt mit einer Exception. Tools abhängig vom Zustand zu registrieren wäre eleganter, scheitert aber am fehlenden SSE: `notifications/tools/list_changed` gibt es ohne Durable Object nicht, ein später verbundener Connector würde in Claudes gecachter Werkzeugliste nie auftauchen. Nebeneffekt: der Steuerungs-Kontext braucht keine externen Credentials und ist ab Sekunde eins nutzbar.
+- **Self-Service verschärft die Klartext-Credentials.** Mit einem Onboarding-Formular tippt ein Fremder sein Final-Surge-Passwort in die Weboberfläche, statt es dem Operator persönlich zu geben — die Risikolage aus [ADR-0001](./0001-athlete-mcp-ein-worker-mehrere-kontexte.md) ändert sich hier, nicht erst „bei mehr Betreibern". Bewusst aufgeschoben: Klartext bleibt zunächst, siehe Issue #35.
+
+## Offene Unbekannte: zwei Spikes vor der Umsetzung
+
+1. **Authorization-Server-Library.** Kandidaten: [`@cloudflare/workers-oauth-provider`](https://github.com/cloudflare/workers-oauth-provider) (nur AS-Hälfte, Grants im **KV**, kein Schema, `nuxt-auth-utils` bleibt für den Google-Login — braucht aber eine eigene `main`-Datei, die Nitros generiertes Bundle als `defaultHandler` umschließt) gegen [Better Auth mit `oauth-provider`-Plugin](https://better-auth.com/docs/plugins/oauth-provider) (Login **und** AS aus einer Hand, idiomatisches Nitro-Modul, verdrängt aber `nuxt-auth-utils` und bringt ein eigenes D1-Schema). Selbstbau (~400 Zeilen) ist die Rückfallebene. Entscheidung per Spike, nicht per Diskussion.
+   Falls Better Auth: sein Schema gehört in eine **zweite D1**, damit nicht zwei Migrations-Regime (handgeschriebene `migrations/*.sql` vs. Better-Auth-CLI) auf derselben Datenbank arbeiten. Ein Join über die Grenze gibt es nie — die einzige Brücke ist der Lookup `google:<sub> → userId`, und der gehört ohnehin ins KV.
+2. **Garmin-Login aus dem Worker.** Self-Service-Onboarding setzt voraus, dass der initiale Garmin-SSO-Login nach TypeScript portierbar ist und aus einem Worker heraus durchkommt. Der Token-**Refresh** (`diauth.garmin.com`) läuft dort bereits headless und zuverlässig; die Unbekannte ist ausschließlich **`sso.garmin.com`** — Cloudflare-Bot-Schutz gegen Datacenter-IP und Workers-TLS-Fingerprint, plus der zweistufige MFA-Flow (Zwischenzustand kurzlebig im KV). Scheitert der Spike, führt die Weboberfläche das Onboarding weiterhin, der Garmin-Schritt bleibt aber Operator-CLI.
