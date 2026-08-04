@@ -1,7 +1,8 @@
 <script setup lang="ts">
-// Sticky-Kopfzeile aller Athleten-Seiten (Issue #13, erweitert in #24) — trägt die
+// Kopfzeile aller Athleten-Seiten (Issue #13, erweitert in #24) — trägt die
 // gesamte Navigation, damit Blättern UND Speichern beim Scrollen immer erreichbar
-// bleiben. Vier Zonen:
+// bleiben. Das sticky Gerüst und der Admin-Eintrag kommen aus AppHeader; hier die
+// athletenspezifischen Zonen:
 //   links  – Athlet-Identität (Avatar + Name), verlinkt aufs Dashboard (Heimat)
 //   danach – Umschalter zwischen den beiden Flächen: Dashboard und Steuerung
 //   mitte  – Wochen-Switcher, nur im Steuerungs-Kontext: die 3 neuesten als
@@ -51,76 +52,72 @@ function short(kw: string): string {
 </script>
 
 <template>
-  <header
-    class="sticky top-0 z-10 border-b border-default bg-default/80 backdrop-blur"
-  >
-    <UContainer class="flex flex-wrap items-center gap-3 py-3">
-      <ULink
+  <AppHeader>
+    <ULink
+      :to="dashboardBase"
+      class="flex items-center gap-2.5 text-default hover:text-primary"
+    >
+      <UAvatar :text="displayName.charAt(0)" size="sm" />
+      <span class="font-medium">{{ displayName }}</span>
+    </ULink>
+
+    <div class="flex items-center gap-1">
+      <UButton
         :to="dashboardBase"
-        class="flex items-center gap-2.5 text-default hover:text-primary"
-      >
-        <UAvatar :text="displayName.charAt(0)" size="sm" />
-        <span class="font-medium">{{ displayName }}</span>
-      </ULink>
+        :color="bereich === 'dashboard' ? 'primary' : 'neutral'"
+        :variant="bereich === 'dashboard' ? 'soft' : 'ghost'"
+        size="sm"
+      >Dashboard</UButton>
+      <UButton
+        :to="base"
+        :color="bereich === 'steuerung' ? 'primary' : 'neutral'"
+        :variant="bereich === 'steuerung' ? 'soft' : 'ghost'"
+        size="sm"
+      >Steuerung</UButton>
+    </div>
 
-      <div class="flex items-center gap-1">
-        <UButton
-          :to="dashboardBase"
-          :color="bereich === 'dashboard' ? 'primary' : 'neutral'"
-          :variant="bereich === 'dashboard' ? 'soft' : 'ghost'"
-          size="sm"
-        >Dashboard</UButton>
-        <UButton
-          :to="base"
-          :color="bereich === 'steuerung' ? 'primary' : 'neutral'"
-          :variant="bereich === 'steuerung' ? 'soft' : 'ghost'"
-          size="sm"
-        >Steuerung</UButton>
-      </div>
+    <div class="flex-1" />
 
-      <div class="flex-1" />
+    <div v-if="bereich === 'steuerung' && sorted.length" class="flex items-center gap-1">
+      <UButton
+        v-if="currentKw"
+        :to="prev ? `${base}/${prev}` : undefined"
+        :disabled="!prev"
+        color="neutral"
+        variant="ghost"
+        size="sm"
+        aria-label="Vorherige Woche"
+      >‹</UButton>
 
-      <div v-if="bereich === 'steuerung' && sorted.length" class="flex items-center gap-1">
-        <UButton
-          v-if="currentKw"
-          :to="prev ? `${base}/${prev}` : undefined"
-          :disabled="!prev"
-          color="neutral"
-          variant="ghost"
-          size="sm"
-          aria-label="Vorherige Woche"
-        >‹</UButton>
+      <UButton
+        v-for="w in shortcuts"
+        :key="w"
+        :to="`${base}/${w}`"
+        :title="w"
+        :color="w === currentKw ? 'primary' : 'neutral'"
+        :variant="w === currentKw ? 'solid' : 'ghost'"
+        size="sm"
+      >{{ short(w) }}</UButton>
 
-        <UButton
-          v-for="w in shortcuts"
-          :key="w"
-          :to="`${base}/${w}`"
-          :title="w"
-          :color="w === currentKw ? 'primary' : 'neutral'"
-          :variant="w === currentKw ? 'solid' : 'ghost'"
-          size="sm"
-        >{{ short(w) }}</UButton>
+      <UDropdownMenu v-if="olderItems.length" :items="olderItems">
+        <UButton color="neutral" variant="ghost" size="sm">Ältere ▾</UButton>
+      </UDropdownMenu>
 
-        <UDropdownMenu v-if="olderItems.length" :items="olderItems">
-          <UButton color="neutral" variant="ghost" size="sm">Ältere ▾</UButton>
-        </UDropdownMenu>
+      <UButton
+        v-if="currentKw"
+        :to="next ? `${base}/${next}` : undefined"
+        :disabled="!next"
+        color="neutral"
+        variant="ghost"
+        size="sm"
+        aria-label="Nächste Woche"
+      >›</UButton>
+    </div>
 
-        <UButton
-          v-if="currentKw"
-          :to="next ? `${base}/${next}` : undefined"
-          :disabled="!next"
-          color="neutral"
-          variant="ghost"
-          size="sm"
-          aria-label="Nächste Woche"
-        >›</UButton>
-      </div>
+    <div class="flex-1" />
 
-      <div class="flex-1" />
-
-      <div class="flex items-center gap-4">
-        <slot name="actions" />
-      </div>
-    </UContainer>
-  </header>
+    <div class="flex items-center gap-4">
+      <slot name="actions" />
+    </div>
+  </AppHeader>
 </template>

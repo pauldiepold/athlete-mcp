@@ -67,7 +67,7 @@ function oeffneTag(tag: string) {
 </script>
 
 <template>
-  <div class="flex min-h-dvh flex-col">
+  <div class="flex flex-1 flex-col">
     <AthletHeader :user="data?.user ?? ''" :secret="secret" bereich="dashboard" />
 
     <UContainer class="w-full max-w-5xl flex-1 py-6">

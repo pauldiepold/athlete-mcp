@@ -44,6 +44,7 @@ describe("listOnboardedUsers", () => {
       userId: "paul",
       mcpUrl: `${MCP}/paul-path/mcp`,
       viewUrl: `${WEB}/paul-view`,
+      viewPath: "/paul-view",
       seededContexts: { finalSurge: true, garmin: true, view: true },
     });
   });
@@ -76,6 +77,7 @@ describe("listOnboardedUsers", () => {
     const users = await listOnboardedUsers(kv, BASES);
 
     expect(users[0]!.viewUrl).toBeNull();
+    expect(users[0]!.viewPath).toBeNull();
     expect(users[0]!.seededContexts.view).toBe(false);
     expect(users[0]!.mcpUrl).toBe(`${MCP}/paul-path/mcp`);
   });

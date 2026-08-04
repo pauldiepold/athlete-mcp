@@ -5,10 +5,11 @@
 // gleichbedeutend mit „Operator". So bleibt der eigentliche isOperator-Check an einer
 // Stelle und das stärkste Gate des Systems hängt nicht an einem URL-Secret.
 export default defineEventHandler(async (event) => {
-  // Geschützt: die Operator-Startseite (/) und die /admin-Fläche. Die Mandanten-
-  // Ansichten (/{secret}/…) und der OAuth-Endpunkt (/auth/github) bleiben offen.
-  const protectedPath = event.path === '/' || event.path.startsWith('/admin')
-  if (!protectedPath) {
+  // Geschützt ist allein die /admin-Fläche. Die Startseite (/) ist bewusst offen: sie
+  // ist das Ziel nach dem Abmelden und muss ohne Session erreichbar sein — schickte
+  // sie in den OAuth-Endpunkt, meldete GitHub den Betreiber sofort wieder an. Die
+  // Mandanten-Ansichten (/{secret}/…) und /auth/github bleiben ebenfalls offen.
+  if (!event.path.startsWith('/admin')) {
     return
   }
 

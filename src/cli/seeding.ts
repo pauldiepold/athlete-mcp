@@ -37,12 +37,21 @@ export function buildMcpUrl(baseUrl: string, pathSecret: string): string {
 }
 
 /**
+ * Der Pfad der Browser-Fläche eines Nutzers: `/{secret}`. Host-frei, damit die
+ * Admin-Oberfläche innerhalb ihres eigenen Deployments navigieren kann (lokal
+ * bleibt lokal); die ausgegebene URL entsteht daraus plus Base.
+ */
+export function buildViewPath(viewSecret: string): string {
+  return `/${viewSecret}`;
+}
+
+/**
  * Die fertige, an den Nutzer ausgegebene Browser-URL: `<base>/{secret}`. Zeigt
  * seit Issue #24 auf das Körperdaten-Dashboard, die Startseite des per-User-Links;
  * die Steuerung liegt darunter (`/{secret}/steuerung`).
  */
 export function buildViewUrl(baseUrl: string, viewSecret: string): string {
-  return `${baseUrl.replace(/\/+$/, "")}/${viewSecret}`;
+  return `${baseUrl.replace(/\/+$/, "")}${buildViewPath(viewSecret)}`;
 }
 
 /** Ein KV-Eintrag im `wrangler kv bulk put`-Format. */

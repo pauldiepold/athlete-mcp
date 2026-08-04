@@ -17,7 +17,7 @@
  * siehe seeding.ts (buildSeedEntries) und docs/adr/0001/0003.
  */
 
-import { buildMcpUrl, buildViewUrl } from "./seeding";
+import { buildMcpUrl, buildViewPath, buildViewUrl } from "./seeding";
 
 /** Welche Per-Nutzer-Kontexte im KV geseedet sind (Anzeige, nicht Auswertung). */
 export interface SeededContexts {
@@ -30,8 +30,14 @@ export interface OnboardedUser {
   userId: string;
   /** Immer vorhanden: jeder onboardete Nutzer hat ein MCP-Pfad-Secret. */
   mcpUrl: string;
-  /** Dashboard-Startseite; null, wenn der Nutzer (noch) kein View-Secret hat. */
+  /** Dashboard-Startseite als ausgebbare URL; null ohne View-Secret. */
   viewUrl: string | null;
+  /**
+   * Derselbe Ort host-frei (`/{viewsecret}`) — womit der Operator im eigenen
+   * Deployment navigiert, statt lokal in die Prod-Instanz zu springen. `viewUrl`
+   * bleibt das, was man dem Nutzer gibt.
+   */
+  viewPath: string | null;
   seededContexts: SeededContexts;
 }
 
@@ -107,6 +113,7 @@ export async function listOnboardedUsers(
       userId,
       mcpUrl: buildMcpUrl(mcpBaseUrl, pathSecret),
       viewUrl: viewSecret ? buildViewUrl(webBaseUrl, viewSecret) : null,
+      viewPath: viewSecret ? buildViewPath(viewSecret) : null,
       seededContexts: {
         finalSurge: finalSurgeUsers.has(userId),
         garmin: garminUsers.has(userId),
