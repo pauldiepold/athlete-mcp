@@ -19,6 +19,14 @@ _Vermeide_: Tagesform, Readiness-Score, Score (ohne Angabe, welcher gemeint ist)
 **Beitrag (einer Achse)**:
 Was ein einzelner Marker zum Körperdaten-Index eines Tages beisteuert: seine Punkte (0–100), sein an diesem Tag geltendes Gewicht und beides multipliziert. Die vier Beiträge summieren sich zum Index — die Aufschlüsselung ist Teil des Modul-Vertrags, damit an der Oberfläche steht, welcher Marker heute nach unten zieht.
 
+**Nachlauffenster**:
+Die letzten 14 Tage, die der tägliche Cron bei jedem Lauf auf fehlende Archivzeilen prüft und nachholt — der Mechanismus, der die Historie lückenlos hält, ohne dass jemand eingreifen muss. Kostet im Normalbetrieb nichts, weil ein vorhandener Tag nicht abgerufen wird. Ausdrücklich **begrenzt**: was länger zurückliegt, ist Sache eines bewussten Backfill-Laufs, nicht eines immer größeren Fensters. Siehe [ADR-0003](./docs/adr/0003-koerperdaten-cron-nachlauffenster.md).
+_Vermeide_: Retry, Backfill (der ist der manuelle, unbegrenzte Lauf)
+
+**Leerer Tag**:
+Eine Archivzeile, deren sämtliche Blöcke `null` sind — Garmin wurde gefragt und hatte für diesen Tag nichts (keine Uhr getragen). Zu unterscheiden von der **fehlenden** Zeile, bei der niemand nachgesehen hat: die eine beendet das Nachfragen, die andere löst es aus. Weil eine spät synchronisierte Uhr denselben Zustand erzeugt, wird ein leerer Tag noch 3 Tage lang erneut angefragt und danach geglaubt.
+_Vermeide_: Lücke (für die leere Zeile), fehlender Tag
+
 **HRV-Status**:
 Garmins über mehrere Nächte gemittelte Herzfrequenzvariabilität samt Einordnung (z. B. „ausgeglichen"). Ein einzelner Körperdaten-Wert, nicht die Tagesform selbst.
 

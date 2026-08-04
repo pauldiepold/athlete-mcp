@@ -95,4 +95,53 @@ describe("GarminClient.getKoerperdaten", () => {
     const client = new GarminClient(auth, "paul.display");
     await expect(client.getKoerperdaten("2026-06-13")).rejects.toThrow(/401/);
   });
+
+  it("nimmt 204 als 'keine Daten' und reißt den übrigen Tag nicht mit", async () => {
+    // Garmin antwortet mit 204, wenn für den Tag kein HRV-Status vorliegt —
+    // keine Uhr getragen oder Baseline noch nicht etabliert.
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: string | URL) => {
+        const url = input.toString();
+        if (url.includes("/hrv-service/hrv/")) {
+          return new Response(null, { status: 204 });
+        }
+        if (url.includes("/dailyStress/")) {
+          return new Response(JSON.stringify({ avgStressLevel: 34 }), { status: 200 });
+        }
+        if (url.includes("/trainingreadiness/")) {
+          return new Response(JSON.stringify([{ score: 70 }]), { status: 200 });
+        }
+        return new Response(JSON.stringify({}), { status: 200 });
+      }),
+    );
+
+    const client = new GarminClient(auth, "paul.display");
+    const raw = await client.getKoerperdaten("2026-06-13");
+
+    expect(raw.hrv).toEqual({});
+    expect(raw.stress).toEqual({ avgStressLevel: 34 });
+    expect(raw.trainingReadiness).toEqual([{ score: 70 }]);
+  });
+
+  it("gibt einem leeren Listen-Endpoint die leere Liste, nicht das leere Objekt", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: string | URL) => {
+        const url = input.toString();
+        const leer =
+          url.includes("/bodyBattery/reports/daily") ||
+          url.includes("/trainingreadiness/");
+        return leer
+          ? new Response("", { status: 200 })
+          : new Response(JSON.stringify({}), { status: 200 });
+      }),
+    );
+
+    const client = new GarminClient(auth, "paul.display");
+    const raw = await client.getKoerperdaten("2026-06-13");
+
+    expect(raw.bodyBattery).toEqual([]);
+    expect(raw.trainingReadiness).toEqual([]);
+  });
 });
