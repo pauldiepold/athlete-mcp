@@ -67,7 +67,7 @@ function oeffneTag(tag: string) {
 </script>
 
 <template>
-  <div class="flex min-h-dvh flex-col">
+  <div class="flex flex-1 flex-col">
     <AthletHeader :user="data?.user ?? ''" :secret="secret" bereich="dashboard" />
 
     <UContainer class="w-full max-w-5xl flex-1 py-6">
@@ -240,11 +240,15 @@ function oeffneTag(tag: string) {
 
           <!-- Ruhepuls und Hauttemperatur gehören zusammen (das klassische
                Frühwarnmuster). Die Hauttemperatur ist in vielen Zeilen gar nicht
-               gemessen — sie bleibt dann leer, ohne den Ruhepuls mitzunehmen. -->
+               gemessen — sie bleibt dann leer, ohne den Ruhepuls mitzunehmen.
+               Die Ruhepuls-Achse beginnt nicht bei null: die paar Schläge
+               Abweichung sind die Aussage, und von 0 bpm an wären sie nicht mehr
+               zu sehen. -->
           <ZeitreihenChart
             titel="Ruhepuls und Hauttemperatur-Abweichung"
             einheit="bpm"
             einheit-rechts="°C"
+            enge-achse
             :tage="data.serien.tage"
             :reihen="[
               { label: 'Ruhepuls', werte: data.serien.ruhepuls, farbe: 'primaer' },

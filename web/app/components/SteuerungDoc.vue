@@ -40,7 +40,9 @@ async function save() {
 </script>
 
 <template>
-  <div class="flex h-dvh flex-col">
+  <!-- Füllt die Restfläche unter der Kopfzeile (app.vue spannt die Spalte auf), damit
+       der Editor die Höhe bekommt und die Fußzeile trotzdem unten bleibt. -->
+  <div class="flex min-h-0 flex-1 flex-col">
     <AthletHeader
       :user="user"
       :secret="secret"

@@ -25,6 +25,12 @@ const props = defineProps<{
   einheit?: string
   /** Einheit der rechten Achse, wenn eine Reihe dort liegt. */
   einheitRechts?: string
+  /**
+   * Linke Achse eng um die Werte legen statt bei null zu beginnen. Für Größen,
+   * deren Aussage in der Abweichung vom eigenen Normalwert liegt (Ruhepuls) —
+   * dort ist die Null kein Bezugspunkt, sondern nur leere Fläche.
+   */
+  engeAchse?: boolean
 }>()
 
 // Der Klick auf einen Tag wird nur durchgereicht: welcher Tag getroffen wurde, weiß
@@ -61,6 +67,7 @@ const hatWerte = computed(() =>
           :band="band"
           :einheit="einheit"
           :einheit-rechts="einheitRechts"
+          :enge-achse="engeAchse"
           @tag-klick="tag => emit('tagKlick', tag)"
         />
         <template #fallback>
