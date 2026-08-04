@@ -36,6 +36,7 @@ const props = defineProps<{
   band?: Band
   einheit?: string
   einheitRechts?: string
+  engeAchse?: boolean
 }>()
 
 // Ein Klick auf den Chart meint einen **Tag**, nicht einen Punkt: die Seite bekommt
@@ -99,6 +100,32 @@ function achsenId(reihe: Reihe): 'y' | 'y2' {
 
 const hatRechteAchse = computed(() => props.reihen.some(r => r.achse === 'rechts'))
 const wirdGestapelt = computed(() => props.reihen.some(r => r.stapel !== undefined))
+
+// Der Chart hat den Basistyp „bar", und Chart.js zieht Wertachsen von Balken
+// grundsätzlich bis zur Null — bei einer Größe, die um ihren eigenen Normalwert
+// schwankt (Ruhepuls), presst das genau die Schwankung platt, die man sehen will.
+// Mit `engeAchse` legt sich die linke Achse stattdessen um die Werte: erst ein
+// Puffer nach beiden Seiten, dann nach außen auf Fünfer gerundet, damit die
+// Beschriftung runde Zahlen behält und die Achse beim Blättern durch die Zeiträume
+// nicht bei jedem Wert neu springt.
+const ACHSEN_RASTER = 5
+const ACHSEN_PUFFER = 5
+
+const grenzenLinks = computed(() => {
+  if (!props.engeAchse) return {}
+
+  const werte = [
+    ...props.reihen.filter(r => r.achse !== 'rechts').flatMap(r => r.werte),
+    ...(props.band ? [...props.band.unten, ...props.band.oben] : []),
+  ].filter((w): w is number => w !== null)
+  if (werte.length === 0) return {}
+
+  return {
+    beginAtZero: false,
+    min: Math.floor((Math.min(...werte) - ACHSEN_PUFFER) / ACHSEN_RASTER) * ACHSEN_RASTER,
+    max: Math.ceil((Math.max(...werte) + ACHSEN_PUFFER) / ACHSEN_RASTER) * ACHSEN_RASTER,
+  }
+})
 
 const data = computed(() => {
   const bandFarbe = farbe('primaer', 0.14)
@@ -212,6 +239,7 @@ const options = computed(() => {
       },
       y: {
         stacked: wirdGestapelt.value,
+        ...grenzenLinks.value,
         grid: { color: gitter },
         ticks: { color: beschriftung },
         border: { display: false },
