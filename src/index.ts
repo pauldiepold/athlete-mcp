@@ -22,6 +22,11 @@ import {
   buildGarminClient,
   fetchKoerperdatenLive,
 } from "./garmin/koerperdatenLive.js";
+import {
+  addDays,
+  fensterStart,
+  nachzuholendeTage,
+} from "./garmin/koerperdatenNachlauf.js";
 import { getKoerperdatenRange } from "./garmin/koerperdatenReadThrough.js";
 import { SteuerungStore } from "./steuerung/steuerungStore.js";
 import { handleSteuerungView } from "./steuerung/steuerungView.js";
@@ -44,13 +49,6 @@ function todayInBerlin(): string {
   return new Intl.DateTimeFormat("en-CA", {
     timeZone: "Europe/Berlin",
   }).format(new Date());
-}
-
-/** Reine Datums-Arithmetik auf YYYY-MM-DD (UTC-Mitternacht, kein TZ-Drift). */
-function addDays(isoDate: string, days: number): string {
-  const d = new Date(`${isoDate}T00:00:00Z`);
-  d.setUTCDate(d.getUTCDate() + days);
-  return d.toISOString().slice(0, 10);
 }
 
 /** Alle userIds mit einem Garmin-Token-Bündel im KV (`user:<id>:garmin`). */
@@ -320,25 +318,63 @@ export default {
   },
 
   /**
-   * Täglicher Cron (archive-first): pro Garmin-Nutzer die gestrigen Körperdaten
-   * live holen und ins D1-Archiv upserten. Fehler eines Nutzers (z. B. abgerissener
-   * Refresh-Token) blockieren die übrigen nicht.
+   * Täglicher Cron (archive-first): pro Garmin-Nutzer den Vortag holen **und
+   * dabei zurückliegende Lücken schließen** — welche Tage das sind, entscheidet
+   * `nachzuholendeTage`. Damit repariert sich der Cron selbst: ein an einem
+   * Morgen gescheiterter Abruf ist am nächsten Morgen wieder ein Kandidat,
+   * statt ein Loch zu hinterlassen, das nur ein manueller Backfill je schließt.
+   *
+   * Fehler bleiben lokal: ein gescheiterter Tag blockiert die übrigen Tage
+   * dieses Nutzers nicht und ein gescheiterter Nutzer nicht die übrigen Nutzer.
+   * Jeder Lauf hinterlässt pro Nutzer eine Bilanzzeile im Log — ohne die wäre
+   * ein dauerhaft klemmender Nutzer von einem gesunden nicht zu unterscheiden.
    */
   async scheduled(
     _controller: ScheduledController,
     env: Env,
     _ctx: ExecutionContext,
   ): Promise<void> {
-    const yesterday = addDays(todayInBerlin(), -1);
+    const heute = todayInBerlin();
     const archive = new KoerperdatenArchive(env.ATHLETE_DB);
 
     for (const userId of await listGarminUsers(env.SESSION_KV)) {
       try {
+        const vorhanden = await archive.readRange(
+          userId,
+          fensterStart(heute),
+          addDays(heute, -1),
+        );
+        const offen = nachzuholendeTage({ vorhanden, heute });
+
         const client = await buildGarminClient(env.SESSION_KV, userId);
-        const daten = await fetchKoerperdatenLive(client, yesterday);
-        await archive.upsert(userId, yesterday, daten);
+        let geschrieben = 0;
+        const gescheitert: string[] = [];
+
+        // Sequentiell: die Connect-API ist inoffiziell und ratelimitet (ADR-0001).
+        for (const date of offen) {
+          try {
+            await archive.upsert(
+              userId,
+              date,
+              await fetchKoerperdatenLive(client, date),
+            );
+            geschrieben++;
+          } catch (err) {
+            gescheitert.push(date);
+            console.error(
+              `Cron Körperdaten ${userId} ${date}: ${(err as Error).message}`,
+            );
+          }
+        }
+
+        console.log(
+          `Cron Körperdaten ${userId}: ${offen.length} offen, ` +
+            `${geschrieben} geschrieben, ${gescheitert.length} gescheitert` +
+            (gescheitert.length ? ` (${gescheitert.join(", ")})` : ""),
+        );
       } catch (err) {
-        console.error(`Cron Körperdaten ${userId} ${yesterday}:`, err);
+        // Vor dem ersten Tag gescheitert — etwa ein abgerissener Refresh-Token.
+        console.error(`Cron Körperdaten ${userId}: ${(err as Error).message}`);
       }
     }
   },

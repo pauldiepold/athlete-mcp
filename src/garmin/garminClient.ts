@@ -36,7 +36,15 @@ export class GarminClient {
     private readonly baseUrl: string = BASE_URL,
   ) {}
 
-  /** Rohe Körperdaten für ein explizites Datum (YYYY-MM-DD), alle Metriken parallel. */
+  /**
+   * Rohe Körperdaten für ein explizites Datum (YYYY-MM-DD), alle Metriken parallel.
+   *
+   * Ein Endpoint ohne Daten liefert seinen neutralen Wert (siehe `get`), ein
+   * Endpoint mit HTTP-Fehler lässt den ganzen Tag scheitern. Die Asymmetrie ist
+   * gewollt: „an diesem Tag gab es nichts" ist ein Messergebnis und gehört
+   * archiviert, „wir konnten nicht nachsehen" ist keins — als leerer Block
+   * archiviert wäre eine Störung eine Lücke, die niemandem mehr auffällt.
+   */
   async getKoerperdaten(date: string): Promise<RawKoerperdaten> {
     const token = await this.auth.getAccessToken();
 
@@ -54,23 +62,35 @@ export class GarminClient {
 
     const [hrv, sleep, stress, bodyBattery, trainingReadiness] =
       await Promise.all([
-        this.get<RawHrv>(`${this.baseUrl}/hrv-service/hrv/${date}`, token),
-        this.get<RawSleep>(sleepUrl, token),
+        this.get<RawHrv>(`${this.baseUrl}/hrv-service/hrv/${date}`, token, {}),
+        this.get<RawSleep>(sleepUrl, token, {}),
         this.get<RawStress>(
           `${this.baseUrl}/wellness-service/wellness/dailyStress/${date}`,
           token,
+          {},
         ),
-        this.get<RawBodyBattery[]>(bodyBatteryUrl, token),
+        this.get<RawBodyBattery[]>(bodyBatteryUrl, token, []),
         this.get<RawTrainingReadiness[]>(
           `${this.baseUrl}/metrics-service/metrics/trainingreadiness/${date}`,
           token,
+          [],
         ),
       ]);
 
     return { hrv, sleep, stress, bodyBattery, trainingReadiness };
   }
 
-  private async get<T>(url: string | URL, token: string): Promise<T> {
+  /**
+   * Ein Abruf. `leer` ist der neutrale Wert dieses Endpoints — das leere Objekt
+   * bzw. die leere Liste, aus der `formatKoerperdaten` einen `null`-Block macht.
+   *
+   * Garmin antwortet mit **204 No Content**, wenn es für den Tag nichts gibt:
+   * keine Uhr getragen, oder die HRV-Baseline ist noch nicht etabliert. Das ist
+   * kein Fehler, sondern die Antwort — `res.ok` gilt bei 204, und ein `json()`
+   * auf dem leeren Body würde werfen und wegen `Promise.all` die vier
+   * vollständigen Antworten desselben Tages mitreißen.
+   */
+  private async get<T>(url: string | URL, token: string, leer: T): Promise<T> {
     const res = await fetch(url, {
       headers: {
         Authorization: `Bearer ${token}`,
@@ -82,6 +102,7 @@ export class GarminClient {
       throw new Error(`Garmin-Connect HTTP ${res.status} (${url.toString()})`);
     }
 
-    return (await res.json()) as T;
+    const body = await res.text();
+    return body.trim() === "" ? leer : (JSON.parse(body) as T);
   }
 }
