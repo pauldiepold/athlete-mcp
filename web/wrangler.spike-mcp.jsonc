@@ -1,0 +1,8 @@
+{
+  // SPIKE #37 — Checkpoint 1 isoliert: nur der MCP-Handler, kein Nuxt, kein OAuth.
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "athlete-spike-mcp",
+  "main": "spike/mcp.ts",
+  "compatibility_date": "2026-06-04",
+  "compatibility_flags": ["nodejs_compat"]
+}

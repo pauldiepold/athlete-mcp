@@ -1,0 +1,20 @@
+{
+  // SPIKE #37 — Checkpoint 2/3: ein Deployable, eigene main-Datei um Nitros Bundle.
+  // Bewusst eigener Worker-Name und eigenes KV — die Produktion (athlete-web,
+  // athlete-mcp) wird davon nicht angefasst.
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "athlete-spike-oauth",
+  "main": "spike/worker.ts",
+  "compatibility_date": "2026-06-04",
+  "compatibility_flags": ["nodejs_compat"],
+  "assets": {
+    "directory": ".output/public"
+  },
+  "observability": {
+    "enabled": true
+  },
+  "kv_namespaces": [{ "binding": "OAUTH_KV", "id": "abbc3bd179584c0c9eb25795a1bf5524" }],
+  "triggers": {
+    "crons": ["0 5 * * *"]
+  }
+}

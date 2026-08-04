@@ -31,6 +31,10 @@ export default defineNuxtConfig({
   // Deploy als eigenständiger Cloudflare-Worker (zweites Target neben dem MCP-Worker).
   nitro: {
     preset: 'cloudflare-module',
+    // SPIKE #37: Cron als Nitro-Task, um zu prüfen, ob `scheduled` den Wrapper überlebt.
+    experimental: { tasks: true },
+    // Der Task-Name kommt aus dem Dateipfad (server/tasks/spike-cron.ts), nicht aus meta.name.
+    scheduledTasks: { '0 5 * * *': ['spike-cron'] },
   },
 
   // Geteilte TS-Module direkt aus ../src importieren (Single Source of Truth fürs
