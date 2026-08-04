@@ -13,6 +13,8 @@
   "observability": {
     "enabled": true
   },
+  // Checkpoint 3: echte Domain statt *.workers.dev.
+  "routes": [{ "pattern": "athlete-spike.pauldiepold.de", "custom_domain": true }],
   "kv_namespaces": [{ "binding": "OAUTH_KV", "id": "abbc3bd179584c0c9eb25795a1bf5524" }],
   "triggers": {
     "crons": ["0 5 * * *"]
