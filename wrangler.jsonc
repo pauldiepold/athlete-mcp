@@ -9,6 +9,12 @@
 	"observability": {
 		"enabled": true
 	},
+	// Basis-URL des Nuxt-Targets (eigener Worker, siehe docs/adr/0004). Der
+	// MCP-Worker ruft dort nichts ab — er baut daraus nur den Browser-Link, den
+	// get_dashboard_link dem Athleten ausgibt. Kein Secret, daher var statt secret.
+	"vars": {
+		"WEB_BASE_URL": "https://athlete-web.pauldiepold.workers.dev"
+	},
 	"durable_objects": {
 		"bindings": [
 			{
