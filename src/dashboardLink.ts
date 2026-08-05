@@ -1,9 +1,9 @@
 /**
  * Der eigene Browser-Link des Athleten, im Chat abfragbar: löst zur userId das
  * View-Secret rückwärts auf (`viewsecret:<secret> → userId`, KV) und baut daraus
- * die URLs des Web-Targets. Der MCP-Worker kennt nach dem TenantResolver nur die
- * userId — das View-Secret liegt im KV bewusst in der anderen Richtung (ADR-0003),
- * also wird der Namespace gescannt. Bei einer Handvoll manuell onboardeter Nutzer
+ * die URLs der Browser-Fläche. Nach dem TenantResolver ist nur die userId bekannt —
+ * das View-Secret liegt im KV bewusst in der anderen Richtung (ADR-0003), also wird
+ * der Namespace gescannt. Bei einer Handvoll manuell onboardeter Nutzer
  * (ADR-0001) ist das ein kurzer Scan; ein zweiter, vorwärts gerichteter KV-Key
  * wäre eine zweite Wahrheit über dasselbe Mapping.
  *
@@ -11,8 +11,10 @@
  * gäbe einem Nutzer den Link eines anderen — der Link *ist* die Anmeldung. Deshalb
  * rein und mit Fake-KV testbar gekapselt.
  *
- * Die Pfade unter dem Secret gehören dem Nuxt-Target (ADR-0004): `/` ist das
- * Körperdaten-Dashboard, darunter liegen Steuerung und Tages-Detail.
+ * Die Pfade unter dem Secret gehören der Browser-Fläche (ADR-0004): `/` ist das
+ * Körperdaten-Dashboard, darunter liegen Steuerung und Tages-Detail. Seit ADR-0007
+ * liegt sie auf derselben Origin wie der MCP-Endpunkt — `baseUrl` ist deshalb die
+ * Origin des laufenden Requests und keine konfigurierte `WEB_BASE_URL` mehr.
  */
 
 import { buildViewUrl } from "./cli/seeding.js";
@@ -52,14 +54,14 @@ async function findViewSecret(
 export async function resolveDashboardLinks(
   kv: KVNamespace,
   userId: string,
-  webBaseUrl: string,
+  baseUrl: string,
 ): Promise<DashboardLinks | null> {
   const viewSecret = await findViewSecret(kv, userId);
   if (!viewSecret) {
     return null;
   }
 
-  const dashboard = buildViewUrl(webBaseUrl, viewSecret);
+  const dashboard = buildViewUrl(baseUrl, viewSecret);
   return {
     dashboard,
     steuerung: `${dashboard}/steuerung`,

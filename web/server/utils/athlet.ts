@@ -22,3 +22,26 @@ export async function resolveAthlet(
 
   return { userId, env }
 }
+
+// Dieselbe Auflösung für den MCP-Endpunkt, aber über den **anderen** Secret-Namespace:
+// `/{pathsecret}/mcp` gewährt vollen Schreibzugriff über alle Kontexte, `/{viewsecret}`
+// nur die eigene Browser-Fläche (ADR-0003). Die Trennung ist der Grund, warum es hier
+// zwei Funktionen gibt statt einer mit Flag — ein vertauschtes Argument wäre eine
+// stille Rechteausweitung.
+//
+// Der Pfad geht bewusst ungeteilt in `TenantResolver.resolve`: dessen Muster
+// `/{secret}/mcp` prüft die Route ein zweites Mal, unabhängig vom Nitro-Router.
+export async function resolveMcpAthlet(
+  event: H3Event,
+): Promise<{ userId: string; env: Env }> {
+  const env = event.context.cloudflare.env as unknown as Env
+
+  const userId = await new TenantResolver(env.SESSION_KV).resolve(
+    getRequestURL(event).pathname,
+  )
+  if (!userId) {
+    throw createError({ statusCode: 404, statusMessage: 'Not found' })
+  }
+
+  return { userId, env }
+}

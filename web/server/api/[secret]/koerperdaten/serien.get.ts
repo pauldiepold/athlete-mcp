@@ -7,6 +7,7 @@ import { berechneIndex } from '@shared/garmin/koerperdatenIndex'
 import { wochenZeitraum } from '@shared/garmin/isoWoche'
 import { isValidKw } from '@shared/steuerung/steuerungStore'
 import { ZEITRAEUME, alsZeitraumName } from '#shared/zeitraum'
+import { heuteInBerlin } from '@shared/zeitzone'
 
 // Bereichs-Endpunkt der Körperdaten-Verläufe (Issue #24, erweitert in #25): liefert die
 // **abgeleiteten Serien** eines Zeitraums, nicht die Rohblobs — ein Tag wiegt so rund

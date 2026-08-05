@@ -5,7 +5,12 @@ import { listOnboardedUsers } from '@shared/cli/operatorDirectory'
 // middleware/admin.ts nur Seiten-Pfade (`/`, `/admin*`) schützt, nicht `/api/admin/*`:
 // eine Session existiert ausschließlich für die allowlistete Betreiber-Identität
 // (OAuth-Callback), „Session vorhanden" = „Operator". Rein lesend über das
-// SESSION_KV-Binding, kein Eingriff am MCP-Worker (ADR-0004).
+// SESSION_KV-Binding.
+//
+// Beide URLs entstehen aus der Origin dieses Requests: seit ADR-0007 liegen
+// MCP-Endpunkt und Browser-Fläche im selben Deployable. Vorher standen dafür zwei
+// konfigurierte Hosts in der runtimeConfig — mit dem Nebeneffekt, dass die lokal
+// geöffnete Admin-Fläche Links in die Produktion ausgab.
 export default defineEventHandler(async (event) => {
   const { user } = await getUserSession(event)
   if (!user) {
@@ -13,6 +18,5 @@ export default defineEventHandler(async (event) => {
   }
 
   const env = event.context.cloudflare.env as unknown as Env
-  const { mcpBaseUrl, webBaseUrl } = useRuntimeConfig(event)
-  return listOnboardedUsers(env.SESSION_KV, { mcpBaseUrl, webBaseUrl })
+  return listOnboardedUsers(env.SESSION_KV, requestOrigin(event))
 })

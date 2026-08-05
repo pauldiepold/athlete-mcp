@@ -1,6 +1,6 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "athlete-web",
+  "name": "athlete-dev",
   "main": ".output/server/index.mjs",
   "compatibility_date": "2026-06-04",
   "compatibility_flags": ["nodejs_compat"],
@@ -10,23 +10,43 @@
   "observability": {
     "enabled": true
   },
-  // Gleiche binding-Namen UND gleiche ids wie der MCP-Worker (../wrangler.jsonc):
-  // dasselbe physische D1/KV, dieselbe Datenwahrheit. Bewusst ohne durable_objects,
-  // triggers.crons und migrations — die bleiben exklusiv beim MCP-Worker. Das
-  // Web-Target ist ein reiner Leser (siehe docs/adr/0004).
+
+  // Die einzige wrangler.jsonc des Repos. Seit ADR-0007 gibt es **ein** Deployable:
+  // der MCP-Endpunkt (`/{pathsecret}/mcp`) ist eine Nitro-Route dieses Workers, kein
+  // eigener Worker mit Durable Object mehr. Damit entfällt auch `WEB_BASE_URL` — die
+  // Browser-Links von `get_dashboard_link` entstehen aus der Origin des Requests
+  // statt aus einer Variable, über die ein Deployable das andere kennt.
   //
-  // "remote": true → auch im lokalen `nuxt dev` (nitro-cloudflare-dev/getPlatformProxy)
-  // werden die echten Cloudflare-Ressourcen gelesen, nichts lokal dupliziert.
-  // Erfordert wrangler-Auth (OAuth-Login bzw. CLOUDFLARE_API_TOKEN).
+  // Dieses Ziel ist die **Testumgebung** `dev.training.pauldiepold.de`. Sie existiert,
+  // weil Apple später nicht auf localhost umleitet, und ist die Fläche, auf der dieses
+  // und jedes folgende Ticket der OAuth-Umstellung verifiziert wird. Eine Produktions-
+  // Umgebung steht hier bewusst **nicht**: die Produktion läuft bis zum Cutover
+  // (Issue #45) unverändert auf den alten Workern `athlete-mcp` und `athlete-web` — die
+  // bleiben deployt, werden aber nicht mehr aus diesem Repo gebaut. Ein `wrangler deploy`
+  // kann die Produktion damit nicht versehentlich treffen.
+  "routes": [{ "pattern": "dev.training.pauldiepold.de", "custom_domain": true }],
+
+  // Eigene D1 und eigenes KV — die Testumgebung fasst Produktionsdaten nie an.
+  // "remote": true → auch das lokale `nuxt dev` (nitro-cloudflare-dev/getPlatformProxy)
+  // liest genau diese dev-Ressourcen statt einer lokalen Kopie. Erfordert
+  // wrangler-Auth (OAuth-Login bzw. CLOUDFLARE_API_TOKEN).
   "kv_namespaces": [
-    { "binding": "SESSION_KV", "id": "b5f5aa9024b141608a93ef7388aed64d", "remote": true }
+    { "binding": "SESSION_KV", "id": "a82896641db9427da375585760f84366", "remote": true }
   ],
   "d1_databases": [
     {
       "binding": "ATHLETE_DB",
-      "database_name": "athlete-mcp-koerperdaten",
-      "database_id": "2d146aa3-8fed-40dc-a7a8-b924e82a4343",
+      "database_name": "athlete-dev-koerperdaten",
+      "database_id": "10515db0-ff15-4557-a69a-a4b98a50d390",
+      "migrations_dir": "../migrations",
       "remote": true
     }
   ]
+
+  // Bewusst **kein** "triggers.crons": Der Körperdaten-Cron läuft weiterhin allein in
+  // der Produktion. Zwei Läufe gegen dieselben Garmin-Konten wären ein unnötiges
+  // Rate-Limit-Risiko gegenüber einer inoffiziellen API (src/garmin/ADR-0001).
+  // Gebaut ist er in diesem Deployable trotzdem (Nitro-Task `koerperdaten`, siehe
+  // nuxt.config.ts) und lokal nachweisbar über `pnpm dev:cron`:
+  //   curl "http://localhost:8787/__scheduled?cron=0+5+*+*+*"
 }

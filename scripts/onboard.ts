@@ -30,10 +30,21 @@ import {
 import type { GarminSeed } from "../src/cli/seeding.js";
 import { login } from "../src/finalsurge/finalSurgeClient.js";
 
-// Zwei Hosts seit ADR-0004: der MCP-Endpunkt liegt auf dem Worker `athlete-mcp`,
-// die Steuerung im Browser auf dem Nuxt-Target `athlete-web`.
-const DEFAULT_BASE_URL = "https://athlete-mcp.pauldiepold.workers.dev";
-const DEFAULT_WEB_BASE_URL = "https://athlete-web.pauldiepold.workers.dev";
+// Die Umgebung, die dieses CLI bedient. Beide Konstanten beschreiben **dieselbe**
+// Umgebung und müssen zusammen wandern: `WRANGLER_CONFIG` bestimmt, in welches KV
+// geschrieben wird, `BASE_URL` nur, welche URLs am Ende ausgegeben werden.
+//
+// Bewusst Konstanten statt eines `--base-url`-Flags: ein Flag hätte nur die
+// ausgegebene URL verstellt, nicht das Ziel-KV. Ein Aufruf „für die Produktion"
+// hätte dann Prod-URLs gedruckt und still in die Testumgebung geseedet — ein Nutzer
+// mit funktionierender URL, die auf ein Konto zeigt, das dort nicht existiert.
+//
+// Seit ADR-0007 gibt es genau eine wrangler.jsonc (in `web/`), und sie beschreibt
+// die Testumgebung. Die Produktion läuft bis zum Cutover (Issue #45) auf den alten
+// Workern und wird von diesem Repo aus nicht mehr bedient; das Ticket zieht beide
+// Konstanten mit.
+const WRANGLER_CONFIG = "web/wrangler.jsonc";
+const BASE_URL = "https://dev.training.pauldiepold.de";
 
 /** Fortschritt/Hinweise auf stderr, damit stdout nur die fertige URL trägt. */
 function log(msg: string): void {
@@ -46,17 +57,13 @@ function die(msg: string): never {
 }
 
 /** Minimales `--flag value`-Parsing; nur was dieses CLI braucht. */
-function parseArgs(argv: string[]): { user: string; baseUrl: string; webBaseUrl: string } {
+function parseArgs(argv: string[]): { user: string } {
   let user: string | undefined;
-  let baseUrl = DEFAULT_BASE_URL;
-  let webBaseUrl = DEFAULT_WEB_BASE_URL;
   for (let i = 0; i < argv.length; i++) {
     if (argv[i] === "--user") user = argv[++i];
-    else if (argv[i] === "--base-url") baseUrl = argv[++i]!;
-    else if (argv[i] === "--web-base-url") webBaseUrl = argv[++i]!;
   }
   if (!user) die("--user <name> ist erforderlich");
-  return { user, baseUrl, webBaseUrl };
+  return { user };
 }
 
 /** Sichtbarer Prompt (Email o. Ä.). */
@@ -88,11 +95,11 @@ function askHidden(question: string): Promise<string> {
   );
 }
 
-/** Ruft `npx wrangler` auf die Produktions-KV (Binding aus wrangler.jsonc). */
+/** Ruft `npx wrangler` auf die KV der konfigurierten Umgebung (Binding aus web/wrangler.jsonc). */
 function wrangler(args: string[], stdio: "pipe" | "inherit" = "pipe"): string {
   return execFileSync(
     "npx",
-    ["wrangler", "kv", ...args, "--binding", "SESSION_KV", "--remote"],
+    ["wrangler", "kv", ...args, "--binding", "SESSION_KV", "--remote", "--config", WRANGLER_CONFIG],
     { encoding: "utf8", stdio: stdio === "inherit" ? "inherit" : ["ignore", "pipe", "inherit"] },
   );
 }
@@ -113,8 +120,10 @@ function findExistingSecret(userId: string, prefix: string): string | null {
 }
 
 async function main(): Promise<void> {
-  const { user: userId, baseUrl, webBaseUrl } = parseArgs(process.argv.slice(2));
-  log(`== Onboarding für Nutzer "${userId}" ==`);
+  const { user: userId } = parseArgs(process.argv.slice(2));
+  log(`== Onboarding für Athlet "${userId}" ==`);
+  // Zuerst und unübersehbar: in welche Umgebung dieser Lauf schreibt.
+  log(`== Ziel: ${BASE_URL} (KV aus ${WRANGLER_CONFIG}) ==`);
 
   // --- Final Surge: Creds erfragen und durch einen echten Login verifizieren ---
   const fsEmail = process.env.FINALSURGE_EMAIL || (await ask("Final-Surge Email: "));
@@ -179,8 +188,8 @@ async function main(): Promise<void> {
 
   // --- Ergebnis: MCP-URL + Browser-URL (einzige Ausgabe auf stdout) ---
   log(">> Fertig. MCP-URL und Browser-Link (Dashboard-Startseite):");
-  process.stdout.write(`${buildMcpUrl(baseUrl, pathSecret)}\n`);
-  process.stdout.write(`${buildViewUrl(webBaseUrl, viewSecret)}\n`);
+  process.stdout.write(`${buildMcpUrl(BASE_URL, pathSecret)}\n`);
+  process.stdout.write(`${buildViewUrl(BASE_URL, viewSecret)}\n`);
 }
 
 main().catch((err) => die((err as Error).message));

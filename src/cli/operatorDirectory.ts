@@ -2,10 +2,9 @@
  * Operator-Directory (Issue #15): listet die onboardeten Nutzer und löst pro
  * Nutzer das Pfad-Secret (MCP-Schreib-URL) und das View-Secret rückwärts auf
  * (`userId → Secret`), um die fertigen URLs zu bauen und die geseedeten Kontexte
- * zu melden. Die beiden URLs liegen auf verschiedenen Workern (ADR-0004) und
- * bekommen deshalb je eine eigene Base — siehe DirectoryBaseUrls. Die Nutzer-URL
- * zeigt seit Issue #24 auf die Dashboard-Startseite (`/{viewsecret}`), von der aus
- * die Steuerung erreichbar ist.
+ * zu melden. Beide URLs liegen seit ADR-0007 auf **einer** Origin — vorher waren es
+ * zwei Worker mit je eigener Base. Die Nutzer-URL zeigt seit Issue #24 auf die
+ * Dashboard-Startseite (`/{viewsecret}`), von der aus die Steuerung erreichbar ist.
  *
  * Sicherheitskritisch wie das Seeding (PRD-Testing-Decision): ein falsches
  * Reverse-Mapping würde einem Nutzer die URL eines anderen zuordnen. Deshalb rein
@@ -17,6 +16,7 @@
  * siehe seeding.ts (buildSeedEntries) und docs/adr/0001/0003.
  */
 
+import { listKvKeys } from "../kvKeys.js";
 import { buildMcpUrl, buildViewPath, buildViewUrl } from "./seeding";
 
 /** Welche Per-Nutzer-Kontexte im KV geseedet sind (Anzeige, nicht Auswertung). */
@@ -41,18 +41,6 @@ export interface OnboardedUser {
   seededContexts: SeededContexts;
 }
 
-/** Alle Key-Namen eines Prefix über die KV-Pagination hinweg. */
-async function listKeys(kv: KVNamespace, prefix: string): Promise<string[]> {
-  const names: string[] = [];
-  let cursor: string | undefined;
-  do {
-    const res = await kv.list({ prefix, cursor });
-    for (const { name } of res.keys) names.push(name);
-    cursor = res.list_complete ? undefined : res.cursor;
-  } while (cursor);
-  return names;
-}
-
 /**
  * Kehrt einen Secret-Namespace (`<prefix><secret> → userId`) um zu
  * `userId → secret`. Bei mehreren Secrets desselben Nutzers gewinnt das zuletzt
@@ -63,7 +51,7 @@ async function resolveSecretsByUser(
   prefix: string,
 ): Promise<Map<string, string>> {
   const byUser = new Map<string, string>();
-  for (const key of await listKeys(kv, prefix)) {
+  for (const key of await listKvKeys(kv, prefix)) {
     const userId = await kv.get(key);
     if (userId) byUser.set(userId, key.slice(prefix.length));
   }
@@ -71,26 +59,17 @@ async function resolveSecretsByUser(
 }
 
 /**
- * Die beiden Hosts, auf denen die Nutzer-URLs liegen. Seit ADR-0004 sind das
- * zwei getrennte Worker: der MCP-Endpunkt bedient `athlete-mcp`, die Steuerung
- * im Browser das Nuxt-Target `athlete-web`. Benannt statt positional, damit zwei
- * gleichgetypte Bases nicht vertauscht werden können.
- */
-export interface DirectoryBaseUrls {
-  /** Basis des MCP-Workers — trägt `/{pathsecret}/mcp`. */
-  mcpBaseUrl: string;
-  /** Basis des Web-Targets — trägt `/{viewsecret}`, die Dashboard-Startseite. */
-  webBaseUrl: string;
-}
-
-/**
  * Die onboardeten Nutzer samt aufgelöster MCP-/View-URL und geseedeten Kontexten,
  * nach userId sortiert. Nutzer-Menge = alle mit Pfad-Secret (das MCP-Secret ist
  * der verbindliche Onboarding-Marker; ein Nutzer ohne es hätte keine MCP-URL).
+ *
+ * `baseUrl` ist die Origin des einen Deployables (ADR-0007). Bis dahin brauchte es
+ * hier zwei Bases, weil MCP-Endpunkt und Browser-Fläche auf verschiedenen Workern
+ * lagen — mitsamt der Gefahr, sie zu vertauschen.
  */
 export async function listOnboardedUsers(
   kv: KVNamespace,
-  { mcpBaseUrl, webBaseUrl }: DirectoryBaseUrls,
+  baseUrl: string,
 ): Promise<OnboardedUser[]> {
   const pathSecrets = await resolveSecretsByUser(kv, "pathsecret:");
   const viewSecrets = await resolveSecretsByUser(kv, "viewsecret:");
@@ -99,7 +78,7 @@ export async function listOnboardedUsers(
   // nicht `:garmin:profile` (Anker auf $), analog zu listGarminUsers in index.ts.
   const finalSurgeUsers = new Set<string>();
   const garminUsers = new Set<string>();
-  for (const key of await listKeys(kv, "user:")) {
+  for (const key of await listKvKeys(kv, "user:")) {
     const fs = key.match(/^user:(.+):finalsurge$/);
     if (fs) finalSurgeUsers.add(fs[1]!);
     const gm = key.match(/^user:(.+):garmin$/);
@@ -111,8 +90,8 @@ export async function listOnboardedUsers(
     const viewSecret = viewSecrets.get(userId) ?? null;
     users.push({
       userId,
-      mcpUrl: buildMcpUrl(mcpBaseUrl, pathSecret),
-      viewUrl: viewSecret ? buildViewUrl(webBaseUrl, viewSecret) : null,
+      mcpUrl: buildMcpUrl(baseUrl, pathSecret),
+      viewUrl: viewSecret ? buildViewUrl(baseUrl, viewSecret) : null,
       viewPath: viewSecret ? buildViewPath(viewSecret) : null,
       seededContexts: {
         finalSurge: finalSurgeUsers.has(userId),

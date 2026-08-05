@@ -4,21 +4,12 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "test": "vitest run",
+    "test": "vitest run && pnpm --dir web run test",
     "test:watch": "vitest",
     "onboard": "tsx scripts/onboard.ts",
     "probe:koerperdaten": "tsx scripts/probe-koerperdaten.ts",
     "backfill:koerperdaten": "tsx scripts/backfill-koerperdaten.ts",
-    "dev": "wrangler dev",
-    "deploy": "wrangler deploy",
-    "typecheck": "tsc --noEmit",
-    "cf-typegen": "wrangler types"
-  },
-  "dependencies": {
-    "@modelcontextprotocol/sdk": "^1.12.0",
-    "agents": "^0.0.95",
-    "marked": "^18.0.5",
-    "zod": "^3.23.0"
+    "typecheck": "tsc --noEmit"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^4.20250601.0",

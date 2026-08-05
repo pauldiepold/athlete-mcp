@@ -12,13 +12,11 @@ export default defineNuxtConfig({
   // Operator-Auth der /admin-Fläche (Issue #14, ADR-0005). Session-Password und die
   // GitHub-OAuth-Credentials liest nuxt-auth-utils selbst aus NUXT_SESSION_PASSWORD
   // bzw. NUXT_OAUTH_GITHUB_CLIENT_ID/SECRET — hier nur Defaults, real per Env-Secret.
+  //
+  // Die beiden Hosts für die Nutzer-Links des Admin-Directorys (mcpBaseUrl/webBaseUrl)
+  // sind mit ADR-0007 entfallen: MCP-Endpunkt und Browser-Fläche liegen auf **einer**
+  // Origin, und die kommt aus dem Request statt aus der Konfiguration.
   runtimeConfig: {
-    // Die beiden Hosts für die im Admin-Directory gebauten Nutzer-Links (Issue #15).
-    // Getrennt, weil MCP-Endpunkt und Browser-Steuerung seit ADR-0004 auf zwei
-    // Workern liegen — dieselben Defaults wie scripts/onboard.ts. Override per
-    // NUXT_MCP_BASE_URL bzw. NUXT_WEB_BASE_URL.
-    mcpBaseUrl: 'https://athlete-mcp.pauldiepold.workers.dev',
-    webBaseUrl: 'https://athlete-web.pauldiepold.workers.dev',
     session: {
       // sealed-cookie-Session statt URL-Secret (ADR-0005). Echter Wert per Env-Secret.
       password: '',
@@ -28,9 +26,17 @@ export default defineNuxtConfig({
     },
   },
 
-  // Deploy als eigenständiger Cloudflare-Worker (zweites Target neben dem MCP-Worker).
+  // Das einzige Deployable (ADR-0007): Weboberfläche, MCP-Endpunkt und Cron in einem
+  // Cloudflare-Worker.
   nitro: {
     preset: 'cloudflare-module',
+
+    // Der Körperdaten-Cron als Nitro-Task statt als `scheduled`-Export eines eigenen
+    // Workers. Der Name kommt aus dem **Dateipfad** (server/tasks/koerperdaten.ts),
+    // nicht aus `meta.name` — ein Eintrag auf einen nicht existierenden Namen wäre
+    // beim Build nur eine Warnung und der Cron liefe still ins Leere.
+    experimental: { tasks: true },
+    scheduledTasks: { '0 5 * * *': ['koerperdaten'] },
   },
 
   // Geteilte TS-Module direkt aus ../src importieren (Single Source of Truth fürs

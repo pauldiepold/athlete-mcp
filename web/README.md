@@ -1,7 +1,16 @@
-# athlete-web
+# web
 
-Eigenständiges **Nuxt-Frontend** und zweites Cloudflare-Deploy-Target neben dem
-MCP-Worker (`../`). Zwei Flächen unter demselben per-User-Link, umschaltbar über die
+**Das** Deployable des Projekts (ADR-0007): Nuxt-Oberfläche, MCP-Endpunkt und
+Körperdaten-Cron in einem Cloudflare-Worker. Vorher lag der MCP-Teil in einem eigenen
+Worker daneben.
+
+- **MCP-Endpunkt** (`/{pathsecret}/mcp`) — Nitro-Route, stateless Streamable HTTP,
+  kein Durable Object (`server/routes/[secret]/mcp.ts`, Tools in
+  `server/utils/mcpServer.ts`).
+- **Körperdaten-Cron** — Nitro-Task (`server/tasks/koerperdaten.ts`); die Fachlichkeit
+  liegt in `@shared/garmin/koerperdatenCron`.
+
+Dazu zwei Athleten-Flächen unter demselben per-User-Link, umschaltbar über die
 Kopfzeile:
 
 - **Dashboard** (`/{view-secret}`) — die Startseite: Verläufe der **Körperdaten** aus
@@ -10,7 +19,8 @@ Kopfzeile:
   editieren; Markdown bleibt das kanonische Speicherformat, byte-genau das, was der
   Agent über MCP liest/schreibt.
 
-Siehe `../docs/adr/0004-eigenstaendiges-nuxt-frontend-monorepo-browser-editing.md`.
+Siehe `../docs/adr/0004-eigenstaendiges-nuxt-frontend-monorepo-browser-editing.md`
+und `../docs/adr/0007-oauth-identitaet-statt-url-secrets-ein-deployable.md`.
 
 ## Architektur (Kurz)
 
@@ -21,8 +31,8 @@ Siehe `../docs/adr/0004-eigenstaendiges-nuxt-frontend-monorepo-browser-editing.m
   wird im Nitro-Server aufgelöst (`server/utils/athlet.ts`) — darauf setzen Steuerungs-
   und Körperdaten-Routes gemeinsam auf, unbekanntes Secret → 404. D1/KV-Bindings landen
   nie im Client-Bundle.
-- **Körperdaten nur lesend, nur aus dem Archiv:** über dasselbe `KoerperdatenArchive`
-  wie der MCP-Worker, kein Live-Abruf bei Garmin. Der Bereichs-Endpunkt liefert die
+- **Körperdaten nur lesend, nur aus dem Archiv:** die Browser-Routes lesen über
+  dasselbe `KoerperdatenArchive` wie die MCP-Tools, ohne Live-Abruf bei Garmin. Der Bereichs-Endpunkt liefert die
   bereits abgeleiteten Serien **und Kennzahlen** (`@shared/garmin/koerperdatenSerien`),
   nicht die Rohblobs.
 - **Der Körperdaten-Index wird nicht in der Vue-Schicht gerechnet:** Verlauf, aktueller
@@ -41,9 +51,12 @@ Siehe `../docs/adr/0004-eigenstaendiges-nuxt-frontend-monorepo-browser-editing.m
 - **Kacheln ohne Client-JS:** die Mini-Kurven (`MiniKurve`) und das HRV-Baseline-Band
   (`BaselineBand`) sind serverseitig gerendertes Inline-SVG — sie stehen beim ersten
   Rendern da, ohne Chart-Bibliothek.
-- **Gleiche Bindings wie der MCP-Worker:** identische `binding`-Namen und `id`s in
-  `wrangler.jsonc` → dasselbe physische D1/KV. Das Web-Target hat bewusst **keine**
-  Durable Objects, Crons oder Migrations (die bleiben beim MCP-Worker).
+- **Eine `wrangler.jsonc` fürs ganze Repo:** sie liegt hier und beschreibt die
+  Testumgebung `dev.training.pauldiepold.de` mit **eigener** D1 und eigenem KV.
+  Bewusst **ohne** `triggers.crons` — der Cron ist gebaut, läuft aber nur in der
+  Produktion; zwei Läufe gegen dieselben Garmin-Konten wären ein Rate-Limit-Risiko.
+  Die Produktion bleibt bis zum Cutover (Issue #45) auf den alten Workern, weshalb
+  `wrangler deploy` sie nicht versehentlich treffen kann.
 - **Last-Write-Wins:** kein Konflikt-Handling zwischen Browser- und Agent-Schreibzugriff
   (ADR-0004).
 
@@ -55,14 +68,21 @@ pnpm dev          # http://localhost:3000
 ```
 
 `wrangler.jsonc` setzt `"remote": true` für KV und D1: auch im lokalen `nuxt dev`
-(via `nitro-cloudflare-dev`) werden die **echten** Cloudflare-Ressourcen gelesen,
-nichts lokal dupliziert. Erfordert wrangler-Auth (OAuth-Login bzw. `CLOUDFLARE_API_TOKEN`).
+(via `nitro-cloudflare-dev`) werden die **echten** dev-Ressourcen gelesen, nichts lokal
+dupliziert. Erfordert wrangler-Auth (OAuth-Login bzw. `CLOUDFLARE_API_TOKEN`).
 
 Aufruf eines Athleten: `/{view-secret}` (Dashboard), `/{view-secret}/steuerung`.
+
+Den Cron lokal auslösen:
+
+```bash
+pnpm dev:cron     # nuxt build && wrangler dev --test-scheduled
+curl "http://localhost:8787/__scheduled?cron=0+5+*+*+*"
+```
 
 ## Build & Deploy
 
 ```bash
 pnpm typecheck    # nuxt typecheck (vue-tsc)
-pnpm deploy       # nuxt build && wrangler deploy
+pnpm deploy:dev   # nuxt build && wrangler deploy → dev.training.pauldiepold.de
 ```
