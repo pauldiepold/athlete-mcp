@@ -12,6 +12,6 @@ Five canonical triage roles, each mapped to a label string equal to its name. Se
 
 ### Domain docs
 
-Single-context: one `CONTEXT.md` + `docs/adr/` at the repo root. See `docs/agents/domain.md`.
+Multi-context: `CONTEXT-MAP.md` + `docs/adr/` at the repo root, dazu je eine `CONTEXT.md` (und teils `docs/adr/`) unter `src/finalsurge/`, `src/garmin/`, `src/steuerung/`. See `docs/agents/domain.md`.
 
 Alle Doku in diesem Repo (CONTEXT.md, ADRs, handoff, READMEs) wird auf **Deutsch** geschrieben.
