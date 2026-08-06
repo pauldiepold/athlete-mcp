@@ -19,13 +19,6 @@ import type { AuthState } from '../../utils/authState'
  * `onSuccess`. Sonst kostete ein Callback mit erfundenem `state` erst einen
  * Token-Tausch bei Google, bevor er abgewiesen würde.
  *
- * **Bekannte Typlücke:** `nuxt-auth-utils` tippt `onSuccess`/`onError` auf `void`,
- * reicht deren Rückgabewert aber unverändert an Nitro durch (`return onSuccess(…)`) —
- * und muss das auch, denn die Weiterleitung *ist* der Rückgabewert. `nuxt typecheck`
- * meldet das hier; dieselbe Meldung stand vorher am abgelösten GitHub-Handler. Ein
- * Cast würde die Typinferenz für `user`/`payload` mitnehmen und wäre der schlechtere
- * Tausch.
- *
  * Der Login ist **nicht** die Kontoerstellung: Kennt das KV die Identität nicht,
  * geht es in die Invite-Fläche (siehe `utils/anmeldung.ts`).
  */

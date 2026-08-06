@@ -29,6 +29,9 @@ importers:
       eslint:
         specifier: ^10.6.0
         version: 10.6.0(jiti@2.7.0)
+      h3:
+        specifier: ^1.15.11
+        version: 1.15.11
       marked:
         specifier: ^18.0.5
         version: 18.0.5

@@ -72,7 +72,7 @@ export async function anmeldenNachProviderLogin(
   event: H3Event,
   identitaet: ProviderIdentitaet,
   redirectTo: string,
-): Promise<unknown> {
+): Promise<void> {
   const kv = envOf(event).SESSION_KV
   const { provider, sub, name, email } = identitaet
 
@@ -81,12 +81,13 @@ export async function anmeldenNachProviderLogin(
     await replaceUserSession(event, {
       secure: { pending: { provider, sub, name, email, redirectTo } },
     })
-    return sendRedirect(event, '/invite', 302)
+    await sendRedirect(event, '/invite', 302)
+    return
   }
 
   const profil = await aktualisiereProfilBeimLogin(kv, userId, provider, sub, email)
   await setzeAthletenSession(event, userId, identitaet, profil)
-  return sendRedirect(event, redirectTo, 302)
+  await sendRedirect(event, redirectTo, 302)
 }
 
 /**
@@ -94,7 +95,11 @@ export async function anmeldenNachProviderLogin(
  * in einem 500er: Der Athlet soll es noch einmal versuchen können, ohne die URL von
  * Hand zu reparieren.
  */
-export function providerFehler(event: H3Event, provider: Provider, error: unknown) {
+export async function providerFehler(
+  event: H3Event,
+  provider: Provider,
+  error: unknown,
+): Promise<void> {
   console.error(`${provider}-Login fehlgeschlagen:`, error)
-  return sendRedirect(event, '/?fehler=anmeldung', 302)
+  await sendRedirect(event, '/?fehler=anmeldung', 302)
 }

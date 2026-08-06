@@ -31,13 +31,6 @@
  *   dieser Nutzer nie wieder — Reparatur nur über „Verwendung beenden" in den
  *   Apple-ID-Einstellungen. Deshalb steht `name email` von Anfang an fest.
  *
- * **Bekannte Typlücke:** `nuxt-auth-utils` tippt `onSuccess`/`onError` auf `void`,
- * reicht deren Rückgabewert aber unverändert an Nitro durch (`return onSuccess(…)`) —
- * und muss das auch, denn die Weiterleitung *ist* der Rückgabewert. `nuxt typecheck`
- * meldet das hier; dieselbe Meldung stand vorher am abgelösten GitHub-Handler. Ein
- * Cast würde die Typinferenz für `user`/`payload` mitnehmen und wäre der schlechtere
- * Tausch.
- *
  * Apple leitet nicht auf `localhost` um; durchspielen lässt sich das nur auf
  * `dev.training.pauldiepold.de`.
  */
