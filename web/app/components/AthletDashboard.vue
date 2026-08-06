@@ -32,26 +32,35 @@ useHead({ title: 'Körperdaten' })
            „richte erst Garmin ein" an ein eingerichtetes Konto ist schlimmer als ein
            Moment Ruhe. -->
       <template v-if="geladen">
-        <!-- Solange eine Datenquelle fehlt oder kaputt ist (Issue #44). Über den
-             Verläufen ein Balken, im Zustand „nicht verbunden" der Inhalt der Seite —
-             er trägt beides, weil er beide Male dasselbe sagt: was fehlt und wo man es
-             einrichtet. Verschwindet von selbst, sobald alles steht. -->
-        <VerbindungenHinweis />
+        <!-- Solange ein Pflichtschritt der Einrichtung fehlt (Issue #52), steht sie an
+             der Stelle des Dashboards — und ersetzt es ganz, statt sich darüber zu
+             legen: Wer Verläufe sähe, hielte die Einrichtung für erledigt. Der
+             Verbindungs-Hinweis schweigt dann, weil die Liste dieselben zwei
+             Verbindungen schon führt, ausführlicher und mit dem Weg dorthin. -->
+        <EinrichtungKarte v-if="zustand === 'einrichtung'" />
 
-        <KoerperdatenLadehinweis
-          v-if="zustand === 'laeuft'"
-          :mit-daten="hatKoerperdaten"
-        />
+        <template v-else>
+          <!-- Solange eine Datenquelle fehlt oder kaputt ist (Issue #44). Über den
+               Verläufen ein Balken, im Zustand „nicht verbunden" der Inhalt der Seite —
+               er trägt beides, weil er beide Male dasselbe sagt: was fehlt und wo man
+               es einrichtet. Verschwindet von selbst, sobald alles steht. -->
+          <VerbindungenHinweis />
 
-        <!-- Nur in diesem einen Zustand ein Knopf: Während des Laufs gäbe es nichts
-             anzustoßen, und ohne Verbindung führt der Weg in die Einstellungen. -->
-        <ErstbefuellungKarte
-          v-else-if="zustand === 'keine-daten'"
-          :lauf="lauf"
-          @gestartet="uebernimmLauf"
-        />
+          <KoerperdatenLadehinweis
+            v-if="zustand === 'laeuft'"
+            :mit-daten="hatKoerperdaten"
+          />
 
-        <KoerperdatenVerlaeufe v-if="zeigtVerlaeufe" />
+          <!-- Nur in diesem einen Zustand ein Knopf: Während des Laufs gäbe es nichts
+               anzustoßen, und ohne Verbindung führt der Weg in die Einstellungen. -->
+          <ErstbefuellungKarte
+            v-else-if="zustand === 'keine-daten'"
+            :lauf="lauf"
+            @gestartet="uebernimmLauf"
+          />
+
+          <KoerperdatenVerlaeufe v-if="zeigtVerlaeufe" />
+        </template>
       </template>
     </UContainer>
   </div>

@@ -15,7 +15,9 @@ import type { ErstbefuellungLauf } from '@shared/garmin/koerperdatenErstbefuellu
  * daran, und die ist in einer Vue-Template-Kette nicht prüfbar.
  */
 export type StartseitenZustand
-  = /** Ohne Garmin gibt es nichts zu zeigen — der Weg führt in die Einstellungen. */
+  = /** Ein Pflichtschritt der Einrichtung fehlt noch — sie steht an dieser Stelle. */
+  | 'einrichtung'
+  /** Ohne Garmin gibt es nichts zu zeigen — der Weg führt in die Einstellungen. */
   | 'nicht-verbunden'
   /** Die Erstbefüllung holt gerade; was schon da ist, wird trotzdem gezeigt. */
   | 'laeuft'
@@ -25,16 +27,28 @@ export type StartseitenZustand
   | 'daten'
 
 export interface StartseitenEingaben {
+  /** Fehlt noch ein Pflichtschritt der Einrichtung (Issue #52)? */
+  einrichtungOffen: boolean
   garminVerbunden: boolean
   hatKoerperdaten: boolean
   lauf: ErstbefuellungLauf | null
 }
 
 export function startseitenZustand({
+  einrichtungOffen,
   garminVerbunden,
   hatKoerperdaten,
   lauf,
 }: StartseitenEingaben): StartseitenZustand {
+  // Die Einrichtung vor allem anderen — auch vor dem laufenden Lauf und vor
+  // vorhandenen Daten (Issue #52). Sie tritt an die Stelle des Dashboards, bis alle
+  // Pflichtschritte stehen: Ohne Connector kommt Claude gar nicht an diese Daten, und
+  // wer stattdessen Verläufe zu sehen bekäme, hielte die Einrichtung für erledigt.
+  //
+  // Die Erstbefüllung stört das nicht — sie läuft im Hintergrund weiter, während der
+  // Athlet die übrigen Schritte macht. Genau deshalb steht Garmin dort zuerst.
+  if (einrichtungOffen) return 'einrichtung'
+
   // Der laufende Lauf zuerst, sogar vor vorhandenen Daten: An diesem Zustand hängt,
   // dass **kein** Nachladen-Knopf erscheint. Ein Knopf, der auftaucht, während der
   // Lauf schon läuft, provoziert den Doppelklick gegen ein rate-limitiertes Garmin.

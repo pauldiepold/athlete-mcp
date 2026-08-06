@@ -18,7 +18,7 @@ _Avoid_: Skill, Prompt, Anleitung (das ist die Fläche für den Menschen)
 
 **Onboarding**:
 Das einmalige Verfahren vom leeren Store zum ersten Steuerungsplan (Issue #50): Zustand über die vorhandenen Tools lesen, einmal inhaltlich interviewen (Zielrennen, Form, Phase), Starter-Plan schreiben, Steuerung und Dashboard erklären, in einen **neuen** Chat übergeben. Das Technische — Verbindungen, Zugangsdaten — bleibt in der Weboberfläche; das Verfahren fragt **nie** danach. Sein Auslöser ist eng: der `ERSTKONTAKT_SATZ` aus `erstkontakt.ts`, den die Einrichtung zum Kopieren anbietet, plus der leere Plan als objektives Merkmal.
-_Avoid_: Einrichtung (das ist die Browser-Fläche unter `/einstellungen`), Setup-Assistent (es gibt kein Tor, durch das man erst hindurch müsste)
+_Avoid_: Einrichtung (das sind die vier Schritte im Browser, Issue #52 — das Onboarding ist ihr vierter), Setup-Assistent (es gibt kein Tor, durch das man erst hindurch müsste)
 
 **Erstkontakt-Satz**:
 Der eine vorgegebene Satz, mit dem der Athlet sein Onboarding auslöst. Er steht als `ERSTKONTAKT_SATZ` in `erstkontakt.ts` und nur dort: Die Einrichtung bietet ihn zum Kopieren an, die `description` von `get_verfahren_onboarding` nennt ihn wörtlich als Auslöser. Driften die beiden auseinander, tippt der Athlet einen Satz, auf den nichts mehr zielt.

@@ -18,7 +18,10 @@ Dazu zwei Athleten-Flächen hinter der Session, für alle unter denselben Pfaden
 umschaltbar über die Kopfzeile:
 
 - **Dashboard** (`/`) — die Startseite: abgemeldet die Anmeldung, angemeldet die
-  Verläufe der **Körperdaten** aus dem Archiv, rein lesend.
+  Verläufe der **Körperdaten** aus dem Archiv, rein lesend. Solange ein Pflichtschritt
+  der **Einrichtung** offen ist (Connector, Onboarding), steht dort an seiner Stelle
+  die Einrichtung; ist sie durch, aber das Archiv leer, der Hinweis zum jeweiligen
+  *Startseiten-Zustand*.
 - **Steuerung** (`/steuerung`) — Steuerungsplan + Wochen, lesen und editieren;
   Markdown bleibt das kanonische Speicherformat, byte-genau das, was der Agent über
   MCP liest/schreibt.
@@ -47,6 +50,12 @@ und `../docs/adr/0007-oauth-identitaet-statt-url-secrets-ein-deployable.md`.
   `KALIBRIERUNG` an einer Stelle — eine Änderung fasst die Oberfläche nicht an. Die
   Fläche zeigt ihn als **Rechnung mit sichtbaren Bestandteilen**, nicht als Urteil, und
   beansprucht keine Tagesform-Einschätzung (`../docs/adr/0006-…`).
+- **Was die Startseite zeigt, ist eine reine Funktion:** `shared/startseitenZustand.ts`
+  (Reihenfolge der fünf Fälle) und `shared/einrichtung.ts` (Reihenfolge der vier
+  Schritte, und welche davon Pflicht sind). Beide sind getestet und kennen keine Texte
+  — die stehen in den Komponenten. Jeder Haken der Einrichtung ist **abgeleitet**:
+  Verbindungen aus dem KV, der Connector aus `listUserGrants`, das Onboarding aus dem
+  vorhandenen Steuerungsplan; gespeichert oder quittiert wird nichts.
 - **Ein Zeitraum für die ganze Fläche:** 30 / 90 / Alles, Standard 30, als
   `?zeitraum=`-Query in der URL (`shared/zeitraum.ts`). Charts und Kacheln folgen ihm
   gemeinsam; „Alles" beginnt am ersten archivierten Tag.

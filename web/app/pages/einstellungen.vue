@@ -68,10 +68,12 @@ useHead({ title: 'Einstellungen' })
       </p>
 
       <div class="mt-6 flex flex-col gap-4">
-        <!-- Der Erstkontakt-Satz (Issue #50) steht oben, solange noch kein
-             Steuerungsplan existiert, und verschwindet danach. Kein Tor davor: Wer
-             will, verbindet erst seine Quellen und geht später in den Chat. -->
-        <ErstkontaktKarte />
+        <!-- Die Einrichtung (Issue #52) steht hier oben — und anders als auf der
+             Startseite **dauerhaft**, auch wenn alles erledigt ist: Wer Final Surge
+             später nachreicht oder seinen Connector neu aufsetzt, findet den Weg
+             sonst nirgends mehr. Sie trägt auch den Erstkontakt-Satz aus Issue #50;
+             er ist ihr vierter Schritt und stand vorher als eigene Karte hier. -->
+        <EinrichtungKarte in-einstellungen />
 
         <UCard>
           <template #header>

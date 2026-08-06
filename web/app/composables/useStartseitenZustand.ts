@@ -36,13 +36,24 @@ export function useStartseitenZustand() {
   // Derselbe geteilte Abruf, den auch der Verbindungs-Hinweis liest. Er hängt hier mit
   // drin, weil er im Zustand „nicht verbunden" der **Inhalt** der Seite ist: Sein
   // Ladezustand gehört damit zu dem der Seite, und sein Nachfrage-Takt ist dieser hier.
-  const { refresh: verbindungenNeu, status: verbindungenStatus } = useVerbindungen()
+  const { refresh: verbindungenNeu } = useVerbindungen()
+
+  // Und die Einrichtung (Issue #52), die vor allen anderen Zuständen steht. Ihre
+  // beiden Pflichtschritte werden **außerhalb** dieser Fläche erledigt — im
+  // Connector-Dialog und im Chat —, also hängt auch sie am Nachfrage-Takt hier: Sonst
+  // säße der Athlet vor einer Liste, die er gerade abgearbeitet hat.
+  const {
+    pflichtSchrittOffen,
+    geladen: einrichtungGeladen,
+    refresh: einrichtungNeu,
+  } = useEinrichtung()
 
   const hatKoerperdaten = computed(() => data.value?.hatKoerperdaten ?? false)
   const lauf = computed(() => data.value?.lauf ?? null)
 
   const zustand = computed(() =>
     startseitenZustand({
+      einrichtungOffen: pflichtSchrittOffen.value,
       garminVerbunden: data.value?.garminVerbunden ?? false,
       hatKoerperdaten: hatKoerperdaten.value,
       lauf: lauf.value,
@@ -58,23 +69,18 @@ export function useStartseitenZustand() {
    * auf dem Default „nicht verbunden", und die Seite zeigte für einen Moment einen
    * Einrichtungs-Hinweis an ein längst eingerichtetes Konto.
    *
-   * Beide Abrufe zählen dazu. Der Zustand „nicht verbunden" hat keinen eigenen Text —
+   * Alle Abrufe zählen dazu. Der Zustand „nicht verbunden" hat keinen eigenen Text —
    * er *ist* der Verbindungs-Hinweis; wäre der noch unterwegs, stünde unter der
-   * Kopfzeile eine leere Seite ohne jede Handlung.
+   * Kopfzeile eine leere Seite ohne jede Handlung. Und die Einrichtung stünde vor
+   * ihrer ersten Antwort auf ihrem Default „alles fehlt" — sie blitzte auch für den
+   * auf, der längst fertig ist.
    *
-   * Einmal wahr, bleibt es wahr: An `status` allein hinge es nicht, denn jedes
-   * Nachfragen setzt ihn zurück auf `pending` und ließe die Seite im Takt des Timers
-   * leer blinken.
+   * Einmal wahr, bleibt es wahr (`useKlebrigGeladen`): An `status` allein hinge es
+   * nicht, denn jedes Nachfragen setzt ihn zurück auf `pending` und ließe die Seite im
+   * Takt des Timers leer blinken.
    */
-  const geladen = ref(false)
-  watch(
-    [status, verbindungenStatus],
-    ([a, b]) => {
-      const fertig = (s: string) => s === 'success' || s === 'error'
-      if (fertig(a) && fertig(b)) geladen.value = true
-    },
-    { immediate: true },
-  )
+  const standGeladen = useKlebrigGeladen(status)
+  const geladen = computed(() => standGeladen.value && einrichtungGeladen.value)
 
   /**
    * Den gerade angestoßenen Lauf übernehmen, ohne neu zu fragen. Der Zustand liegt im
@@ -109,7 +115,17 @@ export function useStartseitenZustand() {
     () => abfrageIntervallMs(zustand.value),
     (ms) => {
       clearInterval(timer)
-      if (ms !== null) timer = setInterval(() => refresh(), ms)
+      if (ms !== null) {
+        // Alle drei Abrufe, nicht nur der Stand: Im Zustand `einrichtung` sind die
+        // Verbindungen **Inhalt** der Liste, und ihr Nachziehen am `zustand`-Watcher
+        // hängen zu lassen ginge genau dort schief — wer im zweiten Tab verbindet,
+        // wechselt den Zustand ja nicht, sondern hakt einen Schritt darin ab.
+        timer = setInterval(() => {
+          refresh()
+          einrichtungNeu()
+          verbindungenNeu()
+        }, ms)
+      }
     },
     { immediate: true },
   )
