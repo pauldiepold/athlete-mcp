@@ -11,6 +11,11 @@
 // Der Admin-Eintrag hängt an `user.operator`. Das Feld ist reines UI: Wer die Fläche
 // tatsächlich sehen darf, entscheidet der Guard in server/middleware/admin.ts bei
 // jedem Request neu.
+//
+// Mit Issue #44 ist aus dem Abmelde-Knopf ein **Menü** geworden: Neben dem Abmelden
+// hängen jetzt die Einstellungen daran (Profil und die Verbindungen zu Final Surge und
+// Garmin). Sie gehören dorthin und nicht in die Navigation links — die trägt die
+// Flächen, mit denen der Athlet täglich arbeitet, nicht das, was er einmal einrichtet.
 defineProps<{
   /** Setzt den Admin-Eintrag aktiv — nur die Admin-Fläche selbst tut das. */
   aktiv?: boolean
@@ -27,6 +32,17 @@ async function abmelden() {
   await clear()
   await navigateTo('/')
 }
+
+// Der Anzeigename steht als Kopfzeile im Menü selbst: Auf dem Handy ist neben dem
+// Avatar kein Platz für ihn, und „mit welchem Konto bin ich hier eigentlich" ist genau
+// die Frage, die man beim Öffnen dieses Menüs stellt.
+const menue = computed(() => [
+  [{ label: anzeigename.value, type: 'label' as const }],
+  [
+    { label: 'Einstellungen', icon: 'i-lucide-settings', to: '/einstellungen' },
+    { label: 'Abmelden', icon: 'i-lucide-log-out', onSelect: abmelden },
+  ],
+])
 </script>
 
 <template>
@@ -44,18 +60,18 @@ async function abmelden() {
           size="sm"
         >Admin</UButton>
 
-        <template v-if="loggedIn">
-          <UAvatar :text="anzeigename.charAt(0).toUpperCase()" size="xs" />
-          <span class="hidden text-sm text-muted sm:inline">{{ anzeigename }}</span>
+        <UDropdownMenu v-if="loggedIn" :items="menue">
           <UButton
             color="neutral"
             variant="ghost"
             size="sm"
-            icon="i-lucide-log-out"
-            aria-label="Abmelden"
-            @click="abmelden"
-          >Abmelden</UButton>
-        </template>
+            trailing-icon="i-lucide-chevron-down"
+            :aria-label="`Konto-Menü für ${anzeigename}`"
+          >
+            <UAvatar :text="anzeigename.charAt(0).toUpperCase()" size="xs" />
+            <span class="hidden text-sm sm:inline">{{ anzeigename }}</span>
+          </UButton>
+        </UDropdownMenu>
       </div>
     </UContainer>
   </header>

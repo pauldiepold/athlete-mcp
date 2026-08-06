@@ -13,8 +13,14 @@
 // eine Session ist statt eines Secrets in der URL, gehören sie ins Konto-Menü rechts —
 // dorthin, wo sie auf jeder Fläche gleich zu finden sind.
 const props = defineProps<{
-  /** Welche Fläche gerade offen ist — steuert Umschalter und Wochen-Navigation. */
-  bereich: 'dashboard' | 'steuerung'
+  /**
+   * Welche Fläche gerade offen ist — steuert Umschalter und Wochen-Navigation.
+   *
+   * `einstellungen` hebt bewusst **keinen** der beiden Knöpfe hervor: Die Einstellungen
+   * sind keine dritte tägliche Fläche, sondern hängen im Konto-Menü rechts. Die
+   * Kopfzeile trägt sie trotzdem, damit von dort der Weg zurück auf einen Klick geht.
+   */
+  bereich: 'dashboard' | 'steuerung' | 'einstellungen'
   wochen?: string[]
   currentKw?: string
 }>()

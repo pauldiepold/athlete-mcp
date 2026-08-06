@@ -27,6 +27,15 @@ import { buildGarminClient, fetchKoerperdatenLive } from '@shared/garmin/koerper
 import { addDays } from '@shared/garmin/koerperdatenNachlauf'
 import { getKoerperdatenRange } from '@shared/garmin/koerperdatenReadThrough'
 import { SteuerungStore } from '@shared/steuerung/steuerungStore'
+import {
+  beobachte,
+  DATENQUELLE_NAMEN,
+  FEHLER_MELDUNG,
+  istVerbunden,
+  meldeErfolg,
+  meldeFehler,
+} from '@shared/verbindungen'
+import type { Datenquelle } from '@shared/verbindungen'
 import { heuteInBerlin } from '@shared/zeitzone'
 
 /** Alles, was die Tools eines Requests brauchen. */
@@ -63,7 +72,9 @@ const STEUERUNG_HINT =
 
 const DASHBOARD_HINT =
   'Die Browser-Fläche des Athleten: Körperdaten-Dashboard (Verläufe, ' +
-  'Körperdaten-Index, Tages-Detail) und darunter die Steuerung zum Lesen/Editieren. ' +
+  'Körperdaten-Index, Tages-Detail), darunter die Steuerung zum Lesen/Editieren und ' +
+  'die Einstellungen, in denen der Athlet seine Verbindungen zu Final Surge und ' +
+  'Garmin selbst einrichtet. ' +
   'Die Links sind für alle gleich und enthalten kein Secret — wer welche Daten sieht, ' +
   'entscheidet die Anmeldung im Browser.'
 
@@ -72,17 +83,52 @@ function text(value: string) {
   return { content: [{ type: 'text' as const, text: value }] }
 }
 
+/**
+ * Die Antwort eines Tools, dessen Datenquelle noch nicht verbunden ist (Issue #44).
+ *
+ * **Kein `isError`.** Eine fehlende Verbindung ist ein *Zustand*, kein Fehlschlag: Der
+ * Athlet hat sie noch nicht eingerichtet, und das ist beim ersten Gespräch der
+ * Normalfall. Als Fehler markiert würde Claude entschuldigend abbrechen, statt den
+ * einen Satz weiterzureichen, der weiterhilft — den Link.
+ *
+ * **Keine internen Details.** Kein KV-Schlüssel, kein „user:…", kein HTTP-Status: Was
+ * hier steht, liest der Athlet im Chat.
+ *
+ * Alle Tools bleiben dabei registriert, unabhängig vom Zustand. Sie zustandsabhängig
+ * zu registrieren wäre eleganter, scheitert aber am fehlenden SSE: Ohne Durable Object
+ * gibt es kein `notifications/tools/list_changed`, eine später hergestellte Verbindung
+ * tauchte in Claudes gecachter Werkzeugliste nie auf, und der Athlet müsste seinen
+ * Connector neu einrichten.
+ */
+function nichtVerbunden(quelle: Datenquelle, origin: string) {
+  const name = DATENQUELLE_NAMEN[quelle]
+  return text(
+    `${name} ist noch nicht mit diesem Konto verbunden — deshalb gibt es dazu gerade `
+    + `keine Daten. Der Athlet richtet die Verbindung hier ein: `
+    + `${buildDashboardLinks(origin).einrichtung}`,
+  )
+}
+
 const KW_SCHEMA = z
   .string()
   .regex(/^\d{4}-W\d{2}$/, 'kw im ISO-Format YYYY-Www, z. B. 2026-W25')
   .describe('Kalenderwoche im ISO-Format YYYY-Www (z. B. 2026-W25)')
 
-/** Final-Surge-Kontext: per-user Creds + gecachte Session aus dem KV. */
-function registerFinalSurge(server: McpServer, { userId, kv }: McpKontext): void {
+/** Final-Surge-Kontext: per-user Zugangsdaten + gecachte Session aus dem KV. */
+function registerFinalSurge(server: McpServer, { userId, kv, origin }: McpKontext): void {
   const fetchPlanned = async (start: string, end: string) => {
-    const cache = new SessionCache(kv, userId, login)
-    const raw = await new FinalSurgeClient(cache).getWorkouts(start, end)
-    return text(JSON.stringify(raw.map(formatWorkout), null, 2))
+    if (!(await istVerbunden(kv, userId, 'finalsurge'))) {
+      return nichtVerbunden('finalsurge', origin)
+    }
+
+    // `beobachte` ist der zweite Zustand aus Issue #44: Ob die hinterlegten
+    // Zugangsdaten noch gelten, weiß man erst beim Benutzen — dieser Aufruf ist der
+    // Beweis in die eine wie in die andere Richtung.
+    return beobachte(kv, userId, 'finalsurge', async () => {
+      const cache = new SessionCache(kv, userId, login)
+      const raw = await new FinalSurgeClient(cache).getWorkouts(start, end)
+      return text(JSON.stringify(raw.map(formatWorkout), null, 2))
+    })
   }
 
   server.registerTool(
@@ -118,19 +164,48 @@ function registerFinalSurge(server: McpServer, { userId, kv }: McpKontext): void
 }
 
 /** Garmin-Kontext: archive-first aus D1 lesen; heute/gestern und Lücken live nachladen + upserten. */
-function registerGarmin(server: McpServer, { userId, kv, db }: McpKontext): void {
+function registerGarmin(server: McpServer, { userId, kv, db, origin }: McpKontext): void {
   // Hinweise zu gescheiterten Live-Abrufen gehen als eigener Text-Block VOR das
   // JSON; das JSON selbst bleibt ein nacktes Array, damit die Skills nicht brechen.
   const fetchRange = async (start: string, end: string) => {
+    if (!(await istVerbunden(kv, userId, 'garmin'))) {
+      return nichtVerbunden('garmin', origin)
+    }
+
     const client = await buildGarminClient(kv, userId)
+
+    // Der zweite Zustand aus Issue #44, hier von Hand statt über `beobachte`:
+    // `getKoerperdatenRange` wirft nicht, es sammelt gescheiterte Tage als Hinweise
+    // ein (archive-first, ADR-0001). Beobachtet wird deshalb der Live-Pfad selbst.
+    //
+    // Die Auswertung ist bewusst asymmetrisch: **ein** geglückter Abruf beweist, dass
+    // die Verbindung trägt; kaputt ist sie erst, wenn *kein* Versuch durchkam. Ein
+    // einzelner Tag, den Garmin nicht liefert, ist Alltag und darf keinen Marker
+    // setzen. Und wo gar nicht live geholt wurde (alles im Archiv), sagt der Aufruf
+    // über die Verbindung nichts aus — dann bleibt der Marker, wie er war.
+    let liveVersuche = 0
+    let liveErfolge = 0
+
     const { koerperdaten, hinweise } = await getKoerperdatenRange({
       store: new KoerperdatenArchive(db),
-      fetchLive: (date: string) => fetchKoerperdatenLive(client, date),
+      fetchLive: async (date: string) => {
+        liveVersuche++
+        const daten = await fetchKoerperdatenLive(client, date)
+        liveErfolge++
+        return daten
+      },
       userId,
       start,
       end,
       heute: heuteInBerlin(),
     })
+
+    if (liveVersuche > 0) {
+      await (liveErfolge > 0
+        ? meldeErfolg(kv, userId, 'garmin')
+        : meldeFehler(kv, userId, 'garmin', FEHLER_MELDUNG.garmin))
+    }
+
     const hinweisBlock = hinweise.length
       ? [{ type: 'text' as const, text: hinweise.join('\n') }]
       : []
@@ -249,6 +324,7 @@ function registerDashboard(server: McpServer, { origin }: McpKontext): void {
           `Dashboard (Körperdaten-Verläufe): ${links.dashboard}`,
           `Steuerung (Plan + Wochen): ${links.steuerung}`,
           `Tages-Detail: ${links.tagVorlage} (Datum einsetzen)`,
+          `Einstellungen (Profil + Verbindungen zu Final Surge und Garmin): ${links.einrichtung}`,
         ].join('\n'),
       )
     },

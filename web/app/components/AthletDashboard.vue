@@ -67,6 +67,11 @@ function oeffneTag(tag: string) {
     <AthletHeader bereich="dashboard" />
 
     <UContainer class="w-full max-w-5xl flex-1 py-6">
+      <!-- Ganz oben, solange eine Datenquelle fehlt (Issue #44): Ein leeres Dashboard
+           sieht aus wie ein kaputtes, und der Weg zur Abhilfe soll nicht gesucht
+           werden müssen. Verschwindet von selbst, sobald alles steht. -->
+      <VerbindungenHinweis />
+
       <div class="mb-4 flex flex-wrap items-center justify-between gap-2">
         <div>
           <h1 class="text-xl font-semibold">Körperdaten</h1>

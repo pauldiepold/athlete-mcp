@@ -4,11 +4,12 @@ import { buildDashboardLinks } from "./dashboardLink.js";
 const BASIS = "https://training.pauldiepold.de";
 
 describe("buildDashboardLinks", () => {
-  it("baut die drei Links der Browser-Fläche unter der Origin", () => {
+  it("baut die Links der Browser-Fläche unter der Origin", () => {
     expect(buildDashboardLinks(BASIS)).toEqual({
       dashboard: `${BASIS}/`,
       steuerung: `${BASIS}/steuerung`,
       tagVorlage: `${BASIS}/tag/YYYY-MM-DD`,
+      einrichtung: `${BASIS}/einstellungen`,
     });
   });
 

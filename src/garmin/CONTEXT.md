@@ -50,3 +50,15 @@ _Vermeide_: Kalenderwoche (mehrdeutig zwischen Nummer und Schlüssel), KW-Nummer
 
 **Body-Battery-Bilanz**:
 Geladen minus verbraucht über einen Tag. Positiv an einem Ladetag, negativ an einem Zehrtag. Fehlt eine der beiden Seiten, ist die Bilanz eine Lücke — eine fehlende Seite als Null zu rechnen würde einen Tag erfinden.
+
+**SSO-Widget-Flow**:
+Der eine Weg, auf dem sich dieses System bei Garmin anmeldet: `/sso/embed` → `/sso/signin` mit CSRF-Token → Service-Ticket → Tausch bei `diauth.garmin.com`. **Nicht** der OAuth1-Pfad aus älteren Notizen und nicht der Mobile- oder Portal-Pfad — Spike #38 hat alle fünf Strategien einzeln vermessen: Mobile läuft dauerhaft in ein clientId-Rate-Limit (429), Portal in Cloudflare (403/CAPTCHA). Nur der Widget-Flow trägt, und zwar ohne TLS-Impersonation (27/27 Läufe, im Mittel 3,75 s). Der Ticket-Tausch ist ein Form-POST; Consumer-Key und Signierung entfallen vollständig. Ausdrücklich **inoffiziell und brechbar** — deshalb liegt der Teil, der bricht (das Lesen der HTML-Antworten), als reine Funktionen unter Test.
+_Vermeide_: Garmin-OAuth, Garmin-Login-API
+
+**DI-Bündel**:
+`di_token`, `di_refresh_token` und `di_client_id` — das Einzige, was von einer Garmin-Anmeldung gespeichert wird (`user:<id>:garmin`). Die **Zugangsdaten werden nie abgelegt**, auch nicht verschlüsselt und auch nicht für die Dauer einer offenen MFA-Abfrage: Sie werden einmal durchgereicht, danach erneuert der Refresh-Token. Der `display_name` liegt daneben (`…:garmin:profile`) und nicht mit im Bündel, weil der Refresh es komplett neu schreibt.
+_Vermeide_: Garmin-Credentials, Token (ohne Angabe, welches)
+
+**MFA-Zwischenzustand**:
+Cookies, das **frische** `_csrf` der MFA-Seite und der Referer einer offenen Zwei-Faktor-Abfrage — rund 1 kB JSON, das zwischen zwei HTTP-Requests des Athleten unter einem opaken Handle im KV liegt (`garmin:mfa:<handle>`, 10 Minuten, beim Einlösen gelöscht, an das Konto gebunden). Er existiert, weil der Worker keinen Prozess hat, der überlebt, während jemand in seine Authenticator-App schaut. Das CSRF-Token ist ein anderes als das der Signin-Seite; nähme der zweite Schritt das alte, sähe der Fehlschlag nach „falscher Code" aus.
+_Vermeide_: MFA-Session, Login-State

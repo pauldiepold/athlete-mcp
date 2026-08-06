@@ -24,6 +24,15 @@ export interface DashboardLinks {
   steuerung: string;
   /** Tages-Detail; `YYYY-MM-DD` ist als Platzhalter zu ersetzen. */
   tagVorlage: string;
+  /**
+   * Die Einstellungen — Profil und **Verbindungen** zu den Datenquellen (Issue #44).
+   *
+   * Der Grund, warum dieser Link mit hier steht: Fehlt eine Verbindung, antwortet das
+   * betroffene Tool fachlich mit genau dieser Adresse, damit Claude sie weiterreichen
+   * kann. Ein Athlet, der im Chat merkt, dass Garmin fehlt, soll dort weiterkommen und
+   * nicht erst die Oberfläche durchsuchen.
+   */
+  einrichtung: string;
 }
 
 /** Die Browser-Links unter einer Origin. */
@@ -33,5 +42,6 @@ export function buildDashboardLinks(baseUrl: string): DashboardLinks {
     dashboard: `${basis}/`,
     steuerung: `${basis}/steuerung`,
     tagVorlage: `${basis}/tag/YYYY-MM-DD`,
+    einrichtung: `${basis}/einstellungen`,
   };
 }

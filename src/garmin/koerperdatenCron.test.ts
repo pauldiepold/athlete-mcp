@@ -9,11 +9,27 @@ import type { GarminClient } from "./garminClient.js";
  * Fake-KV mit `list({ prefix, cursor })`. `seitengroesse` erzwingt Pagination —
  * der Cron muss über alle Seiten laufen, sonst fielen bei wachsender Athletenzahl
  * still einzelne aus dem Lauf.
+ *
+ * Seit Issue #44 schreibt der Cron auch: Er setzt und löscht den Fehler-Marker der
+ * Garmin-Verbindung. `geschrieben` hält fest, was dabei herauskommt.
  */
-function fakeKv(keys: string[], seitengroesse = 1000): KVNamespace {
-  return {
+function fakeKv(keys: string[], seitengroesse = 1000) {
+  const alle = new Set(keys);
+  const geschrieben = new Map<string, string>();
+  const kv = {
+    async get(key: string) {
+      return geschrieben.get(key) ?? null;
+    },
+    async put(key: string, wert: string) {
+      alle.add(key);
+      geschrieben.set(key, wert);
+    },
+    async delete(key: string) {
+      alle.delete(key);
+      geschrieben.delete(key);
+    },
     async list({ prefix = "", cursor }: { prefix?: string; cursor?: string } = {}) {
-      const passend = keys.filter((name) => name.startsWith(prefix)).sort();
+      const passend = [...alle].filter((name) => name.startsWith(prefix)).sort();
       const ab = cursor ? Number(cursor) : 0;
       const seite = passend.slice(ab, ab + seitengroesse);
       const bis = ab + seite.length;
@@ -23,7 +39,8 @@ function fakeKv(keys: string[], seitengroesse = 1000): KVNamespace {
         cursor: String(bis),
       };
     },
-  } as unknown as KVNamespace;
+  };
+  return Object.assign(kv as unknown as KVNamespace, { geschrieben });
 }
 
 /** Eine leere, aber formgültige Körperdaten-Zeile. */
@@ -201,4 +218,91 @@ describe("laufeKoerperdatenCron", () => {
     expect(bilanzen).toEqual([]);
     expect(geschrieben).toEqual([]);
   });
+});
+
+/**
+ * Der Cron als Beobachter der Garmin-Verbindung (Issue #44). Er ruft jeden Morgen
+ * wirklich an — ein Athlet, der wochenlang nichts abfragt, erführe sonst nie, dass
+ * sein Archiv still nicht mehr wächst.
+ */
+describe("laufeKoerperdatenCron und der Fehler-Marker", () => {
+  const MARKER = "user:paul:garmin:fehler";
+
+  it("setzt den Marker, wenn der Athlet vor dem ersten Tag scheitert", async () => {
+    const kv = fakeKv(["user:paul:garmin"]);
+    const { archiv } = fakeArchiv();
+
+    await laufeKoerperdatenCron({
+      kv,
+      archiv,
+      heute: "2026-03-15",
+      buildClient: async () => {
+        throw new Error("Refresh-Token ungültig");
+      },
+      fetchLive: async (_c, date) => tag(date),
+      ...stilleLogs,
+    });
+
+    const marker = JSON.parse(kv.geschrieben.get(MARKER)!);
+    expect(marker.meldung).toContain("Garmin neu");
+    // Was der Athlet liest, nennt keine Innereien — auch nicht die des Fehlers.
+    expect(marker.meldung).not.toContain("Refresh-Token");
+  });
+
+  it("setzt ihn, wenn kein einziger offener Tag durchkam", async () => {
+    const kv = fakeKv(["user:paul:garmin"]);
+    const { archiv } = fakeArchiv();
+
+    await laufeKoerperdatenCron({
+      kv,
+      archiv,
+      heute: "2026-03-15",
+      buildClient: async () => client,
+      fetchLive: async () => {
+        throw new Error("Garmin 500");
+      },
+      ...stilleLogs,
+    });
+
+    expect(kv.geschrieben.has(MARKER)).toBe(true);
+  });
+
+  it("löscht ihn, sobald wieder ein Tag durchkommt", async () => {
+    const kv = fakeKv(["user:paul:garmin"]);
+    await kv.put(MARKER, JSON.stringify({ meldung: "von gestern", seit: "2026-03-14" }));
+    const { archiv } = fakeArchiv();
+
+    await laufeKoerperdatenCron({
+      kv,
+      archiv,
+      heute: "2026-03-15",
+      buildClient: async () => client,
+      fetchLive: async (_c, date) => tag(date),
+      ...stilleLogs,
+    });
+
+    expect(kv.geschrieben.has(MARKER)).toBe(false);
+  });
+
+  it("lässt einen einzelnen gescheiterten Tag die Verbindung nicht kaputtschreiben", async () => {
+    // Asymmetrisch mit Absicht: Ein Tag, den Garmin nicht liefert, ist Alltag —
+    // dreizehn geschriebene Tage beweisen, dass die Verbindung trägt.
+    const kv = fakeKv(["user:paul:garmin"]);
+    const { archiv } = fakeArchiv();
+
+    await laufeKoerperdatenCron({
+      kv,
+      archiv,
+      heute: "2026-03-15",
+      buildClient: async () => client,
+      fetchLive: async (_c, date) => {
+        if (date === "2026-03-05") throw new Error("Garmin 500");
+        return tag(date);
+      },
+      ...stilleLogs,
+    });
+
+    expect(kv.geschrieben.has(MARKER)).toBe(false);
+  });
+
 });

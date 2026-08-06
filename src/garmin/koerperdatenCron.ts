@@ -18,6 +18,7 @@
  */
 
 import { listKvKeys } from "../kvKeys.js";
+import { FEHLER_MELDUNG, meldeErfolg, meldeFehler } from "../verbindungen.js";
 import type { Koerperdaten } from "./formatKoerperdaten.js";
 import type { GarminClient } from "./garminClient.js";
 import {
@@ -127,6 +128,19 @@ export async function laufeKoerperdatenCron({
         }
       }
 
+      // Der Cron ist der verlässlichste Beobachter der Garmin-Verbindung (Issue #44):
+      // Er ruft jeden Morgen wirklich an, während ein Athlet wochenlang nichts
+      // abfragen kann. Asymmetrisch wie im MCP-Pfad: Ein geschriebener Tag beweist,
+      // dass die Verbindung trägt; kaputt ist sie erst, wenn kein einziger von
+      // mehreren offenen Tagen durchkam. Ein Lauf ohne offene Tage sagt über die
+      // Verbindung nichts und lässt den Marker deshalb, wie er ist — praktisch gibt
+      // es ihn nicht, weil `nachzuholendeTage` gestern immer mitnimmt.
+      if (geschrieben > 0) {
+        await meldeErfolg(kv, userId, "garmin");
+      } else if (gescheitert.length > 0) {
+        await meldeFehler(kv, userId, "garmin", FEHLER_MELDUNG.garmin);
+      }
+
       log(
         `Cron Körperdaten ${userId}: ${offen.length} offen, ` +
           `${geschrieben} geschrieben, ${gescheitert.length} gescheitert` +
@@ -134,10 +148,12 @@ export async function laufeKoerperdatenCron({
       );
       bilanzen.push({ userId, offen: offen.length, geschrieben, gescheitert });
     } catch (err) {
-      // Vor dem ersten Tag gescheitert — etwa ein abgerissener Refresh-Token.
-      // Die übrigen Athleten laufen weiter.
+      // Vor dem ersten Tag gescheitert — etwa ein abgerissener Refresh-Token. Genau
+      // der Fall, den der Athlet sonst nie erfährt: Das Archiv füllt sich still nicht
+      // mehr. Die übrigen Athleten laufen weiter.
       const fehler = (err as Error).message;
       logFehler(`Cron Körperdaten ${userId}: ${fehler}`);
+      await meldeFehler(kv, userId, "garmin", FEHLER_MELDUNG.garmin);
       bilanzen.push({
         userId,
         offen: 0,

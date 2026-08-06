@@ -46,19 +46,43 @@ function kontextOhneZugriff(): McpKontext {
     userId: 'paul',
     kv: explodiert as KVNamespace,
     db: explodiert as D1Database,
-    origin: 'https://dev.training.example.dev',
+    origin: ORIGIN,
   }
 }
 
+const ORIGIN = 'https://dev.training.example.dev'
+
 /** Ein verbundener Client gegen einen frisch gebauten Server, wie im echten Request. */
-async function verbinde() {
+async function verbinde(kontext: McpKontext = kontextOhneZugriff()) {
   const [clientSeite, serverSeite] = InMemoryTransport.createLinkedPair()
   const client = new Client({ name: 'test', version: '1.0.0' })
   await Promise.all([
     client.connect(clientSeite),
-    buildMcpServer(kontextOhneZugriff()).connect(serverSeite),
+    buildMcpServer(kontext).connect(serverSeite),
   ])
   return client
+}
+
+/**
+ * Ein Kontext ohne jede eingerichtete Verbindung — der Zustand eines Athleten, der
+ * gerade seinen Invite-Code eingelöst hat. D1 bleibt der explodierende Proxy: Die
+ * Tools der beiden Datenquellen dürfen dort gar nicht erst ankommen.
+ */
+function kontextOhneVerbindungen(): McpKontext {
+  const leeresKv = {
+    async get() {
+      return null
+    },
+    async put() {},
+    async delete() {},
+  }
+  return { ...kontextOhneZugriff(), kv: leeresKv as unknown as KVNamespace }
+}
+
+/** Die Textblöcke einer Tool-Antwort, zusammengezogen. */
+function textVon(ergebnis: unknown): string {
+  const { content } = ergebnis as { content: { type: string; text?: string }[] }
+  return content.map((block) => block.text ?? '').join('\n')
 }
 
 describe('buildMcpServer', () => {
@@ -89,5 +113,87 @@ describe('buildMcpServer', () => {
     // Der Proxy im Kontext wirft bei jedem Zugriff — dass hier nichts fliegt, ist
     // die Zusicherung. `initialize` und `tools/list` kommen ohne I/O aus.
     await expect(verbinde()).resolves.toBeDefined()
+  })
+})
+
+/**
+ * Was passiert, solange eine Datenquelle nicht verbunden ist (Issue #44).
+ *
+ * Der Zustand ist beim ersten Gespräch der Normalfall — ein Konto entsteht durch einen
+ * Invite-Code, die Verbindungen richtet der Athlet danach selbst ein. Claude soll das
+ * fachlich mitteilen und den Weg dorthin weiterreichen, statt eine Fehlermeldung zu
+ * produzieren, an der beide hängenbleiben.
+ */
+describe('Tools ohne eingerichtete Verbindung', () => {
+  const OHNE_VERBINDUNG = [
+    { name: 'get_planned_workouts', args: { start_date: '2026-08-01', end_date: '2026-08-07' } },
+    { name: 'get_upcoming_workouts', args: {} },
+    { name: 'get_koerperdaten', args: { date: '2026-08-01' } },
+    { name: 'get_koerperdaten_range', args: { start_date: '2026-08-01', end_date: '2026-08-07' } },
+  ]
+
+  it('bleiben alle registriert — ohne SSE gäbe es kein Nachreichen', async () => {
+    // Eine später hergestellte Verbindung würde in Claudes gecachter Werkzeugliste nie
+    // auftauchen; der Athlet müsste seinen Connector neu einrichten.
+    const { tools } = await (await verbinde(kontextOhneVerbindungen())).listTools()
+
+    expect(tools.map((t) => t.name)).toEqual(ERWARTETE_TOOLS.map((t) => t.name))
+  })
+
+  for (const { name, args } of OHNE_VERBINDUNG) {
+    it(`${name} antwortet fachlich mit dem Einrichtungs-Link, ohne isError`, async () => {
+      const client = await verbinde(kontextOhneVerbindungen())
+
+      const ergebnis = await client.callTool({ name, arguments: args })
+
+      expect(ergebnis.isError, name).toBeFalsy()
+      expect(textVon(ergebnis)).toContain(`${ORIGIN}/einstellungen`)
+    })
+
+    it(`${name} nennt dabei keine internen Schlüsselnamen`, async () => {
+      const client = await verbinde(kontextOhneVerbindungen())
+
+      const antwort = textVon(await client.callTool({ name, arguments: args }))
+
+      expect(antwort).not.toContain('user:')
+      expect(antwort).not.toContain('KV')
+      expect(antwort).not.toContain('paul')
+    })
+  }
+
+  it('nennt die Datenquelle beim Namen, den der Athlet kennt', async () => {
+    const client = await verbinde(kontextOhneVerbindungen())
+
+    expect(
+      textVon(await client.callTool({ name: 'get_upcoming_workouts', arguments: {} })),
+    ).toContain('Final Surge')
+    expect(
+      textVon(await client.callTool({ name: 'get_koerperdaten', arguments: { date: '2026-08-01' } })),
+    ).toContain('Garmin')
+  })
+
+  it('lässt die Steuerung unberührt — sie braucht keine externe Verbindung', async () => {
+    // Der Grund, warum es kein Alles-oder-Nichts-Tor gibt: Die Steuerung ist ab
+    // Sekunde eins nutzbar, auch wenn noch gar nichts verbunden ist.
+    const client = await verbinde(kontextOhneVerbindungen())
+
+    const ergebnis = await client.callTool({ name: 'list_wochen', arguments: {} })
+
+    // D1 ist im Kontext der explodierende Proxy: Dass dieser Aufruf *überhaupt*
+    // dorthin durchgeht, ist die Aussage — er wird von keinem Verbindungs-Tor
+    // abgefangen.
+    expect(ergebnis.isError).toBe(true)
+    expect(textVon(ergebnis)).toContain('Bindings')
+  })
+
+  it('get_dashboard_link trägt den Einrichtungs-Link', async () => {
+    const client = await verbinde(kontextOhneVerbindungen())
+
+    const antwort = textVon(
+      await client.callTool({ name: 'get_dashboard_link', arguments: {} }),
+    )
+
+    expect(antwort).toContain(`${ORIGIN}/einstellungen`)
+    expect(antwort).toContain(`${ORIGIN}/steuerung`)
   })
 })
