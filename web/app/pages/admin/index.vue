@@ -39,7 +39,11 @@ async function kopieren(text: string, label: string) {
 async function codeErzeugen() {
   erzeugt.value = true
   try {
-    const invite = await $fetch<OffenerInvite>('/api/admin/invites', {
+    // Ohne Typ-Argument: `$fetch` kennt die Antwort dieser Route aus den generierten
+    // Route-Typen und leitet sie ab. Ein explizites `<OffenerInvite>` wäre nicht nur
+    // überflüssig, sondern seit Issue #43 ein Typfehler — der OAuth-Wrapper hat die
+    // Server-Typen vollständig ins App-Programm gezogen.
+    const invite = await $fetch('/api/admin/invites', {
       method: 'POST',
       body: { userId: gebundenAn.value.trim() || undefined },
     })

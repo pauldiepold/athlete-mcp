@@ -31,7 +31,7 @@ import { heuteInBerlin } from '@shared/zeitzone'
 
 /** Alles, was die Tools eines Requests brauchen. */
 export interface McpKontext {
-  /** Der aufgelöste Athlet — bis Issue #43 über das Pfad-Secret der MCP-URL. */
+  /** Der aufgelöste Athlet — seit Issue #43 aus dem Bearer-Token, nicht aus der URL. */
   userId: string
   kv: KVNamespace
   db: D1Database

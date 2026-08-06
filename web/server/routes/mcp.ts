@@ -15,8 +15,10 @@
  * Request/Response-Aufrufe gegen KV und D1; keiner braucht davon etwas. Preis: keine
  * langlaufenden Tools mit Progress-Updates, ohne den DO zurückzuholen.
  *
- * Die Identität steckt in diesem Ticket weiterhin im Pfad-Secret; erst Issue #43
- * ersetzt sie durch ein Bearer-Token.
+ * **Eine URL für alle** (Issue #43): Der Pfad trägt seit dem eigenen
+ * Authorization Server keine Identität mehr. Wer fragt, sagt das Bearer-Token — die
+ * Token-Prüfung liegt im OAuthProvider vor dieser Route (`worker/index.ts`), der
+ * aufgelöste Athlet kommt als Grant-`props` an (`resolveMcpAthlet`).
  */
 
 import { WebStandardStreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js'
@@ -35,7 +37,7 @@ export default defineEventHandler(async (event) => {
     })
   }
 
-  const { userId, env } = await resolveMcpAthlet(event)
+  const { userId, env } = resolveMcpAthlet(event)
 
   const server = buildMcpServer({
     userId,

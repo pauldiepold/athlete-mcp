@@ -96,6 +96,13 @@ Ablauf (interaktiv, HITL):
 4. Ausgabe der fertigen MCP-URL und des Browser-Links auf stdout —
    beide auf derselben Origin: `…/{pathsecret}/mcp` und `…/{viewsecret}`.
 
+> **Veraltet ab Issue #43.** Die Schritte 3 und 4 beschreiben Secrets, die nichts mehr
+> aufschließen: Der MCP-Endpunkt ist `/mcp` für alle und hängt am Bearer-Token aus dem
+> eigenen Authorization Server, die Browser-Fläche an der Session. Der Connector wird in
+> Claude mit der nackten Origin eingetragen; ein Konto entsteht über einen Invite-Code
+> aus `/admin`. Das CLI schreibt die Einträge noch — sie fallen beim Aufräumen nach dem
+> Cutover (Issue #46), zusammen mit diesem Absatz.
+
 Optionale Env-Variablen statt interaktiver Eingabe:
 `FINALSURGE_EMAIL`, `FINALSURGE_PASSWORD`, `GARMIN_EMAIL`, `GARMIN_PASSWORD`
 (der MFA-Code bleibt immer interaktiv). Die Ziel-Umgebung steht als Konstantenpaar
@@ -105,8 +112,9 @@ oben in `scripts/onboard.ts` und wird zu Beginn jedes Laufs ausgegeben.
 
 Ein erneuter Lauf für einen bestehenden Nutzer stellt einen abgerissenen
 Garmin-Refresh-Token wieder her (KV-`put` ist Upsert) und verwendet das
-vorhandene Pfad-Secret wieder — die MCP-URL des Nutzers bleibt stabil. Keine
-Code-Änderung nötig.
+vorhandene Pfad-Secret wieder. Das Wiederherstellen des Garmin-Tokens ist der Grund,
+aus dem der Re-Seed noch existiert; die MCP-URL hängt seit Issue #43 nicht mehr daran.
+Keine Code-Änderung nötig.
 
 ## Körperdaten-Backfill
 

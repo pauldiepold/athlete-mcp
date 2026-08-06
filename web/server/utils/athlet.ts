@@ -1,5 +1,4 @@
 import type { H3Event } from 'h3'
-import { TenantResolver } from '@shared/tenantResolver'
 
 /**
  * Wer fragt hier eigentlich? Der gemeinsame Kern der Mandantentrennung im Web-Target.
@@ -27,25 +26,34 @@ export async function resolveAthlet(
   return { userId: user.userId, env: envOf(event) }
 }
 
-// Die Auflösung des MCP-Endpunkts geht **noch** über das Pfad-Secret: `/{pathsecret}/mcp`
-// bleibt bis Issue #43 der Weg, auf dem Claude hereinkommt — erst dort tritt ein
-// Bearer-Token aus dem eigenen Authorization Server an seine Stelle. Bis dahin sind es
-// bewusst zwei getrennte Funktionen und nicht eine mit Flag; ein vertauschtes Argument
-// wäre eine stille Rechteausweitung.
-//
-// Der Pfad geht ungeteilt in `TenantResolver.resolve`: dessen Muster `/{secret}/mcp`
-// prüft die Route ein zweites Mal, unabhängig vom Nitro-Router.
-export async function resolveMcpAthlet(
-  event: H3Event,
-): Promise<{ userId: string; env: Env }> {
-  const env = envOf(event)
-
-  const userId = await new TenantResolver(env.SESSION_KV).resolve(
-    getRequestURL(event).pathname,
-  )
-  if (!userId) {
-    throw createError({ statusCode: 404, statusMessage: 'Not found' })
+/**
+ * Dieselbe Frage für den MCP-Endpunkt — mit einer anderen Antwortquelle: dem
+ * **Bearer-Token** aus dem eigenen Authorization Server (Issue #43). Vorher stand die
+ * Identität im Pfad (`/{pathsecret}/mcp`); jetzt ist `/mcp` für alle dieselbe URL.
+ *
+ * Geprüft hat das Token bereits der OAuthProvider vor Nitro (`worker/index.ts`). Was
+ * hier ankommt, sind die entschlüsselten Props des Grants — und die tragen
+ * ausschließlich die `userId` (siehe `grantProps.ts`). Nitro reicht die
+ * `ExecutionContext` des Workers unter `event.context.cloudflare.context` durch; genau
+ * daran hat der Provider sie gehängt.
+ *
+ * Bewusst eine eigene Funktion neben `resolveAthlet` statt einer mit Flag: Session und
+ * Token sind zwei verschiedene Ausweise, und ein vertauschtes Argument wäre eine
+ * stille Rechteausweitung.
+ *
+ * 401 statt 404, wenn nichts Brauchbares ankommt. Der Fall ist praktisch unerreichbar
+ * — ohne gültiges Token kommt der Request gar nicht bis hierher —, aber die Aussage
+ * ist die richtige: Es fehlt ein Ausweis, nicht eine Ressource.
+ */
+export function resolveMcpAthlet(event: H3Event): { userId: string; env: Env } {
+  const kontext = event.context as {
+    cloudflare?: { context?: { props?: unknown } }
   }
 
-  return { userId, env }
+  const userId = userIdAusProps(kontext.cloudflare?.context?.props)
+  if (!userId) {
+    throw createError({ statusCode: 401, statusMessage: 'Kein gültiges Token' })
+  }
+
+  return { userId, env: envOf(event) }
 }

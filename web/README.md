@@ -4,33 +4,39 @@
 Körperdaten-Cron in einem Cloudflare-Worker. Vorher lag der MCP-Teil in einem eigenen
 Worker daneben.
 
-- **MCP-Endpunkt** (`/{pathsecret}/mcp`) — Nitro-Route, stateless Streamable HTTP,
-  kein Durable Object (`server/routes/[secret]/mcp.ts`, Tools in
-  `server/utils/mcpServer.ts`).
+- **MCP-Endpunkt** (`/mcp`) — Nitro-Route, stateless Streamable HTTP, kein Durable
+  Object (`server/routes/mcp.ts`, Tools in `server/utils/mcpServer.ts`). Eine URL für
+  alle Athleten; wer fragt, sagt das Bearer-Token.
+- **OAuth-Authorization-Server** — `worker/index.ts` ist die `main` des Workers und
+  legt `@cloudflare/workers-oauth-provider` vor Nitros Bundle (Issue #43). Discovery,
+  DCR und `/oauth/token` bringt der Provider mit; die Consent-Fläche liegt als
+  gewöhnliche Nuxt-Seite unter `/authorize`.
 - **Körperdaten-Cron** — Nitro-Task (`server/tasks/koerperdaten.ts`); die Fachlichkeit
   liegt in `@shared/garmin/koerperdatenCron`.
 
-Dazu zwei Athleten-Flächen unter demselben per-User-Link, umschaltbar über die
-Kopfzeile:
+Dazu zwei Athleten-Flächen hinter der Session, für alle unter denselben Pfaden,
+umschaltbar über die Kopfzeile:
 
-- **Dashboard** (`/{view-secret}`) — die Startseite: Verläufe der **Körperdaten** aus
-  dem Archiv, rein lesend.
-- **Steuerung** (`/{view-secret}/steuerung`) — Steuerungsplan + Wochen, lesen und
-  editieren; Markdown bleibt das kanonische Speicherformat, byte-genau das, was der
-  Agent über MCP liest/schreibt.
+- **Dashboard** (`/`) — die Startseite: abgemeldet die Anmeldung, angemeldet die
+  Verläufe der **Körperdaten** aus dem Archiv, rein lesend.
+- **Steuerung** (`/steuerung`) — Steuerungsplan + Wochen, lesen und editieren;
+  Markdown bleibt das kanonische Speicherformat, byte-genau das, was der Agent über
+  MCP liest/schreibt.
 
 Siehe `../docs/adr/0004-eigenstaendiges-nuxt-frontend-monorepo-browser-editing.md`
 und `../docs/adr/0007-oauth-identitaet-statt-url-secrets-ein-deployable.md`.
 
 ## Architektur (Kurz)
 
-- **Geteilte Module statt Duplikat:** `SteuerungStore` und `TenantResolver` werden via
-  `@shared`-Alias direkt aus `../src` importiert — Single Source of Truth fürs Schema,
-  keine Drift (`nuxt.config.ts`).
-- **Auth server-seitig, an einer Stelle:** Das per-User **View-Secret** aus der URL
-  wird im Nitro-Server aufgelöst (`server/utils/athlet.ts`) — darauf setzen Steuerungs-
-  und Körperdaten-Routes gemeinsam auf, unbekanntes Secret → 404. D1/KV-Bindings landen
-  nie im Client-Bundle.
+- **Geteilte Module statt Duplikat:** `SteuerungStore` und die Identitäts-Funktionen
+  werden via `@shared`-Alias direkt aus `../src` importiert — Single Source of Truth
+  fürs Schema, keine Drift (`nuxt.config.ts`).
+- **Auth server-seitig, an einer Stelle — aber zwei Ausweise:** Die Browser-Flächen
+  hängen an der **Session** (`resolveAthlet`), der MCP-Endpunkt am **Bearer-Token**
+  (`resolveMcpAthlet`, Identität aus den Grant-`props`). Beides liegt in
+  `server/utils/athlet.ts`, bewusst als zwei Funktionen ohne gemeinsames Flag: ein
+  vertauschtes Argument wäre eine stille Rechteausweitung. Kein Ausweis → 401.
+  D1/KV-Bindings landen nie im Client-Bundle.
 - **Körperdaten nur lesend, nur aus dem Archiv:** die Browser-Routes lesen über
   dasselbe `KoerperdatenArchive` wie die MCP-Tools, ohne Live-Abruf bei Garmin. Der Bereichs-Endpunkt liefert die
   bereits abgeleiteten Serien **und Kennzahlen** (`@shared/garmin/koerperdatenSerien`),
@@ -71,13 +77,22 @@ pnpm dev          # http://localhost:3000
 (via `nitro-cloudflare-dev`) werden die **echten** dev-Ressourcen gelesen, nichts lokal
 dupliziert. Erfordert wrangler-Auth (OAuth-Login bzw. `CLOUDFLARE_API_TOKEN`).
 
-Aufruf eines Athleten: `/{view-secret}` (Dashboard), `/{view-secret}/steuerung`.
-
-Den Cron lokal auslösen:
+**`pnpm dev` kennt den OAuth-Wrapper nicht.** Der Nitro-Dev-Server startet Nuxt direkt,
+also läuft `worker/index.ts` nicht mit: `/mcp` antwortet mangels Grant-Props 401 und
+`/authorize` mit einem 500er, der genau das sagt. Alles, was den Authorization Server
+berührt, wird über `pnpm dev:cron` (das baut und startet `wrangler dev`) oder auf
+`dev.training.pauldiepold.de` geprüft — den vollen Durchlauf mit claude.ai ohnehin nur
+dort, weil Claude eine erreichbare Origin braucht.
 
 ```bash
 pnpm dev:cron     # nuxt build && wrangler dev --test-scheduled
+
+# Cron hinter dem Wrapper:
 curl "http://localhost:8787/__scheduled?cron=0+5+*+*+*"
+
+# Der Anfang des OAuth-Flows:
+curl -i -X POST http://localhost:8787/mcp          # 401 + www-authenticate
+curl http://localhost:8787/.well-known/oauth-authorization-server
 ```
 
 ## Build & Deploy
