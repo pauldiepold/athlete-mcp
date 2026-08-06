@@ -68,6 +68,11 @@ useHead({ title: 'Einstellungen' })
       </p>
 
       <div class="mt-6 flex flex-col gap-4">
+        <!-- Der Erstkontakt-Satz (Issue #50) steht oben, solange noch kein
+             Steuerungsplan existiert, und verschwindet danach. Kein Tor davor: Wer
+             will, verbindet erst seine Quellen und geht später in den Chat. -->
+        <ErstkontaktKarte />
+
         <UCard>
           <template #header>
             <h2 class="font-semibold">Profil</h2>

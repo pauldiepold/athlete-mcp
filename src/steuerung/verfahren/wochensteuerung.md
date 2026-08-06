@@ -9,7 +9,7 @@ Taktische Steuerung der Trainingswoche eines Läufers Richtung Zielrennen — in
 
 ## Leerer Steuerungsplan → erst das Onboarding
 
-**Immer zuerst prüfen:** `get_steuerungsplan()`. Ist er leer (`""`), gibt es keine Grundlage für eine Wochenbewertung — weder Zielrennen noch Phase noch Anker-Paces. Dann greift dieses Verfahren **nicht**: Sag dem Athleten, dass zuerst sein Steuerungsplan entstehen muss, und geh ins Onboarding, das dieser Server als eigenes Verfahren führt. Hier wird **nicht** selbst interviewt — sonst gäbe es zwei Fassungen desselben Gesprächs.
+**Immer zuerst prüfen:** `get_steuerungsplan()`. Ist er leer (`""`), gibt es keine Grundlage für eine Wochenbewertung — weder Zielrennen noch Phase noch Anker-Paces. Dann greift dieses Verfahren **nicht**: Sag dem Athleten, dass zuerst sein Steuerungsplan entstehen muss, und ruf `get_verfahren_onboarding` auf — das Onboarding ist ein eigenes Verfahren dieses Servers. Hier wird **nicht** selbst interviewt — sonst gäbe es zwei Fassungen desselben Gesprächs.
 
 Das Vorhandensein des Steuerungsplans *ist* das Signal „onboarded"; ein Flag daneben gibt es nicht.
 

@@ -2,6 +2,8 @@ import { describe, it, expect } from 'vitest'
 import { Client } from '@modelcontextprotocol/sdk/client/index.js'
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js'
 
+import { ERSTKONTAKT_SATZ } from '@shared/steuerung/erstkontakt'
+
 import { buildMcpServer } from './mcpServer'
 import type { McpKontext } from './mcpServer'
 
@@ -28,6 +30,7 @@ const ERWARTETE_TOOLS = [
   { name: 'get_dashboard_link', required: [] },
   { name: 'get_verfahren_woche', required: [] },
   { name: 'get_verfahren_makro', required: [] },
+  { name: 'get_verfahren_onboarding', required: [] },
 ]
 
 /**
@@ -88,7 +91,7 @@ function textVon(ergebnis: unknown): string {
 }
 
 describe('buildMcpServer', () => {
-  it('registriert genau die zwölf Tools, in unveränderter Reihenfolge', async () => {
+  it('registriert genau die erwarteten Tools, in unveränderter Reihenfolge', async () => {
     const { tools } = await (await verbinde()).listTools()
 
     expect(tools.map((t) => t.name)).toEqual(ERWARTETE_TOOLS.map((t) => t.name))
@@ -130,6 +133,7 @@ describe('Verfahrens-Tools', () => {
   const VERFAHREN = [
     { name: 'get_verfahren_woche', ueberschrift: '# Verfahren: Wochensteuerung' },
     { name: 'get_verfahren_makro', ueberschrift: '# Verfahren: Makroperiodisierung' },
+    { name: 'get_verfahren_onboarding', ueberschrift: '# Verfahren: Onboarding' },
   ]
 
   for (const { name, ueberschrift } of VERFAHREN) {
@@ -176,6 +180,22 @@ describe('Verfahrens-Tools', () => {
     expect(beschreibung('get_verfahren_makro')).toContain('get_verfahren_woche')
   })
 
+  it('trennt das Onboarding von beiden — es zielt auf den Erstkontakt-Satz', async () => {
+    // Die `description` ist die einzige Stelle, an der das Modell erkennt, wann dieses
+    // Tool dran ist. Sie muss auf den einen Satz zielen, den die Einrichtung zum
+    // Kopieren anbietet — ein Onboarding, das bei jedem „Hallo" anspringt, wäre für
+    // alle anderen eine Plage.
+    const { tools } = await (await verbinde()).listTools()
+    const beschreibung = tools.find((t) => t.name === 'get_verfahren_onboarding')!.description!
+
+    expect(beschreibung).toContain(ERSTKONTAKT_SATZ)
+    expect(beschreibung).toContain('Nicht aufrufen')
+    // Und es verweist die gewöhnlichen Trainingsfragen weiter, statt mit den beiden
+    // laufenden Verfahren um sie zu konkurrieren.
+    expect(beschreibung).toContain('get_verfahren_woche')
+    expect(beschreibung).toContain('get_verfahren_makro')
+  })
+
   it('interviewt im Wochenverfahren nicht selbst, sondern verweist aufs Onboarding', async () => {
     // Ein leerer Steuerungsplan ist das Signal „noch nicht onboarded" — dafür gibt es
     // ein eigenes Verfahren (Issue #50), nicht eine zweite Fassung desselben Interviews.
@@ -185,6 +205,74 @@ describe('Verfahrens-Tools', () => {
 
     expect(text).toContain('Onboarding')
     expect(text).not.toContain('Kurzes Interview')
+  })
+})
+
+/**
+ * Das Onboarding-Verfahren (Issue #50) — der Weg vom leeren Store zum Steuerungsplan.
+ *
+ * Der Text ist Prosa und darf sich ändern; festgenagelt sind hier nur die Zusagen, die
+ * das Verfahren überhaupt erst tragfähig machen: dass es den Zustand liest statt ihn zu
+ * erfragen, dass es **nie** nach Zugangsdaten fragt, dass am Ende ein Steuerungsplan im
+ * Store steht und dass es in einen neuen Chat übergibt.
+ */
+describe('Verfahren: Onboarding', () => {
+  const onboarding = async () =>
+    textVon(
+      await (await verbinde()).callTool({
+        name: 'get_verfahren_onboarding',
+        arguments: {},
+      }),
+    )
+
+  it('liest den Verbindungs- und Planzustand über die vorhandenen Tools', async () => {
+    const text = await onboarding()
+
+    expect(text).toContain('get_steuerungsplan')
+    expect(text).toContain('get_koerperdaten_range')
+    expect(text).toContain('get_upcoming_workouts')
+    expect(text).toContain('get_dashboard_link')
+  })
+
+  it('fragt unter keinen Umständen nach Zugangsdaten, sondern verlinkt in die Einstellungen', async () => {
+    // Passwörter und MFA-Codes gehören ausschließlich in die Weboberfläche. Das ist
+    // eine Invariante des Verfahrens, keine Empfehlung — deshalb steht sie hier.
+    const text = await onboarding()
+
+    expect(text).toContain('Niemals nach Zugangsdaten')
+    expect(text).toContain('/einstellungen')
+  })
+
+  it('führt das inhaltliche Interview, das im Wochenverfahren entfallen ist', async () => {
+    const text = await onboarding()
+
+    for (const frage of ['Zielrennen', 'Zielzeit', 'Coach', 'Form', 'Baseline', 'Phase']) {
+      expect(text, frage).toContain(frage)
+    }
+  })
+
+  it('schreibt am Ende einen Starter-Steuerungsplan — sein Vorhandensein ist das Fertig-Signal', async () => {
+    const text = await onboarding()
+
+    expect(text).toContain('set_steuerungsplan')
+    expect(text).toContain('Fertig-Signal')
+  })
+
+  it('erklärt Steuerung und Dashboard samt Körperdaten-Index', async () => {
+    const text = await onboarding()
+
+    expect(text).toContain('Körperdaten-Index')
+    // ADR-0006: der Index ist das Rohmaterial der Tagesform, nicht sie selbst. Wer
+    // beide Namen synonym benutzt, hat den ADR nicht gelesen.
+    expect(text).not.toContain('Tagesform-Index')
+  })
+
+  it('übergibt in einen neuen Chat — außer Garmin liefert noch keine Daten', async () => {
+    const text = await onboarding()
+
+    expect(text).toContain('neuen Chat')
+    expect(text).toContain('get_verfahren_woche')
+    expect(text).toContain('Erstbefüllung')
   })
 })
 

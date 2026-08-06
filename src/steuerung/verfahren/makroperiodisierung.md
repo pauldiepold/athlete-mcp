@@ -6,7 +6,7 @@ Der strategische Bogen bis zum Zielrennen. Während die Wochensteuerung die näc
 
 - **Verfahren = Arbeitsweise, Store = Fakten.** Ziel, Form, Block, Phase, strategische Entscheidungen, Baseline und Konfig stehen **ausschließlich im Steuerungs-Store**, nie in diesem Text.
 - **Dies ist der eigentliche Editor des Steuerungsplans.** Hier wird die **Struktur** gebaut und umgebaut: Block, Phasengrenzen, strategische Entscheidungen, Form-Neukalibrierung über den Saisonbogen. (Die Wochensteuerung (`get_verfahren_woche`) zieht zwischendurch nur Snapshot-*Zahlen* nach.) Seltener aufgerufen als die Wochensteuerung, dafür tiefer.
-- **Leerer Steuerungsplan?** Dann ist noch kein Bogen da, den man periodisieren könnte — erst das Onboarding, das dieser Server als eigenes Verfahren führt.
+- **Leerer Steuerungsplan?** Dann ist noch kein Bogen da, den man periodisieren könnte — erst das Onboarding (`get_verfahren_onboarding`).
 
 ## Datenquellen
 

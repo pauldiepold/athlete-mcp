@@ -26,10 +26,12 @@ import { KoerperdatenArchive } from '@shared/garmin/koerperdatenArchive'
 import { buildGarminClient, fetchKoerperdatenLive } from '@shared/garmin/koerperdatenLive'
 import { addDays } from '@shared/garmin/koerperdatenNachlauf'
 import { getKoerperdatenRange } from '@shared/garmin/koerperdatenReadThrough'
+import { ERSTKONTAKT_SATZ } from '@shared/steuerung/erstkontakt'
 import { SteuerungStore } from '@shared/steuerung/steuerungStore'
 // Die Verfahrenstexte als Rohtext ins Bundle (ADR-0008). Nitro löst `.md`-Importe von
 // sich aus zu einem String auf; für Vitest tut das der Plugin in web/vitest.config.ts.
 import verfahrenMakro from '@shared/steuerung/verfahren/makroperiodisierung.md'
+import verfahrenOnboarding from '@shared/steuerung/verfahren/onboarding.md'
 import verfahrenWoche from '@shared/steuerung/verfahren/wochensteuerung.md'
 import {
   beobachte,
@@ -374,6 +376,29 @@ const VERFAHREN_MAKRO_BESCHREIBUNG =
   + 'konkrete laufende Woche und Tagessteuerung stattdessen get_verfahren_woche '
   + 'aufrufen.'
 
+/**
+ * Das Onboarding (Issue #50) ist der einzige Verfahrenstext mit einem *engen* Auslöser:
+ * Woche und Makro zielen auf ganze Themenfelder, dieses hier auf **einen Satz** — den
+ * `ERSTKONTAKT_SATZ`, dessen Docblock die Begründung trägt. Deshalb steht hier
+ * ausdrücklich auch, wann **nicht**.
+ *
+ * Der Planzustand taucht in der Beschreibung bewusst *nicht* als Auslöser auf: Beim
+ * Auswählen eines Tools kennt das Modell ihn noch gar nicht, ein „wenn der Plan leer
+ * ist" wäre also unprüfbar und übrig bliebe „bei Trainingsfragen" — genau die
+ * Konkurrenz zum Wochenverfahren, die wir nicht wollen. Der zustandsabhängige Weg
+ * läuft andersherum: Woche und Makro lesen den Plan und verweisen hierher.
+ */
+const VERFAHREN_ONBOARDING_BESCHREIBUNG =
+  'Die einmalige Ersteinrichtung der Trainingssteuerung dieses Athleten: Interview zu '
+  + 'Zielrennen und Form, Anlegen des Steuerungsplans, Erklärung von Steuerung und '
+  + 'Dashboard. Rufe dieses Tool auf und folge dem zurückgegebenen Verfahren, wenn der '
+  + `Athlet den Erstkontakt-Satz aus seiner Einrichtung schickt – „${ERSTKONTAKT_SATZ}" `
+  + '– oder gleichbedeutend darum bittet, ihn einzurichten bzw. mit der Trainings'
+  + 'steuerung anzufangen. Nicht aufrufen bei einer bloßen Begrüßung, bei allgemeinen '
+  + 'Fragen zu diesem Connector und nicht bei gewöhnlichen Trainingsfragen – dafür sind '
+  + 'get_verfahren_woche und get_verfahren_makro da; fehlt dem Athleten die Grundlage, '
+  + 'schicken die beiden von sich aus hierher.'
+
 function registerVerfahren(server: McpServer): void {
   server.registerTool(
     'get_verfahren_woche',
@@ -385,6 +410,12 @@ function registerVerfahren(server: McpServer): void {
     'get_verfahren_makro',
     { description: VERFAHREN_MAKRO_BESCHREIBUNG, inputSchema: {} },
     () => text(verfahrenMakro),
+  )
+
+  server.registerTool(
+    'get_verfahren_onboarding',
+    { description: VERFAHREN_ONBOARDING_BESCHREIBUNG, inputSchema: {} },
+    () => text(verfahrenOnboarding),
   )
 }
 
