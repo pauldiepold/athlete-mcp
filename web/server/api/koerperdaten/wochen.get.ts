@@ -10,7 +10,7 @@ import { heuteInBerlin } from '@shared/zeitzone'
 // Datengrundlage beider Richtungen — die Dashboard-Wochenliste (Richtung 1) und der
 // Körperdaten-Streifen der Steuerungs-Wochenseite (Richtung 2). Gelesen über dasselbe
 // KoerperdatenArchive und denselben SteuerungStore wie überall, Auth und 404 über die
-// gemeinsame Secret-Auflösung (resolveAthlet). Die eigentliche Rechnung liegt komplett
+// gemeinsame Athleten-Auflösung (resolveAthlet). Die eigentliche Rechnung liegt komplett
 // in koerperdatenWochen; hier steht nur, welcher Zeitraum gelesen wird.
 //
 // Ohne `?kw` liest die Route die volle Archiv-Historie (wie „Alles" im

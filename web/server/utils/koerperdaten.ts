@@ -1,9 +1,9 @@
 import type { H3Event } from 'h3'
 import { KoerperdatenArchive } from '@shared/garmin/koerperdatenArchive'
 
-// Gemeinsame Zugriffs-Sequenz der Körperdaten-Routes (Issue #24): Athlet über das
-// View-Secret auflösen (resolveAthlet — dieselbe Auflösung wie die Steuerungs-Routes)
-// und das Archiv dazugeben. Unbekanntes/fehlendes Secret → 404.
+// Gemeinsame Zugriffs-Sequenz der Körperdaten-Routes (Issue #24): Athlet über
+// die Session auflösen (resolveAthlet — dieselbe Auflösung wie die Steuerungs-Routes)
+// und das Archiv dazugeben. Ohne Session → 401.
 //
 // Gelesen wird über dasselbe KoerperdatenArchive, das auch der MCP-Endpunkt nutzt:
 // kein zweiter Lesepfad auf die Tabelle. Die Browser-Fläche bleibt reiner D1-Leser

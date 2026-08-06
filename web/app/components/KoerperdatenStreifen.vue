@@ -11,7 +11,6 @@ import type { WochenAggregat } from '@shared/garmin/koerperdatenWochen'
 // eines Fehlers — feste Höhe, damit beim Laden kein Sprung im Layout entsteht.
 // Rein lesend: hier wird nichts editiert, nur zurückverwiesen.
 const props = defineProps<{
-  secret: string
   kw: string
   woche?: WochenAggregat
 }>()
@@ -35,7 +34,7 @@ const hrvSerie = computed(() => props.woche?.hrvSerie ?? [])
 // Der Wochen-Key reist als er selbst ins Dashboard — die Umrechnung in sieben
 // Kalendertage (wochenZeitraum) macht dort der Bereichs-Endpunkt, an einer Stelle.
 const dashboardLink = computed(() => ({
-  path: `/${props.secret}`,
+  path: '/',
   query: { kw: props.kw },
 }))
 </script>

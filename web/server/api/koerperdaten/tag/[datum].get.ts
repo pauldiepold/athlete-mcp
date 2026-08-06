@@ -8,7 +8,7 @@ import { isoWoche } from '@shared/garmin/isoWoche'
 // wie er archiviert ist — nichts wird zusammengefasst, nichts übersetzt.
 //
 // Gelesen über dasselbe KoerperdatenArchive wie überall (resolveKoerperdaten);
-// unbekanntes Secret → 404, wie bei allen Routen dieser Fläche.
+// ohne Session → 401, wie bei allen Routen dieser Fläche.
 //
 // Ein Datum ohne Archivzeile ist **kein** Fehler, sondern `tag: null`: wer die Uhr
 // nicht getragen hat, soll eine leere Ansicht sehen und keine Fehlerseite.

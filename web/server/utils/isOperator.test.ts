@@ -1,38 +1,62 @@
 import { describe, it, expect } from 'vitest'
-import { isOperator, OPERATOR_GITHUB_LOGINS } from './isOperator'
+import { isOperator, parseOperatorSubs } from './isOperator'
+
+const SUBS = '111111111111111111111,222222222222222222222'
+
+describe('parseOperatorSubs', () => {
+  it('zerlegt die kommagetrennte Liste und trimmt', () => {
+    expect(parseOperatorSubs(' 111 , 222 ')).toEqual(['111', '222'])
+  })
+
+  it('liefert für Leeres und Fehlendes eine leere Liste', () => {
+    expect(parseOperatorSubs('')).toEqual([])
+    expect(parseOperatorSubs('  ,  ,')).toEqual([])
+    expect(parseOperatorSubs(null)).toEqual([])
+    expect(parseOperatorSubs(undefined)).toEqual([])
+  })
+})
 
 describe('isOperator', () => {
-  it('lässt die allowlistete Betreiber-Identität durch', () => {
-    expect(isOperator('pauldiepold')).toBe(true)
+  it('lässt einen allowlisteten Google-sub durch', () => {
+    expect(isOperator('google', '111111111111111111111', SUBS)).toBe(true)
+    expect(isOperator('google', '222222222222222222222', SUBS)).toBe(true)
   })
 
-  it('weist jede andere GitHub-Identität ab', () => {
-    expect(isOperator('octocat')).toBe(false)
-    expect(isOperator('paul')).toBe(false)
+  it('weist jeden anderen sub ab', () => {
+    expect(isOperator('google', '999999999999999999999', SUBS)).toBe(false)
   })
 
-  it('vergleicht case-insensitiv (GitHub-Logins sind es)', () => {
-    expect(isOperator('PaulDiepold')).toBe(true)
-    expect(isOperator('PAULDIEPOLD')).toBe(true)
+  it('weist Apple ab, auch wenn der sub in der Liste steht', () => {
+    // Die Admin-Fläche darf nicht am fremden Apple-Developer-Konto hängen.
+    expect(isOperator('apple', '111111111111111111111', SUBS)).toBe(false)
   })
 
-  it('trimmt Whitespace', () => {
-    expect(isOperator('  pauldiepold  ')).toBe(true)
+  it('weist ein unbekanntes Verfahren ab', () => {
+    expect(isOperator('github', '111111111111111111111', SUBS)).toBe(false)
+    expect(isOperator(null, '111111111111111111111', SUBS)).toBe(false)
+    expect(isOperator(undefined, '111111111111111111111', SUBS)).toBe(false)
   })
 
-  it('weist Leeres/Fehlendes ab', () => {
-    expect(isOperator('')).toBe(false)
-    expect(isOperator('   ')).toBe(false)
-    expect(isOperator(null)).toBe(false)
-    expect(isOperator(undefined)).toBe(false)
+  it('heißt bei leerer oder fehlender Liste: kein Operator', () => {
+    expect(isOperator('google', '111111111111111111111', '')).toBe(false)
+    expect(isOperator('google', '111111111111111111111', '   ')).toBe(false)
+    expect(isOperator('google', '111111111111111111111', null)).toBe(false)
+    expect(isOperator('google', '111111111111111111111', undefined)).toBe(false)
   })
 
-  it('nutzt die übergebene Allowlist', () => {
-    expect(isOperator('alice', ['alice', 'bob'])).toBe(true)
-    expect(isOperator('pauldiepold', ['alice'])).toBe(false)
+  it('weist einen leeren sub ab, auch wenn die Liste einen leeren Eintrag hätte', () => {
+    expect(isOperator('google', '', ',,')).toBe(false)
+    expect(isOperator('google', '   ', SUBS)).toBe(false)
+    expect(isOperator('google', null, SUBS)).toBe(false)
   })
 
-  it('exportiert pauldiepold als einzigen Default-Operator', () => {
-    expect(OPERATOR_GITHUB_LOGINS).toEqual(['pauldiepold'])
+  it('vergleicht case-sensitiv — ein sub ist eine opake Kennung, kein Name', () => {
+    expect(isOperator('google', 'AbC', 'abc')).toBe(false)
+    expect(isOperator('google', 'abc', 'abc')).toBe(true)
+  })
+
+  it('findet einen sub auch hinter Leerzeichen in der Liste', () => {
+    expect(isOperator('google', 'abc', ' abc , def ')).toBe(true)
+    expect(isOperator('google', 'xyz', ' abc , def ')).toBe(false)
   })
 })

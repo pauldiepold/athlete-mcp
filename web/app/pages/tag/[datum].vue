@@ -8,7 +8,6 @@
 // Rein lesend. Die Seite bleibt dumm: der Endpunkt liefert den Blob unverändert,
 // die Darstellung liegt in TagesZeitachse und TagesRohwerte.
 const route = useRoute()
-const secret = route.params.secret as string
 const datum = route.params.datum as string
 
 // Ein Pfad, der kein Datum ist, wird gar nicht erst geladen — dieselbe Linie wie
@@ -17,7 +16,7 @@ if (!/^\d{4}-\d{2}-\d{2}$/.test(datum)) {
   throw createError({ statusCode: 404, statusMessage: 'Not found' })
 }
 
-const { data, error } = await useFetch(`/api/${secret}/koerperdaten/tag/${datum}`)
+const { data, error } = await useFetch(`/api/koerperdaten/tag/${datum}`)
 if (error.value) {
   throw createError({ statusCode: 404, statusMessage: 'Not found' })
 }
@@ -33,9 +32,7 @@ const langesDatum = computed(() =>
   }).format(new Date(`${datum}T00:00:00Z`)),
 )
 
-useHead({
-  title: data.value?.user ? `${datum} · ${data.value.user}` : datum,
-})
+useHead({ title: datum })
 
 const readings = computed(() => data.value?.tag?.training_readiness ?? [])
 const events = computed(() => data.value?.tag?.body_battery?.events ?? [])
@@ -43,7 +40,7 @@ const events = computed(() => data.value?.tag?.body_battery?.events ?? [])
 
 <template>
   <div class="flex flex-1 flex-col">
-    <AthletHeader :user="data?.user ?? ''" :secret="secret" bereich="dashboard" />
+    <AthletHeader bereich="dashboard" />
 
     <UContainer class="w-full max-w-5xl flex-1 py-6">
       <div class="mb-4 flex flex-wrap items-center justify-between gap-2">
@@ -53,14 +50,14 @@ const events = computed(() => data.value?.tag?.body_battery?.events ?? [])
         </div>
 
         <div class="flex flex-wrap items-center gap-2">
-          <UButton :to="`/${secret}`" color="neutral" variant="ghost" size="sm">
+          <UButton to="/" color="neutral" variant="ghost" size="sm">
             ‹ Dashboard
           </UButton>
           <!-- Die Brücke in die Steuerung: der Wochen-Key kommt aus isoWoche, damit
                ein Tag verlässlich am richtigen Wocheneintrag hängt. -->
           <UButton
             v-if="data?.kw"
-            :to="`/${secret}/steuerung/${data.kw}`"
+            :to="`/steuerung/${data.kw}`"
             color="neutral"
             variant="subtle"
             size="sm"

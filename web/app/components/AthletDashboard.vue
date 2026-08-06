@@ -2,17 +2,18 @@
 import { isValidKw } from '@shared/steuerung/steuerungStore'
 import { alsZeitraumName } from '#shared/zeitraum'
 
-// Dashboard — die Startseite des per-User-Links (Issue #24, ausgebaut in #25). Wer
-// seinen Link öffnet, sieht als Erstes seine Körperdaten: oben die Kachelzeile mit
-// dem aktuellen Stand, darunter die Verläufe. Die Steuerung liegt eine Ebene tiefer
-// und ist über die Kopfzeile erreichbar. Auth unverändert: allein das View-Secret in
-// der URL (ADR-0003/0004), server-seitig aufgelöst.
+// Das Dashboard — was ein angemeldeter Athlet auf `/` sieht (Issue #24, ausgebaut in
+// #25): oben die Kachelzeile mit dem aktuellen Stand, darunter die Verläufe. Die
+// Steuerung liegt eine Ebene tiefer und ist über die Kopfzeile erreichbar.
 //
-// Die Seite bleibt dumm: der Endpunkt liefert fertige Serien und Kennzahlen,
+// Eine Komponente und keine eigene Seite, weil `/` zwei Gesichter hat: abgemeldet die
+// Anmeldung, angemeldet dieses Dashboard (siehe pages/index.vue). Seit ADR-0007 steht
+// kein Secret mehr im Pfad — wer der Athlet ist, sagt die Session, server-seitig.
+//
+// Die Fläche bleibt dumm: der Endpunkt liefert fertige Serien und Kennzahlen,
 // gerechnet im getesteten Modul koerperdatenSerien. Hier steht nur, was nebeneinander
 // gehört und wie es heißt.
 const route = useRoute()
-const secret = route.params.secret as string
 
 // Der Zeitraum steht in der URL — ein Wert, dem alle Charts und Kacheln gemeinsam
 // folgen. useFetch beobachtet ihn und lädt beim Umschalten neu.
@@ -32,25 +33,20 @@ const serienQuery = computed(() =>
   kw.value ? { kw: kw.value } : { zeitraum: zeitraum.value },
 )
 
-const { data, error } = await useFetch(`/api/${secret}/koerperdaten/serien`, {
+const { data } = await useFetch('/api/koerperdaten/serien', {
   query: serienQuery,
 })
-if (error.value) {
-  throw createError({ statusCode: 404, statusMessage: 'Not found' })
-}
 
 // Die Wochenliste (Issue #28, Richtung 1 der Steuerungs-Brücke): ein eigener
 // Endpunkt über die volle Historie, unabhängig vom Zeitraum-Umschalter der Charts
 // darüber — sie ist ein Rückblick über Wochen, kein weiterer gezoomter Verlauf.
-const { data: wochenData } = await useFetch(`/api/${secret}/koerperdaten/wochen`)
+const { data: wochenData } = await useFetch('/api/koerperdaten/wochen')
 
 // Dieselben Wochen speisen die Liste unten und die Wochen-Auswahl oben im Umschalter:
 // eine Quelle, damit dort nichts wählbar ist, was es hier nicht gibt.
 const wochenKws = computed(() => (wochenData.value?.wochen ?? []).map(w => w.kw))
 
-useHead({
-  title: data.value?.user ? `Körperdaten · ${data.value.user}` : 'Körperdaten',
-})
+useHead({ title: 'Körperdaten' })
 
 /** „2026-07-01" → „01.07." — für die Zeitraum-Angabe über den Charts. */
 function kurz(datum: string): string {
@@ -62,13 +58,13 @@ function kurz(datum: string): string {
 // irgendeinem Verlauf öffnet dessen Detailansicht. Jeder Chart ist ein Eingang —
 // wer eine auffällige Nacht sieht, soll nicht erst suchen müssen, wo man klickt.
 function oeffneTag(tag: string) {
-  return navigateTo(`/${secret}/tag/${tag}`)
+  return navigateTo(`/tag/${tag}`)
 }
 </script>
 
 <template>
   <div class="flex flex-1 flex-col">
-    <AthletHeader :user="data?.user ?? ''" :secret="secret" bereich="dashboard" />
+    <AthletHeader bereich="dashboard" />
 
     <UContainer class="w-full max-w-5xl flex-1 py-6">
       <div class="mb-4 flex flex-wrap items-center justify-between gap-2">
@@ -94,7 +90,7 @@ function oeffneTag(tag: string) {
            ein vierter Ausschnitt. -->
       <div v-if="kw" class="mb-4 flex justify-end">
         <UButton
-          :to="`/${secret}/steuerung/${kw}`"
+          :to="`/steuerung/${kw}`"
           color="neutral"
           variant="ghost"
           size="xs"
@@ -292,7 +288,6 @@ function oeffneTag(tag: string) {
         <WochenListe
           class="mt-4"
           :wochen="wochenData?.wochen ?? []"
-          :secret="secret"
           :aktive-kw="kw"
         />
       </template>

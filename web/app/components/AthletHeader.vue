@@ -1,28 +1,28 @@
 <script setup lang="ts">
 // Kopfzeile aller Athleten-Seiten (Issue #13, erweitert in #24) — trägt die
 // gesamte Navigation, damit Blättern UND Speichern beim Scrollen immer erreichbar
-// bleiben. Das sticky Gerüst und der Admin-Eintrag kommen aus AppHeader; hier die
-// athletenspezifischen Zonen:
-//   links  – Athlet-Identität (Avatar + Name), verlinkt aufs Dashboard (Heimat)
-//   danach – Umschalter zwischen den beiden Flächen: Dashboard und Steuerung
+// bleiben. Das sticky Gerüst, das Konto-Menü und der Admin-Eintrag kommen aus
+// AppHeader; hier die athletenspezifischen Zonen:
+//   links  – Umschalter zwischen den beiden Flächen: Dashboard und Steuerung
 //   mitte  – Wochen-Switcher, nur im Steuerungs-Kontext: die 3 neuesten als
 //            Shortcut-Chips (der häufige Fall), ein "Ältere"-Dropdown als Zugang zu
 //            den alten Wochen, ‹ › zum Blättern
 //   rechts – Actions-Slot (z. B. Speichern), nur im Edit-Kontext gefüllt
+//
+// Athlet-Identität und Abmelden standen bis ADR-0007 hier links; seit die Anmeldung
+// eine Session ist statt eines Secrets in der URL, gehören sie ins Konto-Menü rechts —
+// dorthin, wo sie auf jeder Fläche gleich zu finden sind.
 const props = defineProps<{
-  user: string
-  secret: string
   /** Welche Fläche gerade offen ist — steuert Umschalter und Wochen-Navigation. */
   bereich: 'dashboard' | 'steuerung'
   wochen?: string[]
   currentKw?: string
 }>()
 
-// Athlet-Key großgeschrieben (z. B. "paul" → "Paul"); Avatar = Initial.
-const displayName = computed(() => props.user.charAt(0).toUpperCase() + props.user.slice(1))
-
-const dashboardBase = computed(() => `/${props.secret}`)
-const base = computed(() => `/${props.secret}/steuerung`)
+// Die Wege sind seit ADR-0007 fest: keine Secret-Präfixe mehr, die mitgereicht werden
+// müssten.
+const dashboardBase = '/'
+const base = '/steuerung'
 
 // Store liefert kw aufsteigend; defensiv sortieren (lexikografisch = chronologisch).
 const sorted = computed(() => [...(props.wochen ?? [])].sort())
@@ -34,7 +34,7 @@ const olderItems = computed(() =>
   sorted.value
     .slice(0, -3)
     .reverse()
-    .map((kw) => ({ label: kw, to: `${base.value}/${kw}` })),
+    .map((kw) => ({ label: kw, to: `${base}/${kw}` })),
 )
 
 // Prev/Next relativ zur offenen Woche, Lücken überspringend (nur auf der Wochen-Seite).
@@ -53,14 +53,6 @@ function short(kw: string): string {
 
 <template>
   <AppHeader>
-    <ULink
-      :to="dashboardBase"
-      class="flex items-center gap-2.5 text-default hover:text-primary"
-    >
-      <UAvatar :text="displayName.charAt(0)" size="sm" />
-      <span class="font-medium">{{ displayName }}</span>
-    </ULink>
-
     <div class="flex items-center gap-1">
       <UButton
         :to="dashboardBase"

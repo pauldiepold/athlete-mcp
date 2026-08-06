@@ -16,7 +16,7 @@ import { heuteInBerlin } from '@shared/zeitzone'
 // (Issue #26) — Verlauf und aktueller Stand samt Aufschlüsselung, ebenfalls fertig
 // gerechnet: die gesamte Bewertungspolitik liegt in koerperdatenIndex, nicht hier.
 // Gelesen über das bestehende KoerperdatenArchive (resolveKoerperdaten), unbekanntes
-// Secret → 404.
+// Session → 401.
 //
 // Neben den benannten Ausschnitten (`?zeitraum=30|90|alles`) akzeptiert die Route eine
 // einzelne Woche als `?kw=YYYY-Www` (Issue #28): die Wochenliste des Dashboards und der

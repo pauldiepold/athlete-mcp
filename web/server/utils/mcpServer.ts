@@ -21,7 +21,7 @@ import { z } from 'zod'
 import { formatWorkout } from '@shared/finalsurge/formatWorkout'
 import { FinalSurgeClient, login } from '@shared/finalsurge/finalSurgeClient'
 import { SessionCache } from '@shared/finalsurge/sessionCache'
-import { resolveDashboardLinks } from '@shared/dashboardLink'
+import { buildDashboardLinks } from '@shared/dashboardLink'
 import { KoerperdatenArchive } from '@shared/garmin/koerperdatenArchive'
 import { buildGarminClient, fetchKoerperdatenLive } from '@shared/garmin/koerperdatenLive'
 import { addDays } from '@shared/garmin/koerperdatenNachlauf'
@@ -31,7 +31,7 @@ import { heuteInBerlin } from '@shared/zeitzone'
 
 /** Alles, was die Tools eines Requests brauchen. */
 export interface McpKontext {
-  /** Der über das Pfad-Secret aufgelöste Athlet. */
+  /** Der aufgelöste Athlet — bis Issue #43 über das Pfad-Secret der MCP-URL. */
   userId: string
   kv: KVNamespace
   db: D1Database
@@ -62,10 +62,10 @@ const STEUERUNG_HINT =
   'set-Tools überschreiben das jeweilige Objekt komplett.'
 
 const DASHBOARD_HINT =
-  'Die persönliche Browser-Fläche des Athleten: Körperdaten-Dashboard (Verläufe, ' +
+  'Die Browser-Fläche des Athleten: Körperdaten-Dashboard (Verläufe, ' +
   'Körperdaten-Index, Tages-Detail) und darunter die Steuerung zum Lesen/Editieren. ' +
-  'Der Link enthält das persönliche View-Secret und ist damit die Anmeldung — ' +
-  'nur an den Athleten selbst ausgeben, nie weitergeben.'
+  'Die Links sind für alle gleich und enthalten kein Secret — wer welche Daten sieht, ' +
+  'entscheidet die Anmeldung im Browser.'
 
 /** Ein einzelner Text-Block als Tool-Antwort. */
 function text(value: string) {
@@ -226,24 +226,30 @@ function registerSteuerung(server: McpServer, { userId, db }: McpKontext): void 
   )
 }
 
-/** Eigener Browser-Link: View-Secret rückwärts auflösen und die URLs ausgeben. */
-function registerDashboard(server: McpServer, { userId, kv, origin }: McpKontext): void {
+/**
+ * Browser-Links: seit ADR-0007 statische Pfade unter der Origin des Requests.
+ *
+ * Vorher wurde hier das View-Secret des Athleten rückwärts aus dem KV gesucht — der
+ * Link war die Anmeldung, also war er pro Athlet ein anderer. Jetzt gibt es nur noch
+ * eine Fläche unter festen Pfaden; wer dort was sieht, entscheidet die Session im
+ * Browser. Damit fällt auch der Fall „für diesen Nutzer ist keine Fläche eingerichtet"
+ * weg: Es gibt für jeden Athleten eine.
+ */
+function registerDashboard(server: McpServer, { origin }: McpKontext): void {
   server.registerTool(
     'get_dashboard_link',
     {
-      description: `Liefert den persönlichen Browser-Link des Athleten zu seinem Körperdaten-Dashboard. ${DASHBOARD_HINT}`,
+      description: `Liefert den Browser-Link des Athleten zu seinem Körperdaten-Dashboard. ${DASHBOARD_HINT}`,
       inputSchema: {},
     },
-    async () => {
-      const links = await resolveDashboardLinks(kv, userId, origin)
+    () => {
+      const links = buildDashboardLinks(origin)
       return text(
-        links
-          ? [
-              `Dashboard (Körperdaten-Verläufe): ${links.dashboard}`,
-              `Steuerung (Plan + Wochen): ${links.steuerung}`,
-              `Tages-Detail: ${links.tagVorlage} (Datum einsetzen)`,
-            ].join('\n')
-          : 'Für diesen Nutzer ist keine Browser-Fläche eingerichtet (kein View-Secret geseedet).',
+        [
+          `Dashboard (Körperdaten-Verläufe): ${links.dashboard}`,
+          `Steuerung (Plan + Wochen): ${links.steuerung}`,
+          `Tages-Detail: ${links.tagVorlage} (Datum einsetzen)`,
+        ].join('\n'),
       )
     },
   )

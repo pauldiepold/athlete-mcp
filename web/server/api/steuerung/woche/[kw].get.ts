@@ -1,9 +1,9 @@
 import { isValidKw } from '@shared/steuerung/steuerungStore'
 
-// Liefert das rohe Markdown einer Woche des per View-Secret identifizierten Nutzers
+// Liefert das rohe Markdown einer Woche des angemeldeten Athleten
 // plus die Liste vorhandener kw (für Prev/Next-Navigation), als JSON für die
-// Wochen-Edit-Seite (Issue #13). Bindings/Secret bleiben server-seitig
-// (resolveSteuerung). Unbekanntes Secret → 404; ungültiges kw-Format → 400 (Client-
+// Wochen-Edit-Seite (Issue #13). Die Bindings bleiben server-seitig
+// (resolveSteuerung). Ohne Session → 401; ungültiges kw-Format → 400 (Client-
 // Fehler, identisch zur PUT-Route auf derselben URL). Eine noch nicht existierende kw
 // liefert markdown: "" (anlegbar durch Speichern).
 export default defineEventHandler(async (event) => {
