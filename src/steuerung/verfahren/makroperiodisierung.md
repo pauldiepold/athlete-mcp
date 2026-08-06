@@ -1,21 +1,16 @@
----
-name: lauf-makroperiodisierung
-description: Strategische Langzeit-Periodisierung fürs Lauftraining eines Athleten Richtung Zielrennen. Nutze diesen Skill, wenn der Athlet aufs große Bild schaut – z. B. "Bin ich auf Kurs für mein Ziel?", "Wie sollte mein Block bis zum Rennen aussehen?", "Was muss nach dem Zwischenrennen passieren?", Fragen zur Periodisierung, zu Trainingsphasen, zum Formtrend über Wochen/Monate, oder zur Frage, wie sich ein Coach-/Team-Plan zum eigenen Renn-Ziel verhält. Auch auslösen bei einem monatlichen/periodischen Strategie-Check oder beim Nachdenken über den Gesamtbogen der Saison. Für die konkrete laufende Woche und Tagessteuerung stattdessen den Skill lauf-wochensteuerung verwenden.
----
+# Verfahren: Makroperiodisierung
 
-# Lauf-Makroperiodisierung
-
-Der strategische Bogen bis zum Zielrennen. Während die Wochensteuerung die nächste Einheit bewertet, beantwortet dieser Skill: Ist der Athlet auf Kurs, und wie muss sich der Plan über die nächsten Monate entwickeln?
+Der strategische Bogen bis zum Zielrennen. Während die Wochensteuerung die nächste Einheit bewertet, beantwortet dieses Verfahren: Ist der Athlet auf Kurs, und wie muss sich der Plan über die nächsten Monate entwickeln?
 
 ## Grundprinzip & Arbeitsteilung
 
-- **Skill = Verfahren, Store = Fakten.** Ziel, Form, Block, Phase, strategische Entscheidungen, Baseline und Konfig stehen **ausschließlich im Steuerungs-Store**, nie im Skill hartkodiert.
-- **Dieser Skill ist der eigentliche Editor des Steuerungsplans.** Hier wird die **Struktur** gebaut und umgebaut: Block, Phasengrenzen, strategische Entscheidungen, Form-Neukalibrierung über den Saisonbogen. (Die Wochensteuerung zieht zwischendurch nur Snapshot-*Zahlen* nach; das Erst-Onboarding bei leerem Store läuft ebenfalls über sie.) Seltener aufgerufen als die Wochensteuerung, dafür tiefer.
-- Tools sind teils deferred → zuerst per `tool_search` laden.
+- **Verfahren = Arbeitsweise, Store = Fakten.** Ziel, Form, Block, Phase, strategische Entscheidungen, Baseline und Konfig stehen **ausschließlich im Steuerungs-Store**, nie in diesem Text.
+- **Dies ist der eigentliche Editor des Steuerungsplans.** Hier wird die **Struktur** gebaut und umgebaut: Block, Phasengrenzen, strategische Entscheidungen, Form-Neukalibrierung über den Saisonbogen. (Die Wochensteuerung (`get_verfahren_woche`) zieht zwischendurch nur Snapshot-*Zahlen* nach.) Seltener aufgerufen als die Wochensteuerung, dafür tiefer.
+- **Leerer Steuerungsplan?** Dann ist noch kein Bogen da, den man periodisieren könnte — erst das Onboarding, das dieser Server als eigenes Verfahren führt.
 
 ## Datenquellen
 
-**Kanonische Quelle = `get_steuerungsplan()`.** Immer zuerst lesen — Konfig (Coach/Ziel), Form-Snapshot (Fitness-Kennzahl, jüngste Schlüsselrennen, Stand-Datum), Erholungs-Baseline, strategische Entscheidungen, kompletter Block. **Er ist die Wahrheit, nicht das Skill-Memory.** Begleitend `list_wochen()` + `get_woche(kw)` für den Verlauf.
+**Kanonische Quelle = `get_steuerungsplan()`.** Immer zuerst lesen — Konfig (Coach/Ziel), Form-Snapshot (Fitness-Kennzahl, jüngste Schlüsselrennen, Stand-Datum), Erholungs-Baseline, strategische Entscheidungen, kompletter Block. **Er ist die Wahrheit, nicht die Erinnerung aus dem Gespräch.** Begleitend `list_wochen()` + `get_woche(kw)` für den Verlauf.
 
 Für die Makro-Sicht längere Aktivitäts-Historie ziehen (`list_activities` über Wochen/Monate; Schlüsseleinheiten via `get_activity_performance`/`get_activity_streams`). ⚠️ Aktivitäts-Connectoren liefern Titel + Metriken, **nicht** die private Notiz — Subjektives steht in den Wochen-Keys oder kommt vom Athleten. ⚠️ Ein Coach-Plan kann Einträge **anderer Athleten** enthalten → geplantes ≠ vom Athleten gelaufenes Rennen, bestätigen.
 
@@ -42,7 +37,7 @@ Wenn der Athlet einem Coach-/Team-Rahmen folgt, dessen Peak auf ein **anderes Re
 
 Zwei Szenarien (aus der Realität ablesen, nicht raten):
 1. **Coach baut für die Ziel-Läufer einen eigenen, passenden Block** → Aufgabe ist Feinjustage gegen die Zielzeit.
-2. **Coach bleibt beim Team-Peak** → das Fenster zwischen Team-Rennen und A-Rennen ist der **eigene marathonspezifische Block** des Athleten; der Skill hilft, ihn kohärent zu gestalten.
+2. **Coach bleibt beim Team-Peak** → das Fenster zwischen Team-Rennen und A-Rennen ist der **eigene marathonspezifische Block** des Athleten; hier hilft dieses Verfahren, ihn kohärent zu gestalten.
 
 Den Stand spiegeln. (Bei Selbststeuerung entfällt die Frage — der ganze Block ist selbst gestaltet.)
 
@@ -57,7 +52,7 @@ Beim Makro-Check: Tauchen diese Bausteine im Block auf, in **steigender Spezifit
 
 ## Körperdaten-Baseline-Drift (chronischer Trend)
 
-Dieser Skill liest den **chronischen Trend** über Wochen/Monate (`get_koerperdaten_range` über längere Zeiträume), nicht die akute Tagesform.
+Hier zählt der **chronische Trend** über Wochen/Monate (`get_koerperdaten_range` über längere Zeiträume), nicht die akute Tagesform.
 - **HRV-Baseline-Drift:** Wandert das HRV-Wochenmittel über die Wochen nach oben (Adaptation) oder schleichend nach unten (Eingraben)? Beim Volumen-Sprung in den Block das zentrale Frühwarnsystem.
 - **Chronischer RHR-Trend:** Bleibt der Ruhepuls bei steigendem Umfang stabil auf Baseline oder driftet er dauerhaft nach oben?
 

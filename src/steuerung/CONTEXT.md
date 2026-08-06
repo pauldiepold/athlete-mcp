@@ -11,3 +11,7 @@ _Avoid_: Trainingsplan (im Repo für die Final-Surge-Coach-Vorgaben reserviert),
 **Woche**:
 Ein Eintrag pro Kalenderwoche (Soll/Ist, Notizen) im Steuerungs-Store, adressiert über `kw` im ISO-Format `YYYY-Www` (z. B. `2026-W25`, sortierbar).
 _Avoid_: Wochenlog (bezeichnet allenfalls die Gesamtmenge), Eintrag
+
+**Verfahren**:
+Die Arbeitsweise, nach der Claude mit den Daten dieses Athleten arbeitet — *Wochensteuerung* und *Makroperiodisierung* liegen als Markdown unter `verfahren/` und gehen über den Connector als Tool-Antwort raus, nicht als installierter Skill ([ADR-0008](../../docs/adr/0008-verfahren-ueber-den-connector-statt-installierter-skills.md)). Sie liegen **hier**, weil sie den Steuerungs-Store bedienen: Sie enthalten nur Arbeitsweise, die Athleten-Fakten stehen im Steuerungsplan und in den Wochen. Ein leerer Steuerungsplan ist für sie das Signal „noch nicht onboarded" — dann verweisen sie aufs Onboarding, statt selbst zu interviewen.
+_Avoid_: Skill, Prompt, Anleitung (das ist die Fläche für den Menschen)

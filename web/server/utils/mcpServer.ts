@@ -27,6 +27,10 @@ import { buildGarminClient, fetchKoerperdatenLive } from '@shared/garmin/koerper
 import { addDays } from '@shared/garmin/koerperdatenNachlauf'
 import { getKoerperdatenRange } from '@shared/garmin/koerperdatenReadThrough'
 import { SteuerungStore } from '@shared/steuerung/steuerungStore'
+// Die Verfahrenstexte als Rohtext ins Bundle (ADR-0008). Nitro löst `.md`-Importe von
+// sich aus zu einem String auf; für Vitest tut das der Plugin in web/vitest.config.ts.
+import verfahrenMakro from '@shared/steuerung/verfahren/makroperiodisierung.md'
+import verfahrenWoche from '@shared/steuerung/verfahren/wochensteuerung.md'
 import {
   beobachte,
   DATENQUELLE_NAMEN,
@@ -166,7 +170,7 @@ function registerFinalSurge(server: McpServer, { userId, kv, origin }: McpKontex
 /** Garmin-Kontext: archive-first aus D1 lesen; heute/gestern und Lücken live nachladen + upserten. */
 function registerGarmin(server: McpServer, { userId, kv, db, origin }: McpKontext): void {
   // Hinweise zu gescheiterten Live-Abrufen gehen als eigener Text-Block VOR das
-  // JSON; das JSON selbst bleibt ein nacktes Array, damit die Skills nicht brechen.
+  // JSON; das JSON selbst bleibt ein nacktes Array, wie die Verfahren es erwarten.
   const fetchRange = async (start: string, end: string) => {
     if (!(await istVerbunden(kv, userId, 'garmin'))) {
       return nichtVerbunden('garmin', origin)
@@ -332,66 +336,76 @@ function registerDashboard(server: McpServer, { origin }: McpKontext): void {
 }
 
 /**
- * SPIKE (wieder entfernen): Trägt claude.ai die Server-`instructions` ins Modell?
+ * Die Verfahren: die Arbeitsweise selbst, als Tool-Antwort statt als hochgeladener
+ * Skill (ADR-0008).
  *
- * Daran hängt, ob das Verfahren (heute die hochgeladenen Skills) über den Connector
- * ausgeliefert werden kann. Drei Fragen, drei Marker:
+ * Die `description` ist hier der tragende Teil. Ein Spike hat gezeigt, dass claude.ai
+ * die Server-`instructions` des MCP-Protokolls dem Modell **nicht** vorlegt — es gibt
+ * also keine Always-on-Ebene, und die Beschreibung ist das Einzige, woran das Modell
+ * erkennt, wann es zugreift. Sie übernimmt deshalb die Auslöser, die vorher in der
+ * Frontmatter der beiden Skills standen, inklusive der Trennung „Was steht heute an?"
+ * gegen „Bin ich auf Kurs für mein Ziel?".
  *
- * 1. **Werden die Instructions überhaupt vorgelegt?** → Codewort `BERGAUF-7`, das
- *    nirgends sonst steht. Sagt Claude es, hat es den Text gesehen.
- * 2. **Lösen sie einen Tool-Aufruf von selbst aus?** → Die Anweisung, bei jeder
- *    Trainingsfrage zuerst `get_verfahren` zu holen. Sichtbar daran, ob das Tool
- *    ohne Aufforderung läuft.
- * 3. **Wird eine Tool-Antwort als Verfahren befolgt?** → Der zurückgegebene Text
- *    verlangt einen Präfix, den nur er kennt.
+ * Der Text selbst liegt als Markdown unter `src/steuerung/verfahren/` — diffbar und
+ * reviewbar statt als String im Code — und wird beim Build hereingezogen.
  */
-const SPIKE_INSTRUCTIONS = `Dieser Server stellt die Trainingsdaten genau eines Athleten bereit.
+const VERFAHREN_WOCHE_BESCHREIBUNG =
+  'Taktische Wochen- und Tagessteuerung fürs Lauftraining dieses Athleten Richtung '
+  + 'Zielrennen. Rufe dieses Tool auf und folge dem zurückgegebenen Verfahren, wann '
+  + 'immer der Athlet nach seinem aktuellen Training fragt – z. B. "Was steht '
+  + 'heute/diese Woche an?", "Wie war mein letzter Lauf?", "Soll ich das geplante '
+  + 'Workout so machen?", "Passt die Einheit für mich?", nach einer Auswertung der '
+  + 'letzten Tage, nach einem Soll/Ist-Vergleich (geplant vs. gelaufen), oder nach '
+  + 'Vorschlägen fürs Kraft-/Stabitraining. Auch für das wöchentliche '
+  + 'Sonntagabend-Ritual (Rückblick + Entwurf der kommenden Woche). Auch aufrufen, '
+  + 'wenn der Athlet nur beiläufig über seine Woche, eine konkrete Einheit oder seine '
+  + 'aktuelle Belastung spricht. Für die langfristige Periodisierung Richtung '
+  + 'Zielrennen stattdessen get_verfahren_makro aufrufen.'
 
-Bei JEDER Frage zum Training, zur Woche, zu einer Einheit oder zur Erholung dieses
-Athleten rufst du ZUERST das Tool \`get_verfahren\` auf und hältst dich an das
-Verfahren, das es zurückgibt. Erst danach rufst du Datentools auf oder antwortest.
+const VERFAHREN_MAKRO_BESCHREIBUNG =
+  'Strategische Langzeit-Periodisierung fürs Lauftraining dieses Athleten Richtung '
+  + 'Zielrennen. Rufe dieses Tool auf und folge dem zurückgegebenen Verfahren, wenn '
+  + 'der Athlet aufs große Bild schaut – z. B. "Bin ich auf Kurs für mein Ziel?", '
+  + '"Wie sollte mein Block bis zum Rennen aussehen?", "Was muss nach dem '
+  + 'Zwischenrennen passieren?", Fragen zur Periodisierung, zu Trainingsphasen, zum '
+  + 'Formtrend über Wochen/Monate, oder zur Frage, wie sich ein Coach-/Team-Plan zum '
+  + 'eigenen Renn-Ziel verhält. Auch aufrufen bei einem monatlichen/periodischen '
+  + 'Strategie-Check oder beim Nachdenken über den Gesamtbogen der Saison. Für die '
+  + 'konkrete laufende Woche und Tagessteuerung stattdessen get_verfahren_woche '
+  + 'aufrufen.'
 
-Wenn der Athlet exakt "Spike-Check" schreibt, antworte ausschließlich mit dem
-Codewort BERGAUF-7 und sonst nichts.`
-
-/** SPIKE (wieder entfernen): das Verfahren als Tool-Antwort statt als Skill. */
-function registerSpikeVerfahren(server: McpServer): void {
+function registerVerfahren(server: McpServer): void {
   server.registerTool(
-    'get_verfahren',
-    {
-      description:
-        'Liefert das Verfahren für die Wochensteuerung dieses Athleten. Vor jeder '
-        + 'Antwort zu Training, Woche, Einheit oder Erholung aufrufen und befolgen.',
-      inputSchema: {},
-    },
-    () =>
-      text(
-        [
-          '# Verfahren: Wochensteuerung',
-          '',
-          'Reihenfolge für die Antwort auf eine Wochenfrage:',
-          '',
-          '1. Steuerungsplan lesen — er trägt Zielrennen, Phase und Anker-Paces.',
-          '2. Die Woche selbst lesen und die Körperdaten des Zeitraums danebenlegen.',
-          '3. Soll gegen Ist stellen, bevor du bewertest.',
-          '4. Schließe deine Antwort mit der Zeile "— Wochensteuerung, Stand KW-Vergleich".',
-        ].join('\n'),
-      ),
+    'get_verfahren_woche',
+    { description: VERFAHREN_WOCHE_BESCHREIBUNG, inputSchema: {} },
+    () => text(verfahrenWoche),
+  )
+
+  server.registerTool(
+    'get_verfahren_makro',
+    { description: VERFAHREN_MAKRO_BESCHREIBUNG, inputSchema: {} },
+    () => text(verfahrenMakro),
   )
 }
 
-/** Der fertig registrierte MCP-Server für genau einen Request eines Athleten. */
+/**
+ * Der fertig registrierte MCP-Server für genau einen Request eines Athleten.
+ *
+ * Ohne `instructions`: Das Feld gibt es im Protokoll, aber claude.ai legt es dem
+ * Modell nicht vor (im Spike zu ADR-0008 zweimal belegt). Es hier zu füllen sähe nach
+ * einer Wirkung aus, die es nicht hat.
+ */
 export function buildMcpServer(kontext: McpKontext): McpServer {
   const server = new McpServer(
     { name: 'athlete-mcp', version: '1.0.0' },
-    { capabilities: { tools: {} }, instructions: SPIKE_INSTRUCTIONS },
+    { capabilities: { tools: {} } },
   )
 
   registerFinalSurge(server, kontext)
   registerGarmin(server, kontext)
   registerSteuerung(server, kontext)
   registerDashboard(server, kontext)
-  registerSpikeVerfahren(server)
+  registerVerfahren(server)
 
   return server
 }

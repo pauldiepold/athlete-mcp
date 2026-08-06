@@ -26,8 +26,8 @@ const ERWARTETE_TOOLS = [
   { name: 'get_woche', required: ['kw'] },
   { name: 'set_woche', required: ['kw', 'content'] },
   { name: 'get_dashboard_link', required: [] },
-  // SPIKE (mit registerSpikeVerfahren wieder entfernen)
-  { name: 'get_verfahren', required: [] },
+  { name: 'get_verfahren_woche', required: [] },
+  { name: 'get_verfahren_makro', required: [] },
 ]
 
 /**
@@ -88,7 +88,7 @@ function textVon(ergebnis: unknown): string {
 }
 
 describe('buildMcpServer', () => {
-  it('registriert genau die zehn Tools, in unveränderter Reihenfolge', async () => {
+  it('registriert genau die zwölf Tools, in unveränderter Reihenfolge', async () => {
     const { tools } = await (await verbinde()).listTools()
 
     expect(tools.map((t) => t.name)).toEqual(ERWARTETE_TOOLS.map((t) => t.name))
@@ -115,6 +115,76 @@ describe('buildMcpServer', () => {
     // Der Proxy im Kontext wirft bei jedem Zugriff — dass hier nichts fliegt, ist
     // die Zusicherung. `initialize` und `tools/list` kommen ohne I/O aus.
     await expect(verbinde()).resolves.toBeDefined()
+  })
+})
+
+/**
+ * Die Verfahren als Tool-Antwort (ADR-0008).
+ *
+ * Der Athlet lädt keinen Skill mehr hoch — der Connector liefert die Arbeitsweise
+ * selbst aus. Damit hängt alles an zwei Dingen: dass der Text überhaupt ankommt, und
+ * dass die `description` die Auslöser trägt, an denen das Modell erkennt, *wann* es
+ * zugreift. Beides ist hier festgenagelt.
+ */
+describe('Verfahrens-Tools', () => {
+  const VERFAHREN = [
+    { name: 'get_verfahren_woche', ueberschrift: '# Verfahren: Wochensteuerung' },
+    { name: 'get_verfahren_makro', ueberschrift: '# Verfahren: Makroperiodisierung' },
+  ]
+
+  for (const { name, ueberschrift } of VERFAHREN) {
+    it(`${name} liefert seinen Markdown-Text`, async () => {
+      const client = await verbinde()
+
+      const antwort = textVon(await client.callTool({ name, arguments: {} }))
+
+      expect(antwort.startsWith(ueberschrift), antwort.slice(0, 80)).toBe(true)
+      expect(antwort.length).toBeGreaterThan(1000)
+    })
+
+    it(`${name} kommt ohne KV und D1 aus — reiner Text`, async () => {
+      // Der Kontext ist der explodierende Proxy: Ein Verfahren ist Arbeitsweise, kein
+      // Athleten-Fakt, und darf deshalb nichts nachschlagen.
+      const ergebnis = await (await verbinde()).callTool({ name, arguments: {} })
+
+      expect(ergebnis.isError).toBeFalsy()
+    })
+
+    it(`${name} nennt weder tool_search noch deferred Tools noch eine eigene MCP-URL`, async () => {
+      // Claude-Code-Mechanik, die es im claude.ai-Chat nicht gibt, und die seit
+      // ADR-0007 falsche Behauptung, jeder Athlet habe seine eigene Adresse.
+      const client = await verbinde()
+      const tool = (await client.listTools()).tools.find((t) => t.name === name)!
+
+      const text = textVon(await client.callTool({ name, arguments: {} }))
+        + '\n' + tool.description
+
+      expect(text).not.toContain('tool_search')
+      expect(text).not.toContain('deferred')
+      expect(text).not.toContain('eigene URL')
+    })
+  }
+
+  it('trennt in den Beschreibungen Woche von Makro', async () => {
+    // Die einzige Stelle, an der das Modell die beiden auseinanderhält.
+    const { tools } = await (await verbinde()).listTools()
+    const beschreibung = (name: string) => tools.find((t) => t.name === name)!.description!
+
+    expect(beschreibung('get_verfahren_woche')).toContain('Was steht heute')
+    expect(beschreibung('get_verfahren_woche')).toContain('get_verfahren_makro')
+    expect(beschreibung('get_verfahren_makro')).toContain('auf Kurs für mein Ziel')
+    expect(beschreibung('get_verfahren_makro')).toContain('get_verfahren_woche')
+  })
+
+  it('interviewt im Wochenverfahren nicht selbst, sondern verweist aufs Onboarding', async () => {
+    // Ein leerer Steuerungsplan ist das Signal „noch nicht onboarded" — dafür gibt es
+    // ein eigenes Verfahren (Issue #50), nicht eine zweite Fassung desselben Interviews.
+    const text = textVon(
+      await (await verbinde()).callTool({ name: 'get_verfahren_woche', arguments: {} }),
+    )
+
+    expect(text).toContain('Onboarding')
+    expect(text).not.toContain('Kurzes Interview')
   })
 })
 
