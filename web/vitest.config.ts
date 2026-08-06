@@ -27,7 +27,10 @@ export default defineConfig({
   plugins: [markdownAlsRohtext()],
 
   test: {
-    include: ['server/**/*.test.ts'],
+    // Dazu `shared/` — die puren Module, die sich Server und Browser teilen; zuerst
+    // die Zustandslogik der Startseite (Issue #51), deren Fall-Reihenfolge die
+    // eigentliche Entscheidung ist und in keinem Vue-Template prüfbar wäre.
+    include: ['server/**/*.test.ts', 'shared/**/*.test.ts'],
   },
 
   // Derselbe @shared-Alias wie in nuxt.config.ts: die Domänen-Bibliothek unter ../src

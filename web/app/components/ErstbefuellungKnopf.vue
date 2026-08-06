@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { ErstbefuellungLauf } from '@shared/garmin/koerperdatenErstbefuellung'
+import { ABFRAGE_INTERVALL_LAEUFT_MS } from '#shared/startseitenZustand'
 
 // Die **Erstbefüllung** unter der Garmin-Karte (Issue #48): was der Hintergrundlauf
 // gerade tut, und der Knopf, ihn noch einmal auszulösen.
@@ -18,8 +19,9 @@ const { data, refresh } = useFetch('/api/verbindungen/garmin/erstbefuellung', {
   default: () => ({ verbunden: false, lauf: null as ErstbefuellungLauf | null }),
 })
 
-const startet = ref(false)
-const fehler = ref<string | null>(null)
+// Dasselbe Anstoßen wie auf der Startseite (Issue #51) — ein Weg durch denselben POST,
+// damit der Satz nach einem Fehlschlag an beiden Orten derselbe bleibt.
+const { laeuftAn: startet, fehler, starten } = useErstbefuellungStart()
 
 const lauf = computed(() => data.value?.lauf ?? null)
 const laeuft = computed(() => lauf.value?.status === 'laeuft')
@@ -28,15 +30,14 @@ const laeuft = computed(() => lauf.value?.status === 'laeuft')
  * Solange geholt wird, nachfragen. Der Lauf meldet sich nicht von selbst zurück — er
  * lebt in einem anderen Request.
  *
- * Zehn Sekunden und nicht zwei: Der Zustand liegt im KV, und das ist *eventually
- * consistent* — häufiger zu fragen liefert dieselbe Antwort noch einmal. Ein Lauf
- * dauert rund eine Minute; ein paar Sekunden Nachlauf in der Anzeige sind der Preis
- * dafür, dass hier kein Durable Object steht.
+ * Der Takt steht bei den Startseiten-Zuständen (`ABFRAGE_INTERVALL_LAEUFT_MS`) und
+ * gilt für beide Flächen: Es ist derselbe Lauf, der beobachtet wird, und zwei eigene
+ * Intervalle wären zwei Aussagen darüber, wie schnell sich der KV-Zustand ändert.
  */
 let timer: ReturnType<typeof setInterval> | undefined
 watch(laeuft, (aktiv) => {
   clearInterval(timer)
-  if (aktiv) timer = setInterval(() => refresh(), 10_000)
+  if (aktiv) timer = setInterval(() => refresh(), ABFRAGE_INTERVALL_LAEUFT_MS)
 }, { immediate: true })
 onBeforeUnmount(() => clearInterval(timer))
 
@@ -60,17 +61,10 @@ const meldung = computed(() => {
 })
 
 async function holen() {
-  startet.value = true
-  fehler.value = null
-  try {
-    data.value = { ...data.value, lauf: (await $fetch('/api/verbindungen/garmin/erstbefuellung', { method: 'POST' })).lauf }
-  } catch (e) {
-    fehler.value =
-      (e as { statusMessage?: string }).statusMessage
-      ?? 'Das Holen hat nicht geklappt. Bitte versuch es noch einmal.'
-  } finally {
-    startet.value = false
-  }
+  // Der Lauf aus der Antwort statt eines neuen Abrufs: Der KV-Zustand ist *eventually
+  // consistent* und zeigte in derselben Sekunde womöglich noch den alten.
+  const neuerLauf = await starten()
+  if (!fehler.value) data.value = { ...data.value, lauf: neuerLauf }
 }
 </script>
 
