@@ -26,6 +26,8 @@ const ERWARTETE_TOOLS = [
   { name: 'get_woche', required: ['kw'] },
   { name: 'set_woche', required: ['kw', 'content'] },
   { name: 'get_dashboard_link', required: [] },
+  // SPIKE (mit registerSpikeVerfahren wieder entfernen)
+  { name: 'get_verfahren', required: [] },
 ]
 
 /**

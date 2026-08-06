@@ -331,17 +331,67 @@ function registerDashboard(server: McpServer, { origin }: McpKontext): void {
   )
 }
 
+/**
+ * SPIKE (wieder entfernen): Trägt claude.ai die Server-`instructions` ins Modell?
+ *
+ * Daran hängt, ob das Verfahren (heute die hochgeladenen Skills) über den Connector
+ * ausgeliefert werden kann. Drei Fragen, drei Marker:
+ *
+ * 1. **Werden die Instructions überhaupt vorgelegt?** → Codewort `BERGAUF-7`, das
+ *    nirgends sonst steht. Sagt Claude es, hat es den Text gesehen.
+ * 2. **Lösen sie einen Tool-Aufruf von selbst aus?** → Die Anweisung, bei jeder
+ *    Trainingsfrage zuerst `get_verfahren` zu holen. Sichtbar daran, ob das Tool
+ *    ohne Aufforderung läuft.
+ * 3. **Wird eine Tool-Antwort als Verfahren befolgt?** → Der zurückgegebene Text
+ *    verlangt einen Präfix, den nur er kennt.
+ */
+const SPIKE_INSTRUCTIONS = `Dieser Server stellt die Trainingsdaten genau eines Athleten bereit.
+
+Bei JEDER Frage zum Training, zur Woche, zu einer Einheit oder zur Erholung dieses
+Athleten rufst du ZUERST das Tool \`get_verfahren\` auf und hältst dich an das
+Verfahren, das es zurückgibt. Erst danach rufst du Datentools auf oder antwortest.
+
+Wenn der Athlet exakt "Spike-Check" schreibt, antworte ausschließlich mit dem
+Codewort BERGAUF-7 und sonst nichts.`
+
+/** SPIKE (wieder entfernen): das Verfahren als Tool-Antwort statt als Skill. */
+function registerSpikeVerfahren(server: McpServer): void {
+  server.registerTool(
+    'get_verfahren',
+    {
+      description:
+        'Liefert das Verfahren für die Wochensteuerung dieses Athleten. Vor jeder '
+        + 'Antwort zu Training, Woche, Einheit oder Erholung aufrufen und befolgen.',
+      inputSchema: {},
+    },
+    () =>
+      text(
+        [
+          '# Verfahren: Wochensteuerung',
+          '',
+          'Reihenfolge für die Antwort auf eine Wochenfrage:',
+          '',
+          '1. Steuerungsplan lesen — er trägt Zielrennen, Phase und Anker-Paces.',
+          '2. Die Woche selbst lesen und die Körperdaten des Zeitraums danebenlegen.',
+          '3. Soll gegen Ist stellen, bevor du bewertest.',
+          '4. Schließe deine Antwort mit der Zeile "— Wochensteuerung, Stand KW-Vergleich".',
+        ].join('\n'),
+      ),
+  )
+}
+
 /** Der fertig registrierte MCP-Server für genau einen Request eines Athleten. */
 export function buildMcpServer(kontext: McpKontext): McpServer {
   const server = new McpServer(
     { name: 'athlete-mcp', version: '1.0.0' },
-    { capabilities: { tools: {} } },
+    { capabilities: { tools: {} }, instructions: SPIKE_INSTRUCTIONS },
   )
 
   registerFinalSurge(server, kontext)
   registerGarmin(server, kontext)
   registerSteuerung(server, kontext)
   registerDashboard(server, kontext)
+  registerSpikeVerfahren(server)
 
   return server
 }
