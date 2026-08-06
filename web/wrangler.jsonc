@@ -26,6 +26,24 @@
   // kann die Produktion damit nicht versehentlich treffen.
   "routes": [{ "pattern": "dev.training.pauldiepold.de", "custom_domain": true }],
 
+  // Die einzigen Anmelde-Werte, die hier stehen dürfen: Sie tragen nichts als die
+  // Domain aus `routes` und gehören zur Umgebung, nicht zum Google-/Apple-Account.
+  // Alles andere (Client-IDs, Team-/Key-ID, beide Secrets, der Apple-Private-Key und
+  // NUXT_OPERATOR_SUBS) ist `wrangler secret put` — dieses Repo ist öffentlich, und
+  // Kennungen von Person und Apple-Team haben darin nichts verloren.
+  //
+  // Festgenagelt statt abgeleitet: Ohne diese Werte rät der Google-Handler das Schema
+  // aus `x-forwarded-proto`, und der Apple-Handler schickt beim Token-Tausch
+  // `undefined` (→ `invalid_grant`). Beide URIs müssen zeichengleich beim jeweiligen
+  // Provider hinterlegt sein.
+  //
+  // Achtung beim Ergänzen: `vars` aus dieser Datei sind die Quelle der Wahrheit und
+  // überschreiben beim Deploy, was im Dashboard steht. Secrets bleiben unberührt.
+  "vars": {
+    "NUXT_OAUTH_GOOGLE_REDIRECT_URL": "https://dev.training.pauldiepold.de/auth/google",
+    "NUXT_OAUTH_APPLE_REDIRECT_URL": "https://dev.training.pauldiepold.de/auth/apple"
+  },
+
   // Eigene D1 und eigenes KV — die Testumgebung fasst Produktionsdaten nie an.
   // "remote": true → auch das lokale `nuxt dev` (nitro-cloudflare-dev/getPlatformProxy)
   // liest genau diese dev-Ressourcen statt einer lokalen Kopie. Erfordert

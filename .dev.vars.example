@@ -1,0 +1,59 @@
+# Env-Secrets des einen Deployables (ADR-0007).
+#
+# Bis zur OAuth-Umstellung brauchte athlete-mcp gar keine: Identität und Credentials
+# waren mandantenfähig und lagen vollständig im KV. Mit eigener Anmeldung kommen die
+# Provider-Zugangsdaten dazu — die gehören dem Betreiber, nicht einem Athleten.
+#
+# Lokal in **zwei** Dateien ablegen, sie werden von verschiedenen Schichten gelesen:
+#   - web/.env       → `nuxt dev` (Nuxt füllt daraus die runtimeConfig)
+#   - web/.dev.vars  → `wrangler dev` gegen den Build
+#
+# In der Cloud liegen dieselben Schlüssel am Worker, aber in zwei Sorten:
+#   - die beiden REDIRECT_URLs als **Vars** in web/wrangler.jsonc — sie tragen nichts
+#     als die Domain und gehören zur Umgebung, nicht zum Provider-Konto;
+#   - alles Übrige als **Secret** (`wrangler secret bulk`), auch die Client-/Team-/
+#     Key-IDs und NUXT_OPERATOR_SUBS. Nicht weil jede davon geheim wäre, sondern weil
+#     dieses Repo öffentlich ist und Kennungen von Person und Apple-Team nicht hinein
+#     gehören. Zur Laufzeit sind beide Sorten dasselbe.
+#
+# Achtung: `vars` aus der wrangler.jsonc überschreiben beim Deploy, was im Dashboard
+# steht. Secrets bleiben unberührt — was du dort von Hand setzt, muss ein Secret sein.
+
+# Schlüssel der versiegelten Session-Cookies. Beliebige 32+ Zeichen, pro Umgebung ein
+# eigener Wert: ihn zu wechseln meldet alle ab.
+NUXT_SESSION_PASSWORD=
+
+# Google (Anmeldung + Operator-Rolle). Redirect-URIs in der Google Cloud Console:
+#   http://localhost:3000/auth/google
+#   https://dev.training.pauldiepold.de/auth/google
+#   https://training.pauldiepold.de/auth/google
+NUXT_OAUTH_GOOGLE_CLIENT_ID=
+NUXT_OAUTH_GOOGLE_CLIENT_SECRET=
+# Optional. Leer gelassen leitet der Handler die Redirect-URI aus dem Request ab und
+# rät dabei das Schema aus `x-forwarded-proto`. Passt sie nicht exakt zur hinterlegten,
+# lehnt Google ab — dann hier festnageln.
+NUXT_OAUTH_GOOGLE_REDIRECT_URL=
+
+# Apple (nur Anmeldung). Vier Werte statt einem, Herkunft siehe Issue #40:
+#   CLIENT_ID   = die **Services ID**, nicht die App ID
+#   PRIVATE_KEY = komplettes PEM inklusive "-----BEGIN PRIVATE KEY-----",
+#                 Zeilenumbrüche als \n escaped
+# REDIRECT_URL **muss** gesetzt sein: Ohne sie schickt der Handler beim Token-Tausch
+# `undefined` und Apple antwortet `invalid_grant`. Apple leitet nicht auf localhost um —
+# lokal bleibt Google, durchspielen lässt sich Apple nur auf dev.training.pauldiepold.de.
+NUXT_OAUTH_APPLE_CLIENT_ID=
+NUXT_OAUTH_APPLE_TEAM_ID=
+NUXT_OAUTH_APPLE_KEY_ID=
+NUXT_OAUTH_APPLE_PRIVATE_KEY=
+NUXT_OAUTH_APPLE_REDIRECT_URL=
+
+# Operator-Allowlist: Google-`sub`, kommagetrennt. Leer oder fehlend heißt **kein**
+# Operator, nicht alle. Den eigenen `sub` kennt man erst nach dem ersten Login —
+# einmal anmelden, in `user:<id>:profile` im KV ablesen, hier eintragen.
+NUXT_OPERATOR_SUBS=
+
+# Bootstrap: Ohne Konto kein /admin, ohne /admin kein Invite-Code. Der allererste Code
+# muss deshalb von Hand ins KV — `{}` ist ein freier Code (legt beim Einlösen ein neues
+# Konto an), `{"userId":"paul"}` ein kontogebundener (stellt ein bestehendes Konto auf
+# die neue Identität um):
+#   wrangler kv key put --binding=SESSION_KV --remote "invite:<code>" '{}'
