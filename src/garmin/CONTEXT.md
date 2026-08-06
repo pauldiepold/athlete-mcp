@@ -23,6 +23,10 @@ Was ein einzelner Marker zum Körperdaten-Index eines Tages beisteuert: seine Pu
 Die letzten 14 Tage, die der tägliche Cron bei jedem Lauf auf fehlende Archivzeilen prüft und nachholt — der Mechanismus, der die Historie lückenlos hält, ohne dass jemand eingreifen muss. Kostet im Normalbetrieb nichts, weil ein vorhandener Tag nicht abgerufen wird. Ausdrücklich **begrenzt**: was länger zurückliegt, ist Sache eines bewussten Backfill-Laufs, nicht eines immer größeren Fensters. Siehe [ADR-0003](./docs/adr/0003-koerperdaten-cron-nachlauffenster.md).
 _Vermeide_: Retry, Backfill (der ist der manuelle, unbegrenzte Lauf)
 
+**Erstbefüllung**:
+Die letzten 30 Tage Körperdaten, die direkt nach dem Herstellen der Garmin-Verbindung **im Hintergrund** geholt werden (`waitUntil`), damit das Dashboard nicht bis zum nächsten Cron-Lauf um 5 Uhr leer bleibt. Sie füllt den Bereich, den ein neues Konto noch gar nicht hat — anders als das *Nachlauffenster* frischt sie nichts auf: **ein Tag mit Archivzeile wird nie erneut abgerufen**, auch heute nicht. Weil ein Hintergrundlauf keine Zustellgarantie hat, ist sie vom Athleten **wiederholbar** und hinterlässt einen beobachtbaren Zustand (`user:<id>:garmin:erstbefuellung`: `laeuft` / `fertig` / `gescheitert`) — ohne den wäre „lädt gerade" von „verbunden, aber leer" nicht zu unterscheiden, und ein zweiter Lauf liefe in ein ratelimitetes Garmin. Ein *laufender* Zustand sperrt den nächsten und läuft nach 15 Minuten von selbst ab, damit ein verschwundener Lauf das Konto nicht dauerhaft blockiert. Sequentiell mit Pause wie jeder Garmin-Lauf.
+_Vermeide_: Backfill (das ist das lokale CLI), Nachlauf, Import, Sync
+
 **Leerer Tag**:
 Eine Archivzeile, deren sämtliche Blöcke `null` sind — Garmin wurde gefragt und hatte für diesen Tag nichts (keine Uhr getragen). Zu unterscheiden von der **fehlenden** Zeile, bei der niemand nachgesehen hat: die eine beendet das Nachfragen, die andere löst es aus. Weil eine spät synchronisierte Uhr denselben Zustand erzeugt, wird ein leerer Tag noch 3 Tage lang erneut angefragt und danach geglaubt.
 _Vermeide_: Lücke (für die leere Zeile), fehlender Tag

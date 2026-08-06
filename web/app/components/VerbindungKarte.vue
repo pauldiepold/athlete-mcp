@@ -83,5 +83,13 @@ function fertig() {
         {{ knopf }}
       </UButton>
     </div>
+
+    <!-- Was zu dieser Datenquelle gehört, aber nicht zum Verbinden: bei Garmin die
+         Erstbefüllung. Anders als das Formular immer sichtbar — sie ist gerade dann
+         interessant, wenn die Verbindung schon steht. -->
+    <template v-if="$slots.fuss">
+      <USeparator class="my-4" />
+      <slot name="fuss" />
+    </template>
   </UCard>
 </template>

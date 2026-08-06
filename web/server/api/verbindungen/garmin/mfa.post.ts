@@ -49,5 +49,10 @@ export default defineEventHandler(async (event) => {
   )
 
   await speichereGarmin(env.SESSION_KV, userId, anmeldung)
+
+  // Derselbe Anschluss wie im Schritt ohne MFA: Wer hier ankommt, ist genauso frisch
+  // verbunden und soll seine letzten 30 Tage genauso sehen (Issue #48).
+  await starteErstbefuellungImHintergrund(event, userId, env)
+
   return { art: 'fertig' as const }
 })

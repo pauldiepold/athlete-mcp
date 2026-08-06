@@ -41,9 +41,13 @@ async function profilSpeichern() {
   }
 }
 
-/** Nach einem geglückten Verbinden den Zustand neu holen, statt ihn zu erraten. */
+/**
+ * Nach einem geglückten Verbinden den Zustand neu holen, statt ihn zu erraten — und
+ * die Erstbefüllung gleich mit: Der Server hat sie beim Verbinden angestoßen
+ * (Issue #48), sichtbar wird sie erst mit diesem Nachziehen.
+ */
 async function verbindungFertig() {
-  await refresh()
+  await Promise.all([refresh(), refreshNuxtData('erstbefuellung')])
 }
 
 function verbindungVon(quelle: string) {
@@ -126,6 +130,9 @@ useHead({ title: 'Einstellungen' })
         >
           <template #default="{ fertig }">
             <VerbindungGarmin @fertig="fertig(); verbindungFertig()" />
+          </template>
+          <template #fuss>
+            <ErstbefuellungKnopf />
           </template>
         </VerbindungKarte>
       </div>

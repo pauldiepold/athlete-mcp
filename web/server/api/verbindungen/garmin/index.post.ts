@@ -46,5 +46,11 @@ export default defineEventHandler(async (event) => {
   }
 
   await speichereGarmin(env.SESSION_KV, userId, start.anmeldung)
+
+  // Ab hier steht die Verbindung — und das Dashboard wäre bis zum nächsten Cron-Lauf um
+  // 5 Uhr leer. Die Erstbefüllung holt die letzten 30 Tage im Hintergrund nach
+  // (Issue #48); die Antwort dieses Formulars wartet nicht darauf.
+  await starteErstbefuellungImHintergrund(event, userId, env)
+
   return { art: 'fertig' as const }
 })
