@@ -1,4 +1,4 @@
-import type { Verbindung } from '@shared/verbindungen'
+import type { Datenquelle, Verbindung } from '@shared/verbindungen'
 
 /**
  * Der Verbindungs-Zustand, einmal geladen und von allen geteilt (Issue #44).
@@ -24,5 +24,30 @@ export function useVerbindungen() {
   /** Solange etwas fehlt oder kaputt ist, hat der Athlet etwas zu tun. */
   const offen = computed(() => verbindungen.value.filter(v => v.zustand !== 'verbunden'))
 
-  return { verbindungen, offen, refresh, status }
+  /**
+   * Eine **gerade hergestellte** Verbindung als verbunden übernehmen, statt sie zu
+   * erfragen — dasselbe Vorgehen wie beim angestoßenen Erstbefüllungs-Lauf
+   * (`uebernimmLauf`) und aus demselben Grund: Der Zustand liegt im KV und ist
+   * *eventually consistent*.
+   *
+   * Wer gerade ein Passwort abgeschickt und eine Bestätigung bekommen hat, weiß es
+   * besser als ein Abruf in derselben Sekunde. Ohne das stand der Schritt in der
+   * Einrichtung nach einem geglückten Final-Surge-Verbinden bis zum Neuladen offen —
+   * während im Schritt selbst schon „Verbunden" stand.
+   *
+   * **Nach** dem Nachziehen aufrufen, nicht davor: Sonst überschriebe die Antwort, auf
+   * die gewartet wird, das Wissen mit dem, was der Index gerade noch behauptet.
+   */
+  function uebernimmVerbunden(quelle: Datenquelle) {
+    if (!data.value) return
+    data.value = {
+      verbindungen: verbindungen.value.map(v =>
+        v.quelle === quelle
+          ? { ...v, zustand: 'verbunden' as const, meldung: null, seit: null }
+          : v,
+      ),
+    }
+  }
+
+  return { verbindungen, offen, uebernimmVerbunden, refresh, status }
 }

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { STARTSATZ } from '@shared/steuerung/startsatz'
+import type { Datenquelle } from '@shared/verbindungen'
 import type { EinrichtungSchrittId } from '#shared/einrichtung'
 
 // Die **Einrichtung** (Issue #52): die vier Schritte, die ein neues Konto vom Login
@@ -38,7 +39,7 @@ const props = defineProps<{
 const { schritte, pflichtSchrittOffen, offenePflicht, naechsterOffener, mcpUrl }
   = useEinrichtung()
 
-const { refresh: verbindungenNeu } = useVerbindungen()
+const { refresh: verbindungenNeu, uebernimmVerbunden } = useVerbindungen()
 
 /**
  * Nach einem geglückten Verbinden den Zustand neu holen, statt ihn zu erraten — die
@@ -46,9 +47,14 @@ const { refresh: verbindungenNeu } = useVerbindungen()
  * Verbinden angestoßen (Issue #48). Dasselbe tut die Einstellungen-Seite für ihre
  * Karten; hier braucht es das noch einmal, weil das Formular jetzt auch in der
  * Einrichtung selbst steht.
+ *
+ * Und danach das eine, was der Abruf womöglich noch nicht weiß, ausdrücklich setzen:
+ * dass **diese** Quelle jetzt verbunden ist. Sonst stand im Schritt „Verbunden" und in
+ * seiner Kopfzeile weiter die offene Nummer.
  */
-async function verbindungFertig() {
+async function verbindungFertig(quelle: Datenquelle) {
   await Promise.all([verbindungenNeu(), refreshNuxtData('erstbefuellung')])
+  uebernimmVerbunden(quelle)
 }
 
 function schritt(id: EinrichtungSchrittId) {
@@ -133,7 +139,7 @@ const fortschritt = computed(() =>
         <EinrichtungVerbindungsWeg
           :in-einstellungen="inEinstellungen"
           :erledigt="schritt('garmin').erledigt"
-          :aktualisieren="verbindungFertig"
+          :aktualisieren="() => verbindungFertig('garmin')"
           erfolg="Garmin ist verbunden. Deine Körperdaten der letzten 30 Tage holen wir
             jetzt im Hintergrund — du kannst mit den übrigen Schritten weitermachen."
         >
@@ -163,7 +169,7 @@ const fortschritt = computed(() =>
         <EinrichtungVerbindungsWeg
           :in-einstellungen="inEinstellungen"
           :erledigt="schritt('finalsurge').erledigt"
-          :aktualisieren="verbindungFertig"
+          :aktualisieren="() => verbindungFertig('finalsurge')"
           erfolg="Final Surge ist verbunden. Der Plan deines Coaches steht deinem
             Trainingsbuch ab jetzt zur Verfügung."
         >

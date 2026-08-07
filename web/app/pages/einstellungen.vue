@@ -11,8 +11,10 @@
 // Deshalb ist das auch eine gewöhnliche Fläche und kein Bildschirm, der nach dem
 // Einlösen des Invite-Codes einmal erscheint: Was hier steht, wird wieder gebraucht —
 // wenn ein Passwort sich ändert oder eine Anmeldung abläuft.
+import type { Datenquelle } from '@shared/verbindungen'
+
 const { user, fetch: sessionNeu } = useUserSession()
-const { verbindungen, refresh } = useVerbindungen()
+const { verbindungen, refresh, uebernimmVerbunden } = useVerbindungen()
 
 const anzeigename = ref(user.value?.name ?? '')
 const speichert = ref(false)
@@ -45,9 +47,14 @@ async function profilSpeichern() {
  * Nach einem geglückten Verbinden den Zustand neu holen, statt ihn zu erraten — und
  * die Erstbefüllung gleich mit: Der Server hat sie beim Verbinden angestoßen
  * (Issue #48), sichtbar wird sie erst mit diesem Nachziehen.
+ *
+ * Danach die gerade hergestellte Quelle ausdrücklich übernehmen: Der KV-Zustand ist
+ * *eventually consistent*, und die Karte behauptete sonst „Nicht verbunden" über einem
+ * Formular, das gerade ein „Verbunden" gemeldet hat.
  */
-async function verbindungFertig() {
+async function verbindungFertig(quelle: Datenquelle) {
   await Promise.all([refresh(), refreshNuxtData('erstbefuellung')])
+  uebernimmVerbunden(quelle)
 }
 
 function verbindungVon(quelle: string) {
@@ -124,7 +131,7 @@ useHead({ title: 'Einstellungen' })
           v-if="verbindungVon('finalsurge')"
           :verbindung="verbindungVon('finalsurge')!"
           wofuer="Der Trainingsplan deines Coaches."
-          :aktualisieren="verbindungFertig"
+          :aktualisieren="() => verbindungFertig('finalsurge')"
         >
           <template #default="{ fertig }">
             <VerbindungFinalSurge @fertig="fertig" />
@@ -135,7 +142,7 @@ useHead({ title: 'Einstellungen' })
           v-if="verbindungVon('garmin')"
           :verbindung="verbindungVon('garmin')!"
           wofuer="Deine täglichen Körperdaten — Schlaf, HRV, Belastung."
-          :aktualisieren="verbindungFertig"
+          :aktualisieren="() => verbindungFertig('garmin')"
         >
           <template #default="{ fertig }">
             <VerbindungGarmin @fertig="fertig" />

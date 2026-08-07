@@ -14,8 +14,11 @@ import {
 
 /**
  * Ein Fake-KV über einer Map, mit `list`-Pagination — dieselbe Bauart wie im
- * Cron-Test. `leseVerbindungen` läuft über `listKvKeys`, und ein Fake ohne Cursor
- * würde genau den Fehler nicht finden, den es dort schon einmal gab.
+ * Cron-Test.
+ *
+ * `list` bleibt drin, obwohl `leseVerbindungen` es nicht mehr benutzt: Genau das ist
+ * hier zu prüfen (siehe „ohne `kv.list`"), und der echte Index hinkt einem frischen
+ * `put` hinterher.
  */
 function fakeKv(inhalt: Record<string, string> = {}, seitengroesse = 1000) {
   const daten = new Map(Object.entries(inhalt));
@@ -139,13 +142,22 @@ describe("leseVerbindungen", () => {
     expect(zustaende(await leseVerbindungen(kv, "paul")).garmin).toBe("verbunden");
   });
 
-  it("läuft über alle Seiten von kv.list", async () => {
-    const { kv } = fakeKv(
-      { "user:paul:finalsurge": "{}", "user:paul:garmin": "{}" },
-      1,
-    );
+  it("meldet eine gerade geschriebene Verbindung, auch wenn kv.list sie noch nicht kennt", async () => {
+    // Der Listen-Index ist *eventually consistent*: Nach `speichereFinalSurge` steht
+    // der Eintrag da, im Index aber noch nicht. Genau in dieser Sekunde fragt die
+    // Oberfläche nach — und zeigte den Schritt sonst bis zum Neuladen als offen.
+    const { kv } = fakeKv({ "user:paul:garmin": "{}" });
+    const kvMitHinkendemIndex = {
+      ...kv,
+      list: async () => ({ keys: [], list_complete: true, cursor: "0" }),
+    } as unknown as KVNamespace;
 
-    expect(zustaende(await leseVerbindungen(kv, "paul"))).toEqual({
+    await speichereFinalSurge(kvMitHinkendemIndex, "paul", {
+      email: "paul@example.com",
+      password: "geheim",
+    });
+
+    expect(zustaende(await leseVerbindungen(kvMitHinkendemIndex, "paul"))).toEqual({
       finalsurge: "verbunden",
       garmin: "verbunden",
     });

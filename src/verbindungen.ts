@@ -23,8 +23,6 @@
  * typecheckt. `src/` bleibt Domänen-Bibliothek ohne Framework-Bezug.
  */
 
-import { listKvKeys } from "./kvKeys.js";
-
 /** Die Datenquellen, zu denen ein Athlet eine Verbindung herstellt. */
 export type Datenquelle = "finalsurge" | "garmin";
 
@@ -141,14 +139,28 @@ async function leseMarker(
   }
 }
 
-/** Der Zustand aller Verbindungen eines Athleten, aus dem KV gelesen. */
+/**
+ * Der Zustand aller Verbindungen eines Athleten, aus dem KV gelesen.
+ *
+ * **Gezielte `get`s und kein `list`-Scan.** Der Scan war der Grund, warum eine gerade
+ * hergestellte Verbindung in der Oberfläche erst nach einem Neuladen als verbunden
+ * dastand: Der Index hinter `kv.list` ist *eventually consistent* und hinkt einem
+ * frischen `put` deutlich länger hinterher als ein `get` auf denselben Schlüssel. Die
+ * Oberfläche fragt aber genau in der Sekunde nach, in der der Athlet verbunden hat.
+ *
+ * Nebenbei billiger: zwei `get` gegen einen Scan über alle Schlüssel des Athleten —
+ * und es sind ohnehin nur die zwei Schlüssel, die `verbindungsZustand` exakt vergleicht.
+ */
 export async function leseVerbindungen(
   kv: KVNamespace,
   userId: string,
 ): Promise<Verbindung[]> {
-  const keys = await listKvKeys(kv, `user:${userId}:`);
+  const keys: string[] = [];
   const marker: Partial<Record<Datenquelle, FehlerMarker | null>> = {};
   for (const quelle of DATENQUELLEN) {
+    if (await istVerbunden(kv, userId, quelle)) {
+      keys.push(verbindungsKey(userId, quelle));
+    }
     marker[quelle] = await leseMarker(kv, userId, quelle);
   }
   return verbindungsZustand(userId, keys, marker);
