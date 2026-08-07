@@ -17,9 +17,20 @@ import { join } from "node:path";
 
 import type { D1Database, KVNamespace } from "@cloudflare/workers-types";
 
+/**
+ * Woher die Binding-Namen aufgelöst werden. Seit ADR-0007 gibt es genau eine
+ * wrangler.jsonc, und sie liegt in `web/` — im Repo-Root findet wrangler von sich
+ * aus keine mehr. Explizit statt implizit, weil die CLIs aus dem Root laufen.
+ *
+ * **Diese Config zeigt auf die Testumgebung.** Die CLIs schreiben damit in die
+ * dev-Ressourcen, nicht in die Produktion; bis zum Cutover (Issue #45) läuft die
+ * Produktion auf den alten Workern und wird über deren Config bedient.
+ */
+const WRANGLER_CONFIG = "web/wrangler.jsonc";
+
 /** Ein wrangler-Aufruf; stdout kommt zurück, stderr wird für die Fehlerprüfung mitgelesen. */
 function wrangler(args: string[]): string {
-  return execFileSync("npx", ["wrangler", ...args], {
+  return execFileSync("npx", ["wrangler", ...args, "--config", WRANGLER_CONFIG], {
     encoding: "utf8",
     stdio: ["ignore", "pipe", "pipe"],
   });

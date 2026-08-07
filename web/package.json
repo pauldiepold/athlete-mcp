@@ -7,19 +7,24 @@
     "dev": "nuxt dev",
     "generate": "nuxt generate",
     "preview": "nuxt preview",
-    "deploy": "nuxt build && wrangler deploy",
+    "deploy:dev": "nuxt build && wrangler deploy",
+    "deploy:prod": "nuxt build && wrangler deploy --env production",
+    "dev:cron": "nuxt build && wrangler dev --test-scheduled",
     "typecheck": "nuxt typecheck",
     "test": "vitest run",
     "cf-typegen": "wrangler types ./shared/worker-configuration.d.ts",
     "postinstall": "nuxt prepare && wrangler types ./shared/worker-configuration.d.ts"
   },
   "dependencies": {
+    "@cloudflare/workers-oauth-provider": "^0.10.1",
+    "@modelcontextprotocol/sdk": "^1.30.0",
     "@nuxt/eslint": "1.16.0",
     "@nuxt/ui": "4.9.0",
     "chart.js": "^4.5.1",
     "chartjs-adapter-date-fns": "^3.0.0",
     "date-fns": "^4.4.0",
     "eslint": "^10.6.0",
+    "h3": "^1.15.11",
     "marked": "^18.0.5",
     "nuxt": "^4.4.8",
     "nuxt-auth-utils": "^0.5.29",
@@ -27,7 +32,8 @@
     "typescript": "^6.0.3",
     "vue": "^3.5.38",
     "vue-chartjs": "^5.3.4",
-    "vue-router": "^5.1.0"
+    "vue-router": "^5.1.0",
+    "zod": "^4.4.3"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^4.20260627.1",

@@ -2,6 +2,9 @@
 .env
 .dev.vars
 .dev.vars.*
+# … außer der Vorlage: sie trägt nur Schlüsselnamen und ist die einzige Doku,
+# welche Env-Variablen die Anmeldung braucht (ADR-0007).
+!.dev.vars.example
 
 # Garmin-Tagesexporte (Körperdaten/Gesundheitsdaten) – nur lokale Referenz, nie committen
 garmin-data/
@@ -23,3 +26,6 @@ dist/
 
 # IDE
 .idea/
+
+# Arbeitskopien der Agenten-Worktrees
+.claude/worktrees/

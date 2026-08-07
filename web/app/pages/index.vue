@@ -1,21 +1,26 @@
 <script setup lang="ts">
-// Öffentliche Startseite und Ziel nach dem Abmelden (Issue #14, ADR-0005). Bewusst
-// ohne Session-Zwang und ohne Inhalt: wer hier landet, hat entweder seinen
-// persönlichen Link (dann führt der direkt in seine Fläche) oder ist der Betreiber —
-// für den steht der Weg zurück im Header (Admin) bzw. im Footer (Login).
-useHead({ title: 'athlete-mcp' })
+// Die Startseite hat zwei Gesichter (ADR-0007): abgemeldet ist sie die **Anmeldung**,
+// angemeldet das **Dashboard**. Vorher war sie eine leere Visitenkarte, weil der
+// Zugang aus einem persönlichen Link bestand — mit der Session ist `/` der eine Ort,
+// an dem jeder landet, und was er dort sieht, hängt nur davon ab, ob er angemeldet ist.
+//
+// Bewusst kein Redirect auf eine eigene `/login`-Route: Die Startseite ist auch das
+// Ziel nach dem Abmelden, und eine Weiterleitung mitten in diesem Weg würde die
+// Adresszeile für nichts umschreiben.
+//
+// Beide Hälften liegen als Komponenten daneben. Der Datenabruf des Dashboards startet
+// dadurch erst, wenn es tatsächlich gerendert wird — abgemeldet wird nichts geladen,
+// was ohnehin mit 401 zurückkäme.
+const { loggedIn } = useUserSession()
 </script>
 
 <template>
   <div class="flex flex-1 flex-col">
-    <AppHeader />
+    <AthletDashboard v-if="loggedIn" />
 
-    <UContainer class="flex w-full flex-1 flex-col items-center justify-center py-20 text-center">
-      <h1 class="text-xl font-semibold">athlete-mcp</h1>
-      <p class="mt-2 max-w-md text-sm text-muted">
-        Persönliche Fläche für Körperdaten und Trainingssteuerung. Der Zugang läuft über
-        den persönlichen Link.
-      </p>
-    </UContainer>
+    <template v-else>
+      <AppHeader />
+      <AnmeldeSeite />
+    </template>
   </div>
 </template>

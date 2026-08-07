@@ -1,7 +1,14 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "athlete-web",
-  "main": ".output/server/index.mjs",
+  "name": "athlete-dev",
+
+  // **Nicht** Nitros Bundle direkt: Seit Issue #43 ist athlete-mcp sein eigener
+  // OAuth-Authorization-Server, und `worker/index.ts` legt den OAuthProvider davor.
+  // Nitros `.output/server/index.mjs` wird dort unverändert importiert und
+  // durchgereicht — sobald daran gepatcht werden müsste, wäre die Konstruktion falsch
+  // (das Abbruchkriterium aus Spike #37, nie berührt). Der Build-Schritt bleibt
+  // deshalb `nuxt build && wrangler deploy`: die Datei existiert erst danach.
+  "main": "worker/index.ts",
   "compatibility_date": "2026-06-04",
   "compatibility_flags": ["nodejs_compat"],
   "assets": {
@@ -10,23 +17,130 @@
   "observability": {
     "enabled": true
   },
-  // Gleiche binding-Namen UND gleiche ids wie der MCP-Worker (../wrangler.jsonc):
-  // dasselbe physische D1/KV, dieselbe Datenwahrheit. Bewusst ohne durable_objects,
-  // triggers.crons und migrations — die bleiben exklusiv beim MCP-Worker. Das
-  // Web-Target ist ein reiner Leser (siehe docs/adr/0004).
+
+  // Die einzige wrangler.jsonc des Repos. Seit ADR-0007 gibt es **ein** Deployable:
+  // der MCP-Endpunkt (`/mcp`) ist eine Nitro-Route dieses Workers, kein eigener Worker
+  // mit Durable Object mehr. Damit entfällt auch `WEB_BASE_URL` — die
+  // Browser-Links von `get_dashboard_link` entstehen aus der Origin des Requests
+  // statt aus einer Variable, über die ein Deployable das andere kennt.
   //
-  // "remote": true → auch im lokalen `nuxt dev` (nitro-cloudflare-dev/getPlatformProxy)
-  // werden die echten Cloudflare-Ressourcen gelesen, nichts lokal dupliziert.
-  // Erfordert wrangler-Auth (OAuth-Login bzw. CLOUDFLARE_API_TOKEN).
+  // Die **Top-Level-Konfiguration ist die Testumgebung** `dev.training.pauldiepold.de`.
+  // Sie existiert, weil Apple nicht auf localhost umleitet, und ist die Fläche, auf der
+  // jedes Ticket der OAuth-Umstellung verifiziert wird. Die Produktion steht seit dem
+  // Cutover (Issue #45) unten in `env.production` — bewusst dort und nicht hier: Ein
+  // `wrangler deploy` ohne `--env` trifft weiter dev, die Produktion braucht das
+  // ausdrückliche `--env production` (Script `deploy:prod`).
+  //
+  // Vererbung ist dabei die Falle: `main`, `compatibility_date`, `assets` und
+  // `observability` erbt die Umgebung von hier — `routes`, `vars`, `kv_namespaces`,
+  // `d1_databases` und `triggers` erbt sie **nicht**. Was unten fehlt, ist nicht
+  // "wie oben", sondern weg.
+  "routes": [{ "pattern": "dev.training.pauldiepold.de", "custom_domain": true }],
+
+  // Die einzigen Anmelde-Werte, die hier stehen dürfen: Sie tragen nichts als die
+  // Domain aus `routes` und gehören zur Umgebung, nicht zum Google-/Apple-Account.
+  // Alles andere (Client-IDs, Team-/Key-ID, beide Secrets, der Apple-Private-Key und
+  // NUXT_OPERATOR_SUBS) ist `wrangler secret put` — dieses Repo ist öffentlich, und
+  // Kennungen von Person und Apple-Team haben darin nichts verloren.
+  //
+  // Festgenagelt statt abgeleitet: Ohne diese Werte rät der Google-Handler das Schema
+  // aus `x-forwarded-proto`, und der Apple-Handler schickt beim Token-Tausch
+  // `undefined` (→ `invalid_grant`). Beide URIs müssen zeichengleich beim jeweiligen
+  // Provider hinterlegt sein.
+  //
+  // Achtung beim Ergänzen: `vars` aus dieser Datei sind die Quelle der Wahrheit und
+  // überschreiben beim Deploy, was im Dashboard steht. Secrets bleiben unberührt.
+  "vars": {
+    "NUXT_OAUTH_GOOGLE_REDIRECT_URL": "https://dev.training.pauldiepold.de/auth/google",
+    "NUXT_OAUTH_APPLE_REDIRECT_URL": "https://dev.training.pauldiepold.de/auth/apple"
+  },
+
+  // Eigene D1 und eigenes KV — die Testumgebung fasst Produktionsdaten nie an.
+  // "remote": true → auch das lokale `nuxt dev` (nitro-cloudflare-dev/getPlatformProxy)
+  // liest genau diese dev-Ressourcen statt einer lokalen Kopie. Erfordert
+  // wrangler-Auth (OAuth-Login bzw. CLOUDFLARE_API_TOKEN).
+  //
+  // `OAUTH_KV` ist ein **eigenes** Namespace, nicht bloß ein zweiter Binding-Name auf
+  // dasselbe: Der Grant-Store des Authorization Servers ist die Menge aller gültigen
+  // Connector-Zugänge, und die gehört nicht in denselben Topf wie Sessions und
+  // Athleten-Credentials. Getrennt nach Umgebung ist er ohnehin — ein in dev
+  // ausgestellter Token findet auf prod schlicht keinen Grant und kann dort nichts.
   "kv_namespaces": [
-    { "binding": "SESSION_KV", "id": "b5f5aa9024b141608a93ef7388aed64d", "remote": true }
+    { "binding": "SESSION_KV", "id": "a82896641db9427da375585760f84366", "remote": true },
+    { "binding": "OAUTH_KV", "id": "80ec6867f3f94f54a63a58012c0d77af", "remote": true }
   ],
   "d1_databases": [
     {
       "binding": "ATHLETE_DB",
-      "database_name": "athlete-mcp-koerperdaten",
-      "database_id": "2d146aa3-8fed-40dc-a7a8-b924e82a4343",
+      "database_name": "athlete-dev-koerperdaten",
+      "database_id": "10515db0-ff15-4557-a69a-a4b98a50d390",
+      "migrations_dir": "../migrations",
       "remote": true
     }
-  ]
+  ],
+
+  // Bewusst **kein** "triggers.crons": Der Körperdaten-Cron läuft allein in der
+  // Produktion. Damit läuft hier auch `purgeExpiredData()` des OAuth-Providers
+  // nicht (es hängt im selben `scheduled`-Handler) — in einer Testumgebung, deren KV
+  // ohnehin regelmäßig leer geräumt wird, ist das kein Verlust. Zwei Läufe gegen dieselben Garmin-Konten wären ein unnötiges
+  // Rate-Limit-Risiko gegenüber einer inoffiziellen API (src/garmin/ADR-0001).
+  // Gebaut ist er in diesem Deployable trotzdem (Nitro-Task `koerperdaten`, siehe
+  // nuxt.config.ts) und lokal nachweisbar über `pnpm dev:cron`:
+  //   curl "http://localhost:8787/__scheduled?cron=0+5+*+*+*"
+
+  // ---------------------------------------------------------------------------
+  // Die Produktion (Issue #45). Eigener Worker-Name, damit die Umgebung nicht
+  // `athlete-dev-production` heißt; die alten Worker `athlete-mcp` und `athlete-web`
+  // bleiben davon unberührt und werden mit Issue #46 abgeräumt.
+  "env": {
+    "production": {
+      "name": "athlete",
+      "routes": [{ "pattern": "training.pauldiepold.de", "custom_domain": true }],
+
+      // Die Custom Domain ist die **einzige** Adresse. Ohne dies wäre der Worker
+      // zusätzlich unter `athlete.<subdomain>.workers.dev` erreichbar — eine zweite
+      // Origin, auf der die bei Google und Apple hinterlegten Redirect-URIs nicht
+      // passen und der OAuth-Issuer ein anderer wäre. Nichts, was man aus Versehen
+      // stehen lässt.
+      "workers_dev": false,
+
+      "vars": {
+        "NUXT_OAUTH_GOOGLE_REDIRECT_URL": "https://training.pauldiepold.de/auth/google",
+        "NUXT_OAUTH_APPLE_REDIRECT_URL": "https://training.pauldiepold.de/auth/apple"
+      },
+
+      // Die **bestehenden** Produktionsressourcen, unverändert übernommen: Dass die
+      // vier Bestandsathleten nach dem Login ihre Körperdaten und ihre Steuerung
+      // vorfinden, hängt allein daran, dass hier dieselbe D1 und dasselbe SESSION_KV
+      // stehen wie unter dem alten `athlete-mcp`. `userId` bleibt Primärschlüssel
+      // (ADR-0007), es gibt deshalb keine Datenmigration — nur diese beiden IDs.
+      //
+      // Kein "remote": true, anders als oben. Das Flag zieht `nuxt dev` auf die
+      // Ressourcen dieser Datei; für die Produktion wäre das genau das, was man nicht
+      // will, und `wrangler deploy` braucht es ohnehin nicht.
+      "kv_namespaces": [
+        { "binding": "SESSION_KV", "id": "b5f5aa9024b141608a93ef7388aed64d" },
+        { "binding": "OAUTH_KV", "id": "1e54d9ed3d5f42268ab3af11ec3975ff" }
+      ],
+      "d1_databases": [
+        {
+          "binding": "ATHLETE_DB",
+          "database_name": "athlete-mcp-koerperdaten",
+          "database_id": "2d146aa3-8fed-40dc-a7a8-b924e82a4343",
+          "migrations_dir": "../migrations"
+        }
+      ],
+
+      // Der Körperdaten-Cron, hier und nur hier. Der Ausdruck muss zeichengleich zu
+      // `nitro.scheduledTasks` in nuxt.config.ts sein: Nitro schaltet anhand des
+      // Cron-Strings auf den Task, ein abweichender Ausdruck feuert den `scheduled`-
+      // Handler ohne dass ein Task dazu passt — der Lauf bliebe still leer.
+      //
+      // Im selben Handler hängt `purgeExpiredData()` des OAuth-Providers; abgelaufene
+      // Grants und Codes werden also mit diesem Lauf mit aufgeräumt.
+      "triggers": {
+        "crons": ["0 5 * * *"]
+      }
+    }
+  }
 }

@@ -14,7 +14,6 @@ import type { WochenAggregat } from '@shared/garmin/koerperdatenWochen'
 // Beides rein lesend, editiert wird hier nichts.
 const props = defineProps<{
   wochen: (WochenAggregat & { auszug: string | null })[]
-  secret: string
   /** Die aktuell als Zeitraum gewählte Woche — sie wird in der Liste hervorgehoben. */
   aktiveKw?: string | null
 }>()
@@ -63,7 +62,7 @@ const text = (wert: number | null, stellen = 0, einheit = '') =>
         :class="woche.kw === aktiveKw ? 'rounded-md bg-elevated/60' : ''"
       >
         <ULink
-          :to="{ path: `/${secret}`, query: { kw: woche.kw } }"
+          :to="{ path: '/', query: { kw: woche.kw } }"
           class="w-20 shrink-0 font-medium underline decoration-dotted underline-offset-4 hover:text-primary"
           :class="woche.kw === aktiveKw ? 'text-primary' : 'text-default'"
           @click="nachObenScrollen"
@@ -83,7 +82,7 @@ const text = (wert: number | null, stellen = 0, einheit = '') =>
         </p>
 
         <ULink
-          :to="`/${secret}/steuerung/${woche.kw}`"
+          :to="`/steuerung/${woche.kw}`"
           class="shrink-0 text-xs text-muted hover:text-primary sm:text-sm"
         >
           Steuerung öffnen ›

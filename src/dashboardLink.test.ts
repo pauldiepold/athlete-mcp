@@ -1,72 +1,28 @@
 import { describe, it, expect } from "vitest";
-import { resolveDashboardLinks } from "./dashboardLink.js";
+import { buildDashboardLinks } from "./dashboardLink.js";
 
-/**
- * Minimale Fake-KV über einer Map: nur `list({ prefix })` und `get`, wie von der
- * Secret-Auflösung genutzt (dieselbe Machart wie in operatorDirectory.test.ts).
- */
-function fakeKv(entries: Record<string, string>): KVNamespace {
-  const store = new Map(Object.entries(entries));
-  return {
-    async get(key: string) {
-      return store.get(key) ?? null;
-    },
-    async list({ prefix = "" }: { prefix?: string } = {}) {
-      const keys = [...store.keys()]
-        .filter((name) => name.startsWith(prefix))
-        .map((name) => ({ name }));
-      return { keys, list_complete: true, cursor: "" };
-    },
-  } as unknown as KVNamespace;
-}
+const BASIS = "https://training.pauldiepold.de";
 
-const WEB = "https://athlete-web.example.dev";
-
-describe("resolveDashboardLinks", () => {
-  it("baut die Links aus dem View-Secret des Nutzers", async () => {
-    const kv = fakeKv({
-      "viewsecret:paul-view": "paul",
-      "pathsecret:paul-path": "paul",
-    });
-
-    expect(await resolveDashboardLinks(kv, "paul", WEB)).toEqual({
-      dashboard: `${WEB}/paul-view`,
-      steuerung: `${WEB}/paul-view/steuerung`,
-      tagVorlage: `${WEB}/paul-view/tag/YYYY-MM-DD`,
+describe("buildDashboardLinks", () => {
+  it("baut die Links der Browser-Fläche unter der Origin", () => {
+    expect(buildDashboardLinks(BASIS)).toEqual({
+      dashboard: `${BASIS}/`,
+      steuerung: `${BASIS}/steuerung`,
+      tagVorlage: `${BASIS}/tag/YYYY-MM-DD`,
+      einrichtung: `${BASIS}/einstellungen`,
     });
   });
 
-  it("gibt bei mehreren Nutzern jedem nur sein eigenes Secret", async () => {
-    const kv = fakeKv({
-      "viewsecret:ann-view": "ann",
-      "viewsecret:zoe-view": "zoe",
-    });
-
-    const ann = await resolveDashboardLinks(kv, "ann", WEB);
-    const zoe = await resolveDashboardLinks(kv, "zoe", WEB);
-
-    expect(ann!.dashboard).toBe(`${WEB}/ann-view`);
-    expect(zoe!.dashboard).toBe(`${WEB}/zoe-view`);
+  it("normalisiert Schrägstriche am Ende der Basis-URL", () => {
+    expect(buildDashboardLinks(`${BASIS}//`)).toEqual(buildDashboardLinks(BASIS));
   });
 
-  it("liefert null für einen Nutzer ohne View-Secret", async () => {
-    const kv = fakeKv({ "viewsecret:zoe-view": "zoe" });
-    expect(await resolveDashboardLinks(kv, "paul", WEB)).toBeNull();
-  });
+  it("enthält kein Secret mehr — die Links sind für alle Athleten gleich", () => {
+    // Seit ADR-0007 ist der Link keine Anmeldung mehr; wer welche Daten sieht,
+    // entscheidet die Session. Genau deshalb hängen sie nicht mehr an der userId.
+    const links = buildDashboardLinks(BASIS);
 
-  it("verwechselt das Pfad-Secret nicht mit dem View-Secret", async () => {
-    // Nur ein MCP-Pfad-Secret geseedet: der Nutzer hat keine Browser-Fläche —
-    // und keinesfalls darf das Schreib-Secret in einen Browser-Link geraten.
-    const kv = fakeKv({ "pathsecret:paul-path": "paul" });
-    expect(await resolveDashboardLinks(kv, "paul", WEB)).toBeNull();
-  });
-
-  it("normalisiert einen Schrägstrich am Ende der Basis-URL", async () => {
-    const kv = fakeKv({ "viewsecret:paul-view": "paul" });
-
-    const links = await resolveDashboardLinks(kv, "paul", `${WEB}/`);
-
-    expect(links!.dashboard).toBe(`${WEB}/paul-view`);
-    expect(links!.steuerung).toBe(`${WEB}/paul-view/steuerung`);
+    expect(Object.values(links).every((url) => url.startsWith(`${BASIS}/`))).toBe(true);
+    expect(links.dashboard).not.toContain("secret");
   });
 });

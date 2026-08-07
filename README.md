@@ -4,67 +4,94 @@ Selbst-gehosteter MCP-Server (ein Cloudflare-Worker, eine MCP-URL), der **pro
 Nutzer** Trainingsdaten aus mehreren Quellen bereitstellt, damit Claude sie live
 lesen kann — auch mobil. Fachlicher Überblick: [CONTEXT-MAP.md](./CONTEXT-MAP.md).
 
+Seit [ADR-0007](./docs/adr/0007-oauth-identitaet-statt-url-secrets-ein-deployable.md)
+ist alles **ein Deployable**: `web/` ist die Nuxt-App und enthält den MCP-Endpunkt
+als Nitro-Route, die Weboberfläche und den Körperdaten-Cron als Nitro-Task. `src/`
+ist die Domänen-Bibliothek ohne Framework-Bezug. Es gibt genau eine
+`wrangler.jsonc`, und sie liegt in `web/`.
+
 ## Entwicklung
 
-```bash
-npm test           # Vitest
-npm run typecheck  # tsc --noEmit
-npm run dev        # wrangler dev (lokaler Worker)
-npm run deploy     # wrangler deploy
-```
-
-> Wrangler wird über `npx`/die npm-Scripts aufgerufen — keine globale Installation nötig.
-
-## Onboarding eines Nutzers
-
-Provisioning ist manuell: pro Nutzer werden Credentials/Tokens einmalig **lokal**
-erzeugt und in die Produktions-KV geschrieben — kein Self-Service. Das erledigt
-das Onboarding-CLI:
+Im Repo-Root — deckt beide Testläufe und die Domänen-Bibliothek ab:
 
 ```bash
-npm run onboard -- --user <name>
+npm test           # Vitest (src/) + Vitest (web/)
+npm run typecheck  # tsc --noEmit über src/
 ```
 
-Voraussetzungen:
+In `web/` — die App selbst:
 
-- **wrangler ist angemeldet** (`npx wrangler login`) und schreibt in die echte
-  KV (`--remote`, Binding `SESSION_KV` aus `wrangler.jsonc`).
-- **[uv](https://docs.astral.sh/uv/)** ist installiert — der Garmin-Seed-Login
-  läuft über einen `garminconnect`-Helper (`uv run scripts/seed_garmin_login.py`).
+```bash
+pnpm dev           # Nuxt-Dev-Server gegen die dev-Ressourcen
+pnpm typecheck     # nuxt typecheck
+pnpm dev:cron      # Build + wrangler dev --test-scheduled (Cron lokal auslösen)
+pnpm deploy:dev    # Build + Deploy nach dev.training.pauldiepold.de
+```
 
-Ablauf (interaktiv, HITL):
+Den Körperdaten-Cron lokal auslösen (`pnpm dev:cron` muss laufen):
 
-1. **Final-Surge-Login** — Email + Passwort werden erfragt und durch einen echten
-   Login verifiziert; gespeichert wird `user:<name>:finalsurge`.
-2. **Garmin-Seed-Login** — Passwort + **MFA-Code** (Mail/App), einmalig. Der
-   Worker bekommt nie das Garmin-Passwort, nur das DI-Token-Bündel
-   (`user:<name>:garmin`) plus Profil (`user:<name>:garmin:profile`). Garmin
-   rate-limitet den Login aggressiv (429) — der Helper toleriert das und
-   versucht es mit Backoff mehrfach; einzelne 429-Hinweise sind normal.
-3. **Pfad-Secret** — neu erzeugt oder bei Re-Seed wiederverwendet
-   (`pathsecret:<secret>` → `<name>`).
-4. Ausgabe der fertigen MCP-URL auf stdout: `…/{secret}/mcp`.
+```bash
+curl "http://localhost:8787/__scheduled?cron=0+5+*+*+*"
+```
 
-Optionale Env-Variablen statt interaktiver Eingabe:
-`FINALSURGE_EMAIL`, `FINALSURGE_PASSWORD`, `GARMIN_EMAIL`, `GARMIN_PASSWORD`
-(der MFA-Code bleibt immer interaktiv). Die beiden Hosts sind überschreibbar via
-`--base-url` (MCP-Worker) und `--web-base-url` (Nuxt-Target mit der Steuerung).
+> Wrangler wird über `npx`/die Paket-Scripts aufgerufen — keine globale Installation nötig.
 
-### Re-Seed (Onboarding)
+### Umgebungen
 
-Ein erneuter Lauf für einen bestehenden Nutzer stellt einen abgerissenen
-Garmin-Refresh-Token wieder her (KV-`put` ist Upsert) und verwendet das
-vorhandene Pfad-Secret wieder — die MCP-URL des Nutzers bleibt stabil. Keine
-Code-Änderung nötig.
+`dev.training.pauldiepold.de` ist die Testumgebung mit **eigener D1 und eigenem
+KV** und bewusst **ohne Cron** — zwei Läufe gegen dieselben Garmin-Konten wären
+ein unnötiges Rate-Limit-Risiko.
+
+Die Produktion ist seit dem Cutover (Issue #45) `training.pauldiepold.de` und wird
+wie die Testumgebung aus diesem Repo gebaut (`pnpm deploy:prod` in `web/`).
+
+Die alten Worker `athlete-mcp` und `athlete-web` sind **noch deployt**, werden aber
+nicht mehr aus diesem Repo gebaut und von keinem Code hier mehr bedient: Sie halten
+den Zugang der Bestandsathleten offen, bis die auf die Anmeldung per Identität
+umgezogen sind. Mit ihnen leben die `pathsecret:`- und `viewsecret:`-Einträge in der
+alten KV weiter — sie sind der letzte Rest der alten Welt und werden zusammen mit den
+Workern abgeräumt (Issue #56).
+
+> **Die lokalen CLIs (Probe, Backfill) bedienen die in `web/wrangler.jsonc`
+> konfigurierte Umgebung** und haben bewusst keinen Schalter dafür: Ein Flag hätte in
+> der alten Fassung nur die *ausgegebene* URL verstellt, nicht das Ziel-KV — ein Lauf
+> „für die Produktion" hätte still in die Testumgebung geschrieben.
+
+Das D1-Schema einer frischen Umgebung anlegen (in `web/`):
+
+```bash
+npx wrangler d1 migrations apply ATHLETE_DB --remote
+```
+
+Die Migrationen liegen im Repo-Root unter `migrations/`; `web/wrangler.jsonc`
+zeigt über `migrations_dir` dorthin, damit beide Umgebungen dasselbe Schema
+bekommen.
+
+## Ein Konto entsteht
+
+Der Operator stellt in `/admin` einen **Invite-Code** aus — *frei* für ein neues
+Konto, *kontogebunden* für einen Verfahrenswechsel an einem bestehenden. Der Athlet
+löst ihn unter `/invite` ein, meldet sich per Google oder Apple an und richtet seine
+**Verbindungen** zu Final Surge und Garmin unter `/einstellungen` selbst ein; den
+Connector trägt er in Claude mit der nackten Origin ein. Kein CLI, keine
+Geheim-URL, kein fremdes Passwort in der Konsole des Operators
+([ADR-0007](./docs/adr/0007-oauth-identitaet-statt-url-secrets-ein-deployable.md)).
+
+Der **allererste** Code muss von Hand ins KV: Ohne Konto kein `/admin`, ohne
+`/admin` kein Code.
+
+Das alte Onboarding-CLI liegt unter [`archive/`](./archive/) — nicht mehr
+aufgerufen und nicht mehr gepflegt, aber als Recherche-Grundlage aufbewahrt,
+falls Garmin seinen Login-Pfad dreht.
 
 ## Körperdaten-Backfill
 
 Ändert sich die Form der Körperdaten (zuletzt mit
 [ADR-0002](./src/garmin/docs/adr/0002-koerperdaten-intraday-ereignisbasiert.md):
 `training_readiness` vom Objekt zur Liste), tragen archivierte Zeilen noch die
-alte Form. Zwei lokale CLIs ziehen sie nach — beide setzen wie das Onboarding
-ein angemeldetes `npx wrangler login` voraus und sprechen KV und D1 der
-Produktion an.
+alte Form. Zwei lokale CLIs ziehen sie nach — beide setzen ein angemeldetes
+`npx wrangler login` voraus und sprechen KV und D1 der in `web/wrangler.jsonc`
+konfigurierten Umgebung an.
 
 **Erst prüfen**, was Garmin für ein altes Datum überhaupt noch liefert:
 
@@ -86,7 +113,7 @@ npm run backfill:koerperdaten -- --user <name> [--start YYYY-MM-DD] [--end YYYY-
 
 - Ohne `--start`/`--end` läuft der gesamte archivierte Bereich des Nutzers.
 - Bearbeitet werden **vorhandene Archivzeilen**, keine Kalenderlücken; Lücken zu
-  füllen bleibt Sache der Read-through-Orchestrierung im Worker.
+  füllen bleibt Sache der Read-through-Orchestrierung hinter den MCP-Tools.
 - Zeilen, die bereits eine Liste tragen, werden übersprungen. Ein Lauf nach
   Fehlern holt damit von selbst nur das Fehlende nach.
 - Vor dem Lauf läuft die Probe auf dem ältesten offenen Tag und fragt nach

@@ -15,6 +15,10 @@ Der BTC-Coach, der den Trainingsplan in Final Surge schreibt. Autor des Vorgabet
 Eine einzelne geplante Trainings-Vorgabe des Coaches für einen Tag (Datum + Vorgabetext + geplante Aktivitäten). Dieser Server liefert ausschließlich die *geplante* Seite — niemals den absolvierten Lauf.
 _Vermeide_: Training, Einheit (für die Vorgabe)
 
+**Zugangsdaten**:
+E-Mail-Adresse und Passwort des Final-Surge-Kontos, die der Athlet unter `/einstellungen` selbst hinterlegt. Sie werden vor dem Speichern durch einen **echten Login** geprüft — ein Tippfehler fällt im Formular auf und nicht Tage später an leeren Plandaten. Anders als bei Garmin bleiben sie liegen, weil die App-API keinen Refresh-Token kennt; vorerst im Klartext im KV, was aufgeschoben und nicht übersehen ist (Issue #35).
+_Vermeide_: Credentials, Account-Daten
+
 **Absolvierter Lauf**:
 Das tatsächlich gelaufene Ergebnis. Liegt außerhalb dieses Servers — kommt über den Strava-Connector. Dieser Server vermischt Plan und Ist bewusst nicht.
 

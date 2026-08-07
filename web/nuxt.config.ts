@@ -9,28 +9,59 @@ export default defineNuxtConfig({
   // Nuxt UI v4 / Tailwind v4 Styles (für die interaktive Edit-Seite, Issue #12).
   css: ['~/assets/css/main.css'],
 
-  // Operator-Auth der /admin-Fläche (Issue #14, ADR-0005). Session-Password und die
-  // GitHub-OAuth-Credentials liest nuxt-auth-utils selbst aus NUXT_SESSION_PASSWORD
-  // bzw. NUXT_OAUTH_GITHUB_CLIENT_ID/SECRET — hier nur Defaults, real per Env-Secret.
+  // Anmeldung und Rollen (ADR-0007). Die Werte kommen real per Env-Secret; hier stehen
+  // nur die Defaults, damit Nitro die Schlüssel kennt. nuxt-auth-utils liest sie selbst
+  // aus NUXT_SESSION_PASSWORD und NUXT_OAUTH_<PROVIDER>_<FELD>.
+  //
+  // Die beiden Hosts für die Nutzer-Links des Admin-Directorys (mcpBaseUrl/webBaseUrl)
+  // sind mit ADR-0007 entfallen: MCP-Endpunkt und Browser-Fläche liegen auf **einer**
+  // Origin, und die kommt aus dem Request statt aus der Konfiguration.
   runtimeConfig: {
-    // Die beiden Hosts für die im Admin-Directory gebauten Nutzer-Links (Issue #15).
-    // Getrennt, weil MCP-Endpunkt und Browser-Steuerung seit ADR-0004 auf zwei
-    // Workern liegen — dieselben Defaults wie scripts/onboard.ts. Override per
-    // NUXT_MCP_BASE_URL bzw. NUXT_WEB_BASE_URL.
-    mcpBaseUrl: 'https://athlete-mcp.pauldiepold.workers.dev',
-    webBaseUrl: 'https://athlete-web.pauldiepold.workers.dev',
     session: {
-      // sealed-cookie-Session statt URL-Secret (ADR-0005). Echter Wert per Env-Secret.
+      // sealed-cookie-Session statt URL-Secret. Echter Wert per Env-Secret.
       password: '',
+      // Ein Jahr. Ohne `maxAge` schreibt h3 ein reines Browser-Session-Cookie — die
+      // Anmeldung wäre beim nächsten Browser-Neustart weg, auf dem Handy also
+      // regelmäßig. Verlangt ist „einmal pro Gerät anmelden und angemeldet bleiben";
+      // wer ein fremdes Gerät benutzt hat, meldet sich ab.
+      maxAge: 60 * 60 * 24 * 365,
     },
     oauth: {
-      github: { clientId: '', clientSecret: '' },
+      // Google und Apple als Anmeldeverfahren; GitHub ist mit ADR-0005 entfallen.
+      //
+      // `redirectURL` ist bei Google optional: Leer gelassen leitet der Handler sie aus
+      // dem Request ab — und rät dabei das Schema aus `x-forwarded-proto`. Hinter
+      // Cloudflare stimmt das, aber die URI muss exakt zu der bei Google hinterlegten
+      // passen; deshalb ist der Schlüssel hier deklariert und per
+      // NUXT_OAUTH_GOOGLE_REDIRECT_URL festnagelbar.
+      google: { clientId: '', clientSecret: '', redirectURL: '' },
+      // Vier Secrets statt einem — und `redirectURL` **muss** gesetzt sein, sonst
+      // schickt der Handler beim Token-Tausch `undefined` und Apple antwortet
+      // `invalid_grant` (siehe server/routes/auth/apple.ts).
+      apple: {
+        clientId: '',
+        teamId: '',
+        keyId: '',
+        privateKey: '',
+        redirectURL: '',
+      },
     },
+    // Operator-Allowlist: Google-`sub`, kommagetrennt (NUXT_OPERATOR_SUBS). Leer heißt
+    // **kein** Operator, nicht *alle* — siehe server/utils/isOperator.ts.
+    operatorSubs: '',
   },
 
-  // Deploy als eigenständiger Cloudflare-Worker (zweites Target neben dem MCP-Worker).
+  // Das einzige Deployable (ADR-0007): Weboberfläche, MCP-Endpunkt und Cron in einem
+  // Cloudflare-Worker.
   nitro: {
     preset: 'cloudflare-module',
+
+    // Der Körperdaten-Cron als Nitro-Task statt als `scheduled`-Export eines eigenen
+    // Workers. Der Name kommt aus dem **Dateipfad** (server/tasks/koerperdaten.ts),
+    // nicht aus `meta.name` — ein Eintrag auf einen nicht existierenden Namen wäre
+    // beim Build nur eine Warnung und der Cron liefe still ins Leere.
+    experimental: { tasks: true },
+    scheduledTasks: { '0 5 * * *': ['koerperdaten'] },
   },
 
   // Geteilte TS-Module direkt aus ../src importieren (Single Source of Truth fürs

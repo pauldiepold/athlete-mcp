@@ -1,5 +1,7 @@
 # athlete-mcp: ein Worker, mehrere Kontexte, mandantenfähig
 
+Status: accepted in Teilen — die **Mandantentrennung** ist von [ADR-0007](./0007-oauth-identitaet-statt-url-secrets-ein-deployable.md) abgelöst: kein Pfad-Secret mehr in der URL, kein manuelles Provisionieren, kein `McpAgent`/Durable Object. Was gilt, ist der Schnitt selbst — **ein Endpunkt, mehrere Kontexte als getrennte Bounded Contexts**, Per-Athleten-Credentials im KV unter `user:<id>:<context>` und die Risikolage der Klartext-Credentials.
+
 Aus dem Single-Purpose-Server `finalsurge-mcp` wird **athlete-mcp**: ein Cloudflare-Worker mit *einer* MCP-URL, der mehrere unabhängige Read-Connectoren (heute Final Surge = Plan, Garmin = Körperdaten) als getrennte Bounded Contexts bündelt (`CONTEXT-MAP.md` + `src/<context>/`). Wir haben das einer zweiten, separaten MCP-URL vorgezogen, weil der Nutzer genau *einen* Endpunkt in seinen Chats haben will und die Server-Shell (`McpAgent`, KV-Auth-Cache, Pfad-Secret) ohnehin generisch ist.
 
 ## Considered Options
@@ -11,5 +13,6 @@ Aus dem Single-Purpose-Server `finalsurge-mcp` wird **athlete-mcp**: ein Cloudfl
 
 - **Mandantenfähig, aber manuell provisioniert.** Ein Pfad-Secret in der URL (`/{secret}/mcp`) identifiziert den Nutzer; `pathsecret → userId` und alle Per-Nutzer-Credentials/Tokens liegen im KV (`user:<id>:<context>`). Kein Self-Service-Onboarding — Paul legt die KV-Einträge pro Freund von Hand an (lokaler Login, dann `wrangler kv key put`).
 - **Credentials liegen im Klartext im KV.** Bewusst keine App-Layer-Verschlüsselung (kein `MASTER_KEY`), da nur Paul Account-Zugriff hat. Bei mehr Betreibern neu zu bewerten.
+  **Nachtrag:** Der Trigger war falsch geraten — nicht *mehr Betreiber* ändert die Risikolage, sondern **Self-Service-Onboarding** ([ADR-0007](./0007-oauth-identitaet-statt-url-secrets-ein-deployable.md)): dann tippt ein Fremder sein Final-Surge-Passwort in ein Webformular statt es Paul persönlich zu geben. Betrifft nur Final Surge (Garmin hält bloß einen Refresh-Token). Klartext bleibt bis auf Weiteres bewusst bestehen, siehe Issue #35.
 - **Asymmetrisches Auth-Artefakt je Connector.** Final Surge re-loggt sich im Worker → Passwort muss im KV liegen. Garmin nutzt einen Refresh-Token → kein Passwort im Backend. Siehe [Garmin-ADR-0001](../../src/garmin/docs/adr/0001-koerperdaten-live-api-archive-first.md).
 - **Rename mit Folgen:** Repo, `McpServer`-Name und globale Env-Secrets ziehen mit. Die bestehende Plan-vs-Ist-Entscheidung bleibt auf den Final-Surge-Kontext beschränkt ([src/finalsurge/docs/adr/0001](../../src/finalsurge/docs/adr/0001-nur-plan-keine-ist-daten.md)).

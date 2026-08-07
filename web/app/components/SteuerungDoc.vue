@@ -5,8 +5,6 @@
 // MarkdownEditor (Split + Sync-Scroll). Gespeichert wird byte-genau das getippte Markdown gegen
 // `endpoint` (PUT, Last-Write-Wins, ADR-0004); die Seiten liefern nur die geladenen Daten.
 const props = defineProps<{
-  user: string
-  secret: string
   wochen: string[]
   currentKw?: string
   title: string
@@ -44,8 +42,6 @@ async function save() {
        der Editor die Höhe bekommt und die Fußzeile trotzdem unten bleibt. -->
   <div class="flex min-h-0 flex-1 flex-col">
     <AthletHeader
-      :user="user"
-      :secret="secret"
       bereich="steuerung"
       :wochen="wochen"
       :current-kw="currentKw"

@@ -23,6 +23,10 @@ Was ein einzelner Marker zum Körperdaten-Index eines Tages beisteuert: seine Pu
 Die letzten 14 Tage, die der tägliche Cron bei jedem Lauf auf fehlende Archivzeilen prüft und nachholt — der Mechanismus, der die Historie lückenlos hält, ohne dass jemand eingreifen muss. Kostet im Normalbetrieb nichts, weil ein vorhandener Tag nicht abgerufen wird. Ausdrücklich **begrenzt**: was länger zurückliegt, ist Sache eines bewussten Backfill-Laufs, nicht eines immer größeren Fensters. Siehe [ADR-0003](./docs/adr/0003-koerperdaten-cron-nachlauffenster.md).
 _Vermeide_: Retry, Backfill (der ist der manuelle, unbegrenzte Lauf)
 
+**Erstbefüllung**:
+Die letzten 30 Tage Körperdaten, die direkt nach dem Herstellen der Garmin-Verbindung **im Hintergrund** geholt werden (`waitUntil`), damit das Dashboard nicht bis zum nächsten Cron-Lauf um 5 Uhr leer bleibt. Sie füllt den Bereich, den ein neues Konto noch gar nicht hat — anders als das *Nachlauffenster* frischt sie nichts auf: **ein Tag mit Archivzeile wird nie erneut abgerufen**, auch heute nicht. Weil ein Hintergrundlauf keine Zustellgarantie hat, ist sie vom Athleten **wiederholbar** und hinterlässt einen beobachtbaren Zustand (`user:<id>:garmin:erstbefuellung`: `laeuft` / `fertig` / `gescheitert`) — ohne den wäre „lädt gerade" von „verbunden, aber leer" nicht zu unterscheiden, und ein zweiter Lauf liefe in ein ratelimitetes Garmin. Ein *laufender* Zustand sperrt den nächsten und läuft nach 15 Minuten von selbst ab, damit ein verschwundener Lauf das Konto nicht dauerhaft blockiert. Sequentiell mit Pause wie jeder Garmin-Lauf.
+_Vermeide_: Backfill (das ist das lokale CLI), Nachlauf, Import, Sync
+
 **Leerer Tag**:
 Eine Archivzeile, deren sämtliche Blöcke `null` sind — Garmin wurde gefragt und hatte für diesen Tag nichts (keine Uhr getragen). Zu unterscheiden von der **fehlenden** Zeile, bei der niemand nachgesehen hat: die eine beendet das Nachfragen, die andere löst es aus. Weil eine spät synchronisierte Uhr denselben Zustand erzeugt, wird ein leerer Tag noch 3 Tage lang erneut angefragt und danach geglaubt.
 _Vermeide_: Lücke (für die leere Zeile), fehlender Tag
@@ -50,3 +54,15 @@ _Vermeide_: Kalenderwoche (mehrdeutig zwischen Nummer und Schlüssel), KW-Nummer
 
 **Body-Battery-Bilanz**:
 Geladen minus verbraucht über einen Tag. Positiv an einem Ladetag, negativ an einem Zehrtag. Fehlt eine der beiden Seiten, ist die Bilanz eine Lücke — eine fehlende Seite als Null zu rechnen würde einen Tag erfinden.
+
+**SSO-Widget-Flow**:
+Der eine Weg, auf dem sich dieses System bei Garmin anmeldet: `/sso/embed` → `/sso/signin` mit CSRF-Token → Service-Ticket → Tausch bei `diauth.garmin.com`. **Nicht** der OAuth1-Pfad aus älteren Notizen und nicht der Mobile- oder Portal-Pfad — Spike #38 hat alle fünf Strategien einzeln vermessen: Mobile läuft dauerhaft in ein clientId-Rate-Limit (429), Portal in Cloudflare (403/CAPTCHA). Nur der Widget-Flow trägt, und zwar ohne TLS-Impersonation (27/27 Läufe, im Mittel 3,75 s). Der Ticket-Tausch ist ein Form-POST; Consumer-Key und Signierung entfallen vollständig. Ausdrücklich **inoffiziell und brechbar** — deshalb liegt der Teil, der bricht (das Lesen der HTML-Antworten), als reine Funktionen unter Test.
+_Vermeide_: Garmin-OAuth, Garmin-Login-API
+
+**DI-Bündel**:
+`di_token`, `di_refresh_token` und `di_client_id` — das Einzige, was von einer Garmin-Anmeldung gespeichert wird (`user:<id>:garmin`). Die **Zugangsdaten werden nie abgelegt**, auch nicht verschlüsselt und auch nicht für die Dauer einer offenen MFA-Abfrage: Sie werden einmal durchgereicht, danach erneuert der Refresh-Token. Der `display_name` liegt daneben (`…:garmin:profile`) und nicht mit im Bündel, weil der Refresh es komplett neu schreibt.
+_Vermeide_: Garmin-Credentials, Token (ohne Angabe, welches)
+
+**MFA-Zwischenzustand**:
+Cookies, das **frische** `_csrf` der MFA-Seite und der Referer einer offenen Zwei-Faktor-Abfrage — rund 1 kB JSON, das zwischen zwei HTTP-Requests des Athleten unter einem opaken Handle im KV liegt (`garmin:mfa:<handle>`, 10 Minuten, beim Einlösen gelöscht, an das Konto gebunden). Er existiert, weil der Worker keinen Prozess hat, der überlebt, während jemand in seine Authenticator-App schaut. Das CSRF-Token ist ein anderes als das der Signin-Seite; nähme der zweite Schritt das alte, sähe der Fehlschlag nach „falscher Code" aus.
+_Vermeide_: MFA-Session, Login-State
