@@ -124,9 +124,10 @@ useHead({ title: 'Einstellungen' })
           v-if="verbindungVon('finalsurge')"
           :verbindung="verbindungVon('finalsurge')!"
           wofuer="Der Trainingsplan deines Coaches."
+          :aktualisieren="verbindungFertig"
         >
           <template #default="{ fertig }">
-            <VerbindungFinalSurge @fertig="fertig(); verbindungFertig()" />
+            <VerbindungFinalSurge @fertig="fertig" />
           </template>
         </VerbindungKarte>
 
@@ -134,9 +135,10 @@ useHead({ title: 'Einstellungen' })
           v-if="verbindungVon('garmin')"
           :verbindung="verbindungVon('garmin')!"
           wofuer="Deine täglichen Körperdaten — Schlaf, HRV, Belastung."
+          :aktualisieren="verbindungFertig"
         >
           <template #default="{ fertig }">
-            <VerbindungGarmin @fertig="fertig(); verbindungFertig()" />
+            <VerbindungGarmin @fertig="fertig" />
           </template>
           <template #fuss>
             <ErstbefuellungKnopf />

@@ -133,10 +133,18 @@ const fortschritt = computed(() =>
         <EinrichtungVerbindungsWeg
           :in-einstellungen="inEinstellungen"
           :erledigt="schritt('garmin').erledigt"
-          @fertig="verbindungFertig"
+          :aktualisieren="verbindungFertig"
+          erfolg="Garmin ist verbunden. Deine Körperdaten der letzten 30 Tage holen wir
+            jetzt im Hintergrund — du kannst mit den übrigen Schritten weitermachen."
         >
           <template #default="{ fertig }">
             <VerbindungGarmin @fertig="fertig" />
+          </template>
+          <!-- Der laufende Abruf im Schritt selbst: Er dauert etwa eine Minute, und wer
+               gerade verbunden hat, schaut genau hierhin. Derselbe Streifen wie unter
+               der Garmin-Karte in den Einstellungen — es ist derselbe Lauf. -->
+          <template #nachlauf>
+            <ErstbefuellungKnopf />
           </template>
         </EinrichtungVerbindungsWeg>
       </EinrichtungSchrittZeile>
@@ -155,7 +163,9 @@ const fortschritt = computed(() =>
         <EinrichtungVerbindungsWeg
           :in-einstellungen="inEinstellungen"
           :erledigt="schritt('finalsurge').erledigt"
-          @fertig="verbindungFertig"
+          :aktualisieren="verbindungFertig"
+          erfolg="Final Surge ist verbunden. Der Plan deines Coaches steht deinem
+            Trainingsbuch ab jetzt zur Verfügung."
         >
           <template #default="{ fertig }">
             <VerbindungFinalSurge @fertig="fertig" />

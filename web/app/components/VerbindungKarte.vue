@@ -23,6 +23,11 @@ const props = defineProps<{
   verbindung: Verbindung
   /** Wozu diese Datenquelle gut ist — ein Satz, keine Werbung. */
   wofuer: string
+  /**
+   * Was nach dem Verbinden nachgezogen wird. Wird **abgewartet**: Solange es läuft,
+   * steht an der Stelle des Formulars der Spinner und nicht wieder das Formular.
+   */
+  aktualisieren: () => Promise<void>
 }>()
 
 const offen = ref(props.verbindung.zustand !== 'verbunden')
@@ -49,10 +54,24 @@ function alsDatum(iso: string): string {
   return `${tag}.${monat}.${jahr}`
 }
 
-// Nach einem geglückten Verbinden schließt sich das Formular wieder; die Seite lädt
-// den Zustand neu und die Karte zeigt das Ergebnis.
-function fertig() {
-  offen.value = false
+/**
+ * Nach einem geglückten Verbinden schließt sich das Formular wieder; die Seite lädt den
+ * Zustand neu und die Karte zeigt das Ergebnis.
+ *
+ * Dazwischen der Spinner, und zwar **an der Stelle des Formulars**: Garmins zweiter
+ * Schritt fällt nach dem eingelösten Code auf seinen ersten zurück, und wer in dieser
+ * Lücke wieder ein leeres Anmeldeformular sieht, hält das Verbinden für gescheitert.
+ */
+const aktualisiertGerade = ref(false)
+
+async function fertig() {
+  aktualisiertGerade.value = true
+  try {
+    await props.aktualisieren()
+  } finally {
+    aktualisiertGerade.value = false
+    offen.value = false
+  }
 }
 
 const slots = useSlots()
@@ -118,7 +137,12 @@ const koerperGefuellt = computed(
       :description="verbindung.meldung ?? undefined"
     />
 
-    <slot v-if="offen" :fertig="fertig" />
+    <div v-if="aktualisiertGerade" class="flex items-center gap-2 text-sm text-muted">
+      <UIcon name="i-lucide-loader-circle" class="size-5 shrink-0 animate-spin" />
+      <p>Geschafft — wir schließen die Verbindung gerade ab.</p>
+    </div>
+
+    <slot v-else-if="offen" :fertig="fertig" />
 
     <!-- Zugeklappt bleibt der Körper leer: Der Knopf steht oben beim Zustand, und eine
          zweite Fläche für dieselbe Handlung wäre nur die Frage, welche gilt. -->

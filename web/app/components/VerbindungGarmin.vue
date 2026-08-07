@@ -23,6 +23,16 @@ const mfaHandle = ref<string | null>(null)
 const sendet = ref(false)
 const fehler = ref<string | null>(null)
 
+/**
+ * Durch — ab hier gehört die Fläche dem, der das Formular eingebettet hat.
+ *
+ * Ohne diesen Zustand fiele das Formular nach dem eingelösten Code auf seinen ersten
+ * Schritt zurück (`mfaHandle` ist wieder leer), und der Athlet sähe für den Moment, in
+ * dem der Zustand nachgeladen wird, wieder das leere Anmeldeformular — als hätte sein
+ * gerade bestätigter Code nichts bewirkt.
+ */
+const abgeschlossen = ref(false)
+
 function vergissZugangsdaten() {
   passwort.value = ''
 }
@@ -56,6 +66,7 @@ function starten() {
       mfaHandle.value = antwort.handle
       return
     }
+    abgeschlossen.value = true
     emit('fertig')
   })
 }
@@ -66,8 +77,8 @@ function codeEinloesen() {
       method: 'POST',
       body: { handle: mfaHandle.value, code: code.value },
     })
-    mfaHandle.value = null
     code.value = ''
+    abgeschlossen.value = true
     emit('fertig')
   })
 }
@@ -83,7 +94,12 @@ function nochmalVonVorn() {
 
 <template>
   <div class="flex flex-col gap-4">
-    <template v-if="mfaHandle">
+    <div v-if="abgeschlossen" class="flex items-center gap-2 text-sm text-muted">
+      <UIcon name="i-lucide-loader-circle" class="size-5 shrink-0 animate-spin" />
+      <p>Geschafft — wir schließen die Verbindung gerade ab.</p>
+    </div>
+
+    <template v-else-if="mfaHandle">
       <form class="flex flex-col gap-4" @submit.prevent="codeEinloesen">
         <p class="text-sm text-muted">
           Garmin hat dir einen Bestätigungscode geschickt. Gib ihn hier ein — er gilt
