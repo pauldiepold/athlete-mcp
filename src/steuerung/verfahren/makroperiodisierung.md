@@ -11,7 +11,7 @@ Der strategische Bogen bis zum Zielrennen. Während die Wochensteuerung die näc
 
 ## Datenquellen
 
-**Kanonische Quelle = `get_training_profile()`.** Immer zuerst lesen — Konfig (Coach/Ziel), Form-Snapshot (Fitness-Kennzahl, jüngste Schlüsselrennen, Stand-Datum), Erholungs-Baseline, strategische Entscheidungen, kompletter Block. **Er ist die Wahrheit, nicht die Erinnerung aus dem Gespräch.** Begleitend `list_weeks()` + `get_week(kw)` für den Verlauf.
+**Kanonische Quelle = `get_training_profile()`.** Immer zuerst lesen — Konfig (Coach/Ziel/Nebenrennen), Form-Snapshot (Fitness-Kennzahl, jüngste Schlüsselrennen, Stand-Datum, Umfang-Median), Rahmen & Verfügbarkeit, Gesundheit & Historie, Erholungs-Baseline, strategische Entscheidungen, kompletter Block. **Rahmen und Gesundheit begrenzen den Bogen:** Ein Block, der mehr Trainingstage oder Umfang voraussetzt als dort steht, ist keine Strategie, sondern ein Wunsch — entweder den Block anpassen oder den Rahmen mit dem Athleten explizit neu verhandeln. **Er ist die Wahrheit, nicht die Erinnerung aus dem Gespräch.** Begleitend `list_weeks()` + `get_week(kw)` für den Verlauf.
 
 Für die Makro-Sicht längere Aktivitäts-Historie ziehen (`list_activities` über Wochen/Monate; Schlüsseleinheiten via `get_activity_performance`/`get_activity_streams`). ⚠️ Aktivitäts-Connectoren liefern Titel + Metriken, **nicht** die private Notiz — Subjektives steht in den Wochen-Keys oder kommt vom Athleten. ⚠️ Ein Coach-Plan kann Einträge **anderer Athleten** enthalten → geplantes ≠ vom Athleten gelaufenes Rennen, bestätigen.
 
