@@ -38,13 +38,18 @@ const laeuft = computed(() => lauf.value?.status === 'laeuft')
  * Der Takt steht bei den Startseiten-Zuständen (`ABFRAGE_INTERVALL_LAEUFT_MS`) und
  * gilt für beide Flächen: Es ist derselbe Lauf, der beobachtet wird, und zwei eigene
  * Intervalle wären zwei Aussagen darüber, wie schnell sich der KV-Zustand ändert.
+ *
+ * Nur im Browser: Beim Serverrendern gäbe es niemanden, dem das Nachfragen etwas
+ * zeigt — Nuxt bricht bei `setInterval` im SSR ab, und `immediate` feuert dort sofort.
  */
-let timer: ReturnType<typeof setInterval> | undefined
-watch(laeuft, (aktiv) => {
-  clearInterval(timer)
-  if (aktiv) timer = setInterval(() => refresh(), ABFRAGE_INTERVALL_LAEUFT_MS)
-}, { immediate: true })
-onBeforeUnmount(() => clearInterval(timer))
+if (import.meta.client) {
+  let timer: ReturnType<typeof setInterval> | undefined
+  watch(laeuft, (aktiv) => {
+    clearInterval(timer)
+    if (aktiv) timer = setInterval(() => refresh(), ABFRAGE_INTERVALL_LAEUFT_MS)
+  }, { immediate: true })
+  onBeforeUnmount(() => clearInterval(timer))
+}
 
 // Was dasteht und was der Knopf anbietet, entscheidet die reine Fassung in
 // `#shared/erstbefuellungKnopf` — die Fall-Reihenfolge ist das Eigentliche daran und

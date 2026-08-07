@@ -119,26 +119,31 @@ export function useStartseitenZustand() {
     ])
   })
 
-  let timer: ReturnType<typeof setInterval> | undefined
-  watch(
-    () => abfrageIntervallMs(zustand.value, pflichtSchrittOffen.value),
-    (ms) => {
-      clearInterval(timer)
-      if (ms !== null) {
-        // Alle drei Abrufe, nicht nur der Stand: Bei offener Einrichtung sind die
-        // Verbindungen **Inhalt** der Liste, und ihr Nachziehen am `zustand`-Watcher
-        // hängen zu lassen ginge genau dort schief — wer im zweiten Tab verbindet,
-        // wechselt den Zustand ja nicht, sondern hakt einen Schritt darin ab.
-        timer = setInterval(() => {
-          refresh()
-          einrichtungNeu()
-          verbindungenNeu()
-        }, ms)
-      }
-    },
-    { immediate: true },
-  )
-  onBeforeUnmount(() => clearInterval(timer))
+  // Nur im Browser: Ein Intervall im SSR-Durchlauf fragt niemanden nach, der noch
+  // zuhört — der Server rendert einmal und ist fertig. Nuxt bricht deshalb ab, wenn
+  // `setInterval` beim Rendern läuft, und der Watcher feuert wegen `immediate` sofort.
+  if (import.meta.client) {
+    let timer: ReturnType<typeof setInterval> | undefined
+    watch(
+      () => abfrageIntervallMs(zustand.value, pflichtSchrittOffen.value),
+      (ms) => {
+        clearInterval(timer)
+        if (ms !== null) {
+          // Alle drei Abrufe, nicht nur der Stand: Bei offener Einrichtung sind die
+          // Verbindungen **Inhalt** der Liste, und ihr Nachziehen am `zustand`-Watcher
+          // hängen zu lassen ginge genau dort schief — wer im zweiten Tab verbindet,
+          // wechselt den Zustand ja nicht, sondern hakt einen Schritt darin ab.
+          timer = setInterval(() => {
+            refresh()
+            einrichtungNeu()
+            verbindungenNeu()
+          }, ms)
+        }
+      },
+      { immediate: true },
+    )
+    onBeforeUnmount(() => clearInterval(timer))
+  }
 
   return {
     zustand,
