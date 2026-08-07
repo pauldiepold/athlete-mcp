@@ -5,12 +5,12 @@ Der strategische Bogen bis zum Zielrennen. Während die Wochensteuerung die näc
 ## Grundprinzip & Arbeitsteilung
 
 - **Verfahren = Arbeitsweise, Store = Fakten.** Ziel, Form, Block, Phase, strategische Entscheidungen, Baseline und Konfig stehen **ausschließlich im Steuerungs-Store**, nie in diesem Text.
-- **Dies ist der eigentliche Editor des Steuerungsplans.** Hier wird die **Struktur** gebaut und umgebaut: Block, Phasengrenzen, strategische Entscheidungen, Form-Neukalibrierung über den Saisonbogen. (Die Wochensteuerung (`get_verfahren_woche`) zieht zwischendurch nur Snapshot-*Zahlen* nach.) Seltener aufgerufen als die Wochensteuerung, dafür tiefer.
-- **Leerer Steuerungsplan?** Dann ist noch kein Bogen da, den man periodisieren könnte — erst das Onboarding (`get_verfahren_onboarding`).
+- **Dies ist der eigentliche Editor des Steuerungsplans.** Hier wird die **Struktur** gebaut und umgebaut: Block, Phasengrenzen, strategische Entscheidungen, Form-Neukalibrierung über den Saisonbogen. (Die Wochensteuerung (`get_playbook_week`) zieht zwischendurch nur Snapshot-*Zahlen* nach.) Seltener aufgerufen als die Wochensteuerung, dafür tiefer.
+- **Leerer Steuerungsplan?** Dann ist noch kein Bogen da, den man periodisieren könnte — erst das Onboarding (`get_playbook_onboarding`).
 
 ## Datenquellen
 
-**Kanonische Quelle = `get_steuerungsplan()`.** Immer zuerst lesen — Konfig (Coach/Ziel), Form-Snapshot (Fitness-Kennzahl, jüngste Schlüsselrennen, Stand-Datum), Erholungs-Baseline, strategische Entscheidungen, kompletter Block. **Er ist die Wahrheit, nicht die Erinnerung aus dem Gespräch.** Begleitend `list_wochen()` + `get_woche(kw)` für den Verlauf.
+**Kanonische Quelle = `get_training_profile()`.** Immer zuerst lesen — Konfig (Coach/Ziel), Form-Snapshot (Fitness-Kennzahl, jüngste Schlüsselrennen, Stand-Datum), Erholungs-Baseline, strategische Entscheidungen, kompletter Block. **Er ist die Wahrheit, nicht die Erinnerung aus dem Gespräch.** Begleitend `list_weeks()` + `get_week(kw)` für den Verlauf.
 
 Für die Makro-Sicht längere Aktivitäts-Historie ziehen (`list_activities` über Wochen/Monate; Schlüsseleinheiten via `get_activity_performance`/`get_activity_streams`). ⚠️ Aktivitäts-Connectoren liefern Titel + Metriken, **nicht** die private Notiz — Subjektives steht in den Wochen-Keys oder kommt vom Athleten. ⚠️ Ein Coach-Plan kann Einträge **anderer Athleten** enthalten → geplantes ≠ vom Athleten gelaufenes Rennen, bestätigen.
 
@@ -18,7 +18,7 @@ Pace immer in **min/km** (`M:SS/km`), nie m/s oder km/h; aus m/s: `60 / (m_pro_s
 
 ## Plan pflegen (Whole-Object)
 
-Schreiben über `set_steuerungsplan(content)` — **immer den ganzen Plan neu bauen**, nichts verlieren (kein Append/Marker/Prepend). Bei einem neueren aussagekräftigen Rennen/Workout den **Form-Snapshot aktualisieren** statt veraltete Zahlen fortzuschreiben, plus **Änderungslog-Zeile mit Datum**. Strukturelle Umbauten (Block, Phasen, Strategie) gehören hierher, nicht in die Wochensteuerung.
+Schreiben über `set_training_profile(content)` — **immer den ganzen Plan neu bauen**, nichts verlieren (kein Append/Marker/Prepend). Bei einem neueren aussagekräftigen Rennen/Workout den **Form-Snapshot aktualisieren** statt veraltete Zahlen fortzuschreiben, plus **Änderungslog-Zeile mit Datum**. Strukturelle Umbauten (Block, Phasen, Strategie) gehören hierher, nicht in die Wochensteuerung.
 
 ## Phasenmodell (Orientierung, nicht Dogma)
 
@@ -52,7 +52,7 @@ Beim Makro-Check: Tauchen diese Bausteine im Block auf, in **steigender Spezifit
 
 ## Körperdaten-Baseline-Drift (chronischer Trend)
 
-Hier zählt der **chronische Trend** über Wochen/Monate (`get_koerperdaten_range` über längere Zeiträume), nicht die akute Tagesform.
+Hier zählt der **chronische Trend** über Wochen/Monate (`get_body_metrics_range` über längere Zeiträume), nicht die akute Tagesform.
 - **HRV-Baseline-Drift:** Wandert das HRV-Wochenmittel über die Wochen nach oben (Adaptation) oder schleichend nach unten (Eingraben)? Beim Volumen-Sprung in den Block das zentrale Frühwarnsystem.
 - **Chronischer RHR-Trend:** Bleibt der Ruhepuls bei steigendem Umfang stabil auf Baseline oder driftet er dauerhaft nach oben?
 

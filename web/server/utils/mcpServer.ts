@@ -52,7 +52,7 @@ export interface McpKontext {
   db: D1Database
   /**
    * Die Origin dieses Requests (`https://…`, ohne Schrägstrich am Ende) — die Basis
-   * der von `get_dashboard_link` ausgegebenen Browser-Links. Seit ADR-0007 liegen
+   * der von `get_web_links` ausgegebenen Browser-Links. Seit ADR-0007 liegen
    * MCP-Endpunkt und Weboberfläche auf **derselben** Origin, also ist sie ableitbar
    * statt konfiguriert; `WEB_BASE_URL` ist damit entfallen.
    */
@@ -140,6 +140,7 @@ function registerFinalSurge(server: McpServer, { userId, kv, origin }: McpKontex
   server.registerTool(
     'get_planned_workouts',
     {
+      title: 'Coach-Plan (Zeitraum)',
       description: `Geplante Workouts für einen expliziten Datumsbereich. ${PLAN_HINT}`,
       inputSchema: {
         start_date: z.string().describe('Startdatum YYYY-MM-DD (inklusive)'),
@@ -152,6 +153,7 @@ function registerFinalSurge(server: McpServer, { userId, kv, origin }: McpKontex
   server.registerTool(
     'get_upcoming_workouts',
     {
+      title: 'Coach-Plan (nächste Tage)',
       description: `Die nächsten N Tage geplanter Workouts (heute inklusive). ${PLAN_HINT}`,
       inputSchema: {
         days: z
@@ -224,8 +226,9 @@ function registerGarmin(server: McpServer, { userId, kv, db, origin }: McpKontex
   }
 
   server.registerTool(
-    'get_koerperdaten',
+    'get_body_metrics',
     {
+      title: 'Körperdaten (Tag)',
       description: `Körperdaten für ein explizites Datum (archive-first; heute und gestern immer live). ${BODY_HINT}`,
       inputSchema: { date: z.string().describe('Datum YYYY-MM-DD') },
     },
@@ -233,8 +236,9 @@ function registerGarmin(server: McpServer, { userId, kv, db, origin }: McpKontex
   )
 
   server.registerTool(
-    'get_koerperdaten_range',
+    'get_body_metrics_range',
     {
+      title: 'Körperdaten (Zeitraum)',
       description: `Körperdaten für einen Datumsbereich (archive-first; heute und gestern immer live). ${BODY_HINT}`,
       inputSchema: {
         start_date: z.string().describe('Startdatum YYYY-MM-DD (inklusive)'),
@@ -251,8 +255,9 @@ function registerSteuerung(server: McpServer, { userId, db }: McpKontext): void 
   const ok = text('ok')
 
   server.registerTool(
-    'get_steuerungsplan',
+    'get_training_profile',
     {
+      title: 'Grundlagen lesen',
       description: `Liefert den Steuerungsplan als rohes Markdown (leer, wenn noch keiner gesetzt). ${STEUERUNG_HINT}`,
       inputSchema: {},
     },
@@ -260,8 +265,9 @@ function registerSteuerung(server: McpServer, { userId, db }: McpKontext): void 
   )
 
   server.registerTool(
-    'set_steuerungsplan',
+    'set_training_profile',
     {
+      title: 'Grundlagen schreiben',
       description: `Überschreibt den GESAMTEN Steuerungsplan mit dem übergebenen Markdown. ${STEUERUNG_HINT}`,
       inputSchema: {
         content: z.string().describe('Der vollständige Steuerungsplan als Markdown'),
@@ -274,8 +280,9 @@ function registerSteuerung(server: McpServer, { userId, db }: McpKontext): void 
   )
 
   server.registerTool(
-    'list_wochen',
+    'list_weeks',
     {
+      title: 'Wochen auflisten',
       description: `Listet die vorhandenen Wochen-Keys (kw, aufsteigend; leer bei keinem Eintrag). ${STEUERUNG_HINT}`,
       inputSchema: {},
     },
@@ -283,8 +290,9 @@ function registerSteuerung(server: McpServer, { userId, db }: McpKontext): void 
   )
 
   server.registerTool(
-    'get_woche',
+    'get_week',
     {
+      title: 'Woche lesen',
       description: `Liefert eine Woche als rohes Markdown (leer, wenn die kw nicht existiert). ${STEUERUNG_HINT}`,
       inputSchema: { kw: KW_SCHEMA },
     },
@@ -292,8 +300,9 @@ function registerSteuerung(server: McpServer, { userId, db }: McpKontext): void 
   )
 
   server.registerTool(
-    'set_woche',
+    'set_week',
     {
+      title: 'Woche schreiben',
       description: `Überschreibt eine spezifische Woche komplett mit dem übergebenen Markdown (legt sie an, falls neu). ${STEUERUNG_HINT}`,
       inputSchema: {
         kw: KW_SCHEMA,
@@ -315,25 +324,25 @@ function registerSteuerung(server: McpServer, { userId, db }: McpKontext): void 
  * eine Fläche unter festen Pfaden; wer dort was sieht, entscheidet die Session im
  * Browser. Damit fällt auch der Fall „für diesen Nutzer ist keine Fläche eingerichtet"
  * weg: Es gibt für jeden Athleten eine.
+ *
+ * Die Antwort trägt **benannte Felder** statt einer Prosa-Liste (Issue #58): Es sind
+ * vier Links, und die Verfahrenstexte schicken den Athleten mal in die Einstellungen,
+ * mal auf die Steuerung. Über einen Feldnamen greift ein Verfahren genau den, den es
+ * meint; aus einer Aufzählung müsste das Modell ihn raten.
  */
 function registerDashboard(server: McpServer, { origin }: McpKontext): void {
   server.registerTool(
-    'get_dashboard_link',
+    'get_web_links',
     {
-      description: `Liefert den Browser-Link des Athleten zu seinem Körperdaten-Dashboard. ${DASHBOARD_HINT}`,
+      title: 'Links zur Weboberfläche',
+      description:
+        'Liefert die Links zur Weboberfläche des Athleten als JSON-Objekt mit benannten '
+        + 'Feldern: `dashboard` (Körperdaten-Verläufe), `steuerung` (Plan + Wochen), '
+        + '`tagVorlage` (Tages-Detail; `YYYY-MM-DD` durch das Datum ersetzen) und '
+        + `\`einrichtung\` (Einstellungen: Profil + Verbindungen). ${DASHBOARD_HINT}`,
       inputSchema: {},
     },
-    () => {
-      const links = buildDashboardLinks(origin)
-      return text(
-        [
-          `Dashboard (Körperdaten-Verläufe): ${links.dashboard}`,
-          `Steuerung (Plan + Wochen): ${links.steuerung}`,
-          `Tages-Detail: ${links.tagVorlage} (Datum einsetzen)`,
-          `Einstellungen (Profil + Verbindungen zu Final Surge und Garmin): ${links.einrichtung}`,
-        ].join('\n'),
-      )
-    },
+    () => text(JSON.stringify(buildDashboardLinks(origin), null, 2)),
   )
 }
 
@@ -362,7 +371,7 @@ const VERFAHREN_WOCHE_BESCHREIBUNG =
   + 'Sonntagabend-Ritual (Rückblick + Entwurf der kommenden Woche). Auch aufrufen, '
   + 'wenn der Athlet nur beiläufig über seine Woche, eine konkrete Einheit oder seine '
   + 'aktuelle Belastung spricht. Für die langfristige Periodisierung Richtung '
-  + 'Zielrennen stattdessen get_verfahren_makro aufrufen.'
+  + 'Zielrennen stattdessen get_playbook_season aufrufen.'
 
 const VERFAHREN_MAKRO_BESCHREIBUNG =
   'Strategische Langzeit-Periodisierung fürs Lauftraining dieses Athleten Richtung '
@@ -373,7 +382,7 @@ const VERFAHREN_MAKRO_BESCHREIBUNG =
   + 'Formtrend über Wochen/Monate, oder zur Frage, wie sich ein Coach-/Team-Plan zum '
   + 'eigenen Renn-Ziel verhält. Auch aufrufen bei einem monatlichen/periodischen '
   + 'Strategie-Check oder beim Nachdenken über den Gesamtbogen der Saison. Für die '
-  + 'konkrete laufende Woche und Tagessteuerung stattdessen get_verfahren_woche '
+  + 'konkrete laufende Woche und Tagessteuerung stattdessen get_playbook_week '
   + 'aufrufen.'
 
 /**
@@ -396,25 +405,25 @@ const VERFAHREN_ONBOARDING_BESCHREIBUNG =
   + '– oder gleichbedeutend darum bittet, ihn einzurichten bzw. mit der Trainings'
   + 'steuerung anzufangen. Nicht aufrufen bei einer bloßen Begrüßung, bei allgemeinen '
   + 'Fragen zu diesem Connector und nicht bei gewöhnlichen Trainingsfragen – dafür sind '
-  + 'get_verfahren_woche und get_verfahren_makro da; fehlt dem Athleten die Grundlage, '
+  + 'get_playbook_week und get_playbook_season da; fehlt dem Athleten die Grundlage, '
   + 'schicken die beiden von sich aus hierher.'
 
 function registerVerfahren(server: McpServer): void {
   server.registerTool(
-    'get_verfahren_woche',
-    { description: VERFAHREN_WOCHE_BESCHREIBUNG, inputSchema: {} },
+    'get_playbook_week',
+    { title: 'Arbeitsweise: Woche', description: VERFAHREN_WOCHE_BESCHREIBUNG, inputSchema: {} },
     () => text(verfahrenWoche),
   )
 
   server.registerTool(
-    'get_verfahren_makro',
-    { description: VERFAHREN_MAKRO_BESCHREIBUNG, inputSchema: {} },
+    'get_playbook_season',
+    { title: 'Arbeitsweise: Saison', description: VERFAHREN_MAKRO_BESCHREIBUNG, inputSchema: {} },
     () => text(verfahrenMakro),
   )
 
   server.registerTool(
-    'get_verfahren_onboarding',
-    { description: VERFAHREN_ONBOARDING_BESCHREIBUNG, inputSchema: {} },
+    'get_playbook_onboarding',
+    { title: 'Arbeitsweise: Einstieg', description: VERFAHREN_ONBOARDING_BESCHREIBUNG, inputSchema: {} },
     () => text(verfahrenOnboarding),
   )
 }

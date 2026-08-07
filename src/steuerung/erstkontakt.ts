@@ -3,7 +3,7 @@
  *
  * Er steht an **einer** Stelle, weil ihn zwei Seiten brauchen: Die Einrichtung im
  * Browser bietet ihn zum Kopieren an, und die `description` von
- * `get_verfahren_onboarding` nennt ihn wörtlich als ihren Auslöser. Driften die
+ * `get_playbook_onboarding` nennt ihn wörtlich als ihren Auslöser. Driften die
  * beiden auseinander, tippt der Athlet einen Satz, auf den nichts mehr zielt — und
  * merkt es nicht, weil Claude trotzdem irgendetwas antwortet.
  *

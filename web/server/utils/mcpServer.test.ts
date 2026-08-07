@@ -9,28 +9,35 @@ import type { McpKontext } from './mcpServer'
 
 /**
  * Der Vertrag, den der Athlet in Claude sieht: **welche** Tools es gibt, wie sie
- * heißen und welche Argumente sie verlangen.
+ * heißen, wie sie im Chat angezeigt werden und welche Argumente sie verlangen.
  *
  * Diese Liste ist der Grund für den Test. Beim Umzug aus dem Durable Object in die
  * Nitro-Route (ADR-0007) wurde jede Registrierung von Hand übertragen — ein dabei
  * verlorenes Tool oder ein verrutschtes Pflichtfeld hätte sich erst gezeigt, wenn ein
  * Skill im Chat ins Leere greift. Die Beschreibungstexte sind bewusst nicht
  * mitgeprüft: sie sind Prosa und dürfen sich ändern, ohne dass ein Test bricht.
+ *
+ * Namen und Titel dagegen schon (Issue #58): Der **Name** ist Prompt-Material, an dem
+ * das Modell auswählt, und er ist durchgängig englisch — eine halb übersetzte Liste
+ * liest sich wie zwei Server. Das **`title`** ist, was der Athlet im Chat sieht, und
+ * damit durchgängig deutsch. Beides ist außerdem festgenagelt, weil eine Umbenennung
+ * ohne `tools/list_changed` (kein Durable Object) jeden Athleten zwingt, seinen
+ * Connector neu einzurichten.
  */
 const ERWARTETE_TOOLS = [
-  { name: 'get_planned_workouts', required: ['start_date', 'end_date'] },
-  { name: 'get_upcoming_workouts', required: [] },
-  { name: 'get_koerperdaten', required: ['date'] },
-  { name: 'get_koerperdaten_range', required: ['start_date', 'end_date'] },
-  { name: 'get_steuerungsplan', required: [] },
-  { name: 'set_steuerungsplan', required: ['content'] },
-  { name: 'list_wochen', required: [] },
-  { name: 'get_woche', required: ['kw'] },
-  { name: 'set_woche', required: ['kw', 'content'] },
-  { name: 'get_dashboard_link', required: [] },
-  { name: 'get_verfahren_woche', required: [] },
-  { name: 'get_verfahren_makro', required: [] },
-  { name: 'get_verfahren_onboarding', required: [] },
+  { name: 'get_planned_workouts', title: 'Coach-Plan (Zeitraum)', required: ['start_date', 'end_date'] },
+  { name: 'get_upcoming_workouts', title: 'Coach-Plan (nächste Tage)', required: [] },
+  { name: 'get_body_metrics', title: 'Körperdaten (Tag)', required: ['date'] },
+  { name: 'get_body_metrics_range', title: 'Körperdaten (Zeitraum)', required: ['start_date', 'end_date'] },
+  { name: 'get_training_profile', title: 'Grundlagen lesen', required: [] },
+  { name: 'set_training_profile', title: 'Grundlagen schreiben', required: ['content'] },
+  { name: 'list_weeks', title: 'Wochen auflisten', required: [] },
+  { name: 'get_week', title: 'Woche lesen', required: ['kw'] },
+  { name: 'set_week', title: 'Woche schreiben', required: ['kw', 'content'] },
+  { name: 'get_web_links', title: 'Links zur Weboberfläche', required: [] },
+  { name: 'get_playbook_week', title: 'Arbeitsweise: Woche', required: [] },
+  { name: 'get_playbook_season', title: 'Arbeitsweise: Saison', required: [] },
+  { name: 'get_playbook_onboarding', title: 'Arbeitsweise: Einstieg', required: [] },
 ]
 
 /**
@@ -97,6 +104,15 @@ describe('buildMcpServer', () => {
     expect(tools.map((t) => t.name)).toEqual(ERWARTETE_TOOLS.map((t) => t.name))
   })
 
+  it('zeigt je Tool den erwarteten deutschen Titel', async () => {
+    // Der Name trägt die Auswahl des Modells, der Titel das, was der Athlet liest.
+    const { tools } = await (await verbinde()).listTools()
+
+    for (const { name, title } of ERWARTETE_TOOLS) {
+      expect(tools.find((t) => t.name === name)!.title, name).toBe(title)
+    }
+  })
+
   it('verlangt je Tool genau die erwarteten Pflichtargumente', async () => {
     const { tools } = await (await verbinde()).listTools()
 
@@ -131,9 +147,9 @@ describe('buildMcpServer', () => {
  */
 describe('Verfahrens-Tools', () => {
   const VERFAHREN = [
-    { name: 'get_verfahren_woche', ueberschrift: '# Verfahren: Wochensteuerung' },
-    { name: 'get_verfahren_makro', ueberschrift: '# Verfahren: Makroperiodisierung' },
-    { name: 'get_verfahren_onboarding', ueberschrift: '# Verfahren: Onboarding' },
+    { name: 'get_playbook_week', ueberschrift: '# Verfahren: Wochensteuerung' },
+    { name: 'get_playbook_season', ueberschrift: '# Verfahren: Makroperiodisierung' },
+    { name: 'get_playbook_onboarding', ueberschrift: '# Verfahren: Onboarding' },
   ]
 
   for (const { name, ueberschrift } of VERFAHREN) {
@@ -174,10 +190,10 @@ describe('Verfahrens-Tools', () => {
     const { tools } = await (await verbinde()).listTools()
     const beschreibung = (name: string) => tools.find((t) => t.name === name)!.description!
 
-    expect(beschreibung('get_verfahren_woche')).toContain('Was steht heute')
-    expect(beschreibung('get_verfahren_woche')).toContain('get_verfahren_makro')
-    expect(beschreibung('get_verfahren_makro')).toContain('auf Kurs für mein Ziel')
-    expect(beschreibung('get_verfahren_makro')).toContain('get_verfahren_woche')
+    expect(beschreibung('get_playbook_week')).toContain('Was steht heute')
+    expect(beschreibung('get_playbook_week')).toContain('get_playbook_season')
+    expect(beschreibung('get_playbook_season')).toContain('auf Kurs für mein Ziel')
+    expect(beschreibung('get_playbook_season')).toContain('get_playbook_week')
   })
 
   it('trennt das Onboarding von beiden — es zielt auf den Erstkontakt-Satz', async () => {
@@ -186,21 +202,21 @@ describe('Verfahrens-Tools', () => {
     // Kopieren anbietet — ein Onboarding, das bei jedem „Hallo" anspringt, wäre für
     // alle anderen eine Plage.
     const { tools } = await (await verbinde()).listTools()
-    const beschreibung = tools.find((t) => t.name === 'get_verfahren_onboarding')!.description!
+    const beschreibung = tools.find((t) => t.name === 'get_playbook_onboarding')!.description!
 
     expect(beschreibung).toContain(ERSTKONTAKT_SATZ)
     expect(beschreibung).toContain('Nicht aufrufen')
     // Und es verweist die gewöhnlichen Trainingsfragen weiter, statt mit den beiden
     // laufenden Verfahren um sie zu konkurrieren.
-    expect(beschreibung).toContain('get_verfahren_woche')
-    expect(beschreibung).toContain('get_verfahren_makro')
+    expect(beschreibung).toContain('get_playbook_week')
+    expect(beschreibung).toContain('get_playbook_season')
   })
 
   it('interviewt im Wochenverfahren nicht selbst, sondern verweist aufs Onboarding', async () => {
     // Ein leerer Steuerungsplan ist das Signal „noch nicht onboarded" — dafür gibt es
     // ein eigenes Verfahren (Issue #50), nicht eine zweite Fassung desselben Interviews.
     const text = textVon(
-      await (await verbinde()).callTool({ name: 'get_verfahren_woche', arguments: {} }),
+      await (await verbinde()).callTool({ name: 'get_playbook_week', arguments: {} }),
     )
 
     expect(text).toContain('Onboarding')
@@ -220,7 +236,7 @@ describe('Verfahren: Onboarding', () => {
   const onboarding = async () =>
     textVon(
       await (await verbinde()).callTool({
-        name: 'get_verfahren_onboarding',
+        name: 'get_playbook_onboarding',
         arguments: {},
       }),
     )
@@ -228,10 +244,10 @@ describe('Verfahren: Onboarding', () => {
   it('liest den Verbindungs- und Planzustand über die vorhandenen Tools', async () => {
     const text = await onboarding()
 
-    expect(text).toContain('get_steuerungsplan')
-    expect(text).toContain('get_koerperdaten_range')
+    expect(text).toContain('get_training_profile')
+    expect(text).toContain('get_body_metrics_range')
     expect(text).toContain('get_upcoming_workouts')
-    expect(text).toContain('get_dashboard_link')
+    expect(text).toContain('get_web_links')
   })
 
   it('fragt unter keinen Umständen nach Zugangsdaten, sondern verlinkt in die Einstellungen', async () => {
@@ -254,7 +270,7 @@ describe('Verfahren: Onboarding', () => {
   it('schreibt am Ende einen Starter-Steuerungsplan — sein Vorhandensein ist das Fertig-Signal', async () => {
     const text = await onboarding()
 
-    expect(text).toContain('set_steuerungsplan')
+    expect(text).toContain('set_training_profile')
     expect(text).toContain('Fertig-Signal')
   })
 
@@ -271,7 +287,7 @@ describe('Verfahren: Onboarding', () => {
     const text = await onboarding()
 
     expect(text).toContain('neuen Chat')
-    expect(text).toContain('get_verfahren_woche')
+    expect(text).toContain('get_playbook_week')
     expect(text).toContain('Erstbefüllung')
   })
 })
@@ -288,8 +304,8 @@ describe('Tools ohne eingerichtete Verbindung', () => {
   const OHNE_VERBINDUNG = [
     { name: 'get_planned_workouts', args: { start_date: '2026-08-01', end_date: '2026-08-07' } },
     { name: 'get_upcoming_workouts', args: {} },
-    { name: 'get_koerperdaten', args: { date: '2026-08-01' } },
-    { name: 'get_koerperdaten_range', args: { start_date: '2026-08-01', end_date: '2026-08-07' } },
+    { name: 'get_body_metrics', args: { date: '2026-08-01' } },
+    { name: 'get_body_metrics_range', args: { start_date: '2026-08-01', end_date: '2026-08-07' } },
   ]
 
   it('bleiben alle registriert — ohne SSE gäbe es kein Nachreichen', async () => {
@@ -328,7 +344,7 @@ describe('Tools ohne eingerichtete Verbindung', () => {
       textVon(await client.callTool({ name: 'get_upcoming_workouts', arguments: {} })),
     ).toContain('Final Surge')
     expect(
-      textVon(await client.callTool({ name: 'get_koerperdaten', arguments: { date: '2026-08-01' } })),
+      textVon(await client.callTool({ name: 'get_body_metrics', arguments: { date: '2026-08-01' } })),
     ).toContain('Garmin')
   })
 
@@ -337,7 +353,7 @@ describe('Tools ohne eingerichtete Verbindung', () => {
     // Sekunde eins nutzbar, auch wenn noch gar nichts verbunden ist.
     const client = await verbinde(kontextOhneVerbindungen())
 
-    const ergebnis = await client.callTool({ name: 'list_wochen', arguments: {} })
+    const ergebnis = await client.callTool({ name: 'list_weeks', arguments: {} })
 
     // D1 ist im Kontext der explodierende Proxy: Dass dieser Aufruf *überhaupt*
     // dorthin durchgeht, ist die Aussage — er wird von keinem Verbindungs-Tor
@@ -346,14 +362,37 @@ describe('Tools ohne eingerichtete Verbindung', () => {
     expect(textVon(ergebnis)).toContain('Bindings')
   })
 
-  it('get_dashboard_link trägt den Einrichtungs-Link', async () => {
+  it('get_web_links trägt den Einrichtungs-Link', async () => {
     const client = await verbinde(kontextOhneVerbindungen())
 
     const antwort = textVon(
-      await client.callTool({ name: 'get_dashboard_link', arguments: {} }),
+      await client.callTool({ name: 'get_web_links', arguments: {} }),
     )
 
     expect(antwort).toContain(`${ORIGIN}/einstellungen`)
     expect(antwort).toContain(`${ORIGIN}/steuerung`)
+  })
+})
+
+/**
+ * `get_web_links` liefert **benannte Felder** (Issue #58).
+ *
+ * Der frühere Name versprach einen Link, es waren immer vier. Die Verfahrenstexte
+ * schicken den Athleten mal in die Einstellungen, mal auf die Steuerung — über einen
+ * Feldnamen greifen sie genau den, den sie meinen, statt ihn aus einer Aufzählung
+ * herauszulesen.
+ */
+describe('get_web_links', () => {
+  it('antwortet mit einem JSON-Objekt, dessen Felder die vier Flächen benennen', async () => {
+    const antwort = textVon(
+      await (await verbinde()).callTool({ name: 'get_web_links', arguments: {} }),
+    )
+
+    expect(JSON.parse(antwort)).toEqual({
+      dashboard: `${ORIGIN}/`,
+      steuerung: `${ORIGIN}/steuerung`,
+      tagVorlage: `${ORIGIN}/tag/YYYY-MM-DD`,
+      einrichtung: `${ORIGIN}/einstellungen`,
+    })
   })
 })

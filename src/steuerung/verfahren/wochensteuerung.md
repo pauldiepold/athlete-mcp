@@ -5,11 +5,11 @@ Taktische Steuerung der Trainingswoche eines Läufers Richtung Zielrennen — in
 ## Grundprinzip & Arbeitsteilung
 
 - **Verfahren = Arbeitsweise, Store = Fakten.** Alles Athleten-Spezifische (Ziel, Form, Paces, Phase, Block, Baseline, Coach-Setup, Einheiten) steht **ausschließlich im Steuerungs-Store**, nie in diesem Text — sonst veraltet er, wenn sich die Form ändert.
-- **Dieses Verfahren besitzt die Wochen-Keys.** Es darf die **Zahlen** im Form-Snapshot des Steuerungsplans nachziehen (neue Anker-Pace nach einem Schlüsselrennen + Änderungslog-Zeile), baut aber **Block/Phase/Strategie nicht um** — das ist Sache des Makro-Verfahrens (`get_verfahren_makro`).
+- **Dieses Verfahren besitzt die Wochen-Keys.** Es darf die **Zahlen** im Form-Snapshot des Steuerungsplans nachziehen (neue Anker-Pace nach einem Schlüsselrennen + Änderungslog-Zeile), baut aber **Block/Phase/Strategie nicht um** — das ist Sache des Makro-Verfahrens (`get_playbook_season`).
 
 ## Leerer Steuerungsplan → erst das Onboarding
 
-**Immer zuerst prüfen:** `get_steuerungsplan()`. Ist er leer (`""`), gibt es keine Grundlage für eine Wochenbewertung — weder Zielrennen noch Phase noch Anker-Paces. Dann greift dieses Verfahren **nicht**: Sag dem Athleten, dass zuerst sein Steuerungsplan entstehen muss, und ruf `get_verfahren_onboarding` auf — das Onboarding ist ein eigenes Verfahren dieses Servers. Hier wird **nicht** selbst interviewt — sonst gäbe es zwei Fassungen desselben Gesprächs.
+**Immer zuerst prüfen:** `get_training_profile()`. Ist er leer (`""`), gibt es keine Grundlage für eine Wochenbewertung — weder Zielrennen noch Phase noch Anker-Paces. Dann greift dieses Verfahren **nicht**: Sag dem Athleten, dass zuerst sein Steuerungsplan entstehen muss, und ruf `get_playbook_onboarding` auf — das Onboarding ist ein eigenes Verfahren dieses Servers. Hier wird **nicht** selbst interviewt — sonst gäbe es zwei Fassungen desselben Gesprächs.
 
 Das Vorhandensein des Steuerungsplans *ist* das Signal „onboarded"; ein Flag daneben gibt es nicht.
 
@@ -18,16 +18,16 @@ Das Vorhandensein des Steuerungsplans *ist* das Signal „onboarded"; ein Flag d
 Alle Daten über **MCP-Tools** (keine lokalen Dateien). Typischer Ablauf: erst Steuerungsplan + letzte Woche(n), dann Coach-Plan (7 Tage) + Ist-Läufe (14 Tage) + Körperdaten, dann antworten.
 
 **Steuerungs-Store:**
-- `get_steuerungsplan()` → **Single Source of Truth.** Immer zuerst lesen. Trägt oben einen **Konfig-Block** (Coach ja/nein + Quelle, Zielrennen) — dem folgen.
-- `list_wochen()` + `get_woche(kw)` → letzte 1–2 Wochen für Kontinuität (Soll/Ist **und** subjektives Feedback — das steht nicht in den Aktivitätsdaten).
-- Schreiben: `set_woche(kw, content)` und `set_steuerungsplan(content)` — beides **Whole-Object** (ganzes Objekt neu, nie Append/Marker/Prepend).
+- `get_training_profile()` → **Single Source of Truth.** Immer zuerst lesen. Trägt oben einen **Konfig-Block** (Coach ja/nein + Quelle, Zielrennen) — dem folgen.
+- `list_weeks()` + `get_week(kw)` → letzte 1–2 Wochen für Kontinuität (Soll/Ist **und** subjektives Feedback — das steht nicht in den Aktivitätsdaten).
+- Schreiben: `set_week(kw, content)` und `set_training_profile(content)` — beides **Whole-Object** (ganzes Objekt neu, nie Append/Marker/Prepend).
 - **Wochen-Key-Konvention:** Ein Key `YYYY-Www` ist die **komplette Akte der Woche** — (B) Entwurf, geschrieben am Sonntag davor, **+** (A) Rückblick, geschrieben am Sonntag des Wochenendes, plus subjektive Notizen. Die Vorschau einer Woche lebt im Key DIESER Woche.
 
 **Coach-Plan (Final Surge, falls vorhanden):** `get_upcoming_workouts` (nächste 7 Tage) bzw. `get_planned_workouts` (expliziter Zeitraum). ⚠️ Kann Einträge **anderer Athleten** enthalten → geplantes Rennen ≠ vom Athleten gelaufenes Rennen, immer bestätigen.
 
 **Ist-Läufe (Strava):** `list_activities` (Rückblick 14 Tage), Schlüsseleinheiten via `get_activity_performance`/`get_activity_streams`, HF-Zonen via `get_athlete_zones`. ⚠️ Liefert meist **nur Titel + Metriken, nicht die private Notiz** — Subjektives kommt aus dem Wochen-Key oder vom Athleten.
 
-**Körperdaten (Garmin):** `get_koerperdaten(date)` / `get_koerperdaten_range(start, end)`. Siehe Erholungs-Overlay.
+**Körperdaten (Garmin):** `get_body_metrics(date)` / `get_body_metrics_range(start, end)`. Siehe Erholungs-Overlay.
 
 Ist eine Datenquelle noch nicht verbunden, sagen ihre Tools das mitsamt dem Link zur Einrichtung — dann mit dem arbeiten, was da ist, und den Link weiterreichen.
 
@@ -63,7 +63,7 @@ Jede Tages-Tabelle einer Woche (Verlauf bzw. Entwurf B) trägt **rechts eine km-
 
 ## Form-Referenz
 
-Die Form steht im **Steuerungsplan** (Form-Snapshot mit Stand-Datum: Ziel, Fitness-Kennzahl/VDOT, jüngste Schlüsselrennen, Anker-Paces). Diesen Snapshot als Basis nehmen. **Pace-Zonen nie statisch speichern** – immer aus der aktuellen Fitness-Kennzahl ableiten, sonst sind sie im Block nach wenigen Wochen falsch. Die Anker-Paces (MP, Schwelle, VO2/5K-Ziel) sind Orientierung, kein Ersatz für die Ableitung. Verschiebt ein neues Schlüsselrennen die Form: die **Snapshot-Zahlen via `set_steuerungsplan` nachziehen** (Plan komplett neu bauen, Änderungslog-Zeile + Datum) — Block/Strategie aber dem Makro-Verfahren überlassen.
+Die Form steht im **Steuerungsplan** (Form-Snapshot mit Stand-Datum: Ziel, Fitness-Kennzahl/VDOT, jüngste Schlüsselrennen, Anker-Paces). Diesen Snapshot als Basis nehmen. **Pace-Zonen nie statisch speichern** – immer aus der aktuellen Fitness-Kennzahl ableiten, sonst sind sie im Block nach wenigen Wochen falsch. Die Anker-Paces (MP, Schwelle, VO2/5K-Ziel) sind Orientierung, kein Ersatz für die Ableitung. Verschiebt ein neues Schlüsselrennen die Form: die **Snapshot-Zahlen via `set_training_profile` nachziehen** (Plan komplett neu bauen, Änderungslog-Zeile + Datum) — Block/Strategie aber dem Makro-Verfahren überlassen.
 
 ## Haltung je nach Phase
 
@@ -80,11 +80,11 @@ Am realen Coach-Plan und Block prüfen, kein Modell über die Realität legen.
 
 ## Soll/Ist-Vergleich & Steuerung
 
-**Nach Schlüsseleinheiten und Longruns standardmäßig kurz vergleichen** (planen vs. gelaufen), nicht erst auf Nachfrage — das ist der Kern der Wochensteuerung. **Ausführlich** (volle Struktur, alle Splits) auf Nachfrage. Nach reinen Easy-Läufen nur, wenn etwas auffällt. Geplanten Workout (Coach-Plan bzw. Entwurf im Wochen-Key) gegen die gelaufene Aktivität halten — Struktur, Pace-Targets vs. real, HF, Renncharakter. Ehrlich bewerten (getroffen/übertroffen/verfehlt/anders). Ergebnis via `set_woche` in den Key. **km-Spalte + Wochensumme dabei stets mitführen** (Plan → Ist umstellen, Σ aktualisieren; s. „Wochentabelle"). Bei Schlüsseleinheiten Pace und – wo vorhanden – HF/Laktat **zusammen** lesen, nicht Pace isoliert (wie der Athlet steuert, steht im Steuerungsplan). **Multisport** (Rad/Schwimmen/Wandern) ist aerobe Cross-Last, **kein Lauf-Defizit** — als Gesamtbelastung einordnen, nicht gegen das Lauf-Soll rechnen und **nicht** in die Lauf-Wochen-km zählen.
+**Nach Schlüsseleinheiten und Longruns standardmäßig kurz vergleichen** (planen vs. gelaufen), nicht erst auf Nachfrage — das ist der Kern der Wochensteuerung. **Ausführlich** (volle Struktur, alle Splits) auf Nachfrage. Nach reinen Easy-Läufen nur, wenn etwas auffällt. Geplanten Workout (Coach-Plan bzw. Entwurf im Wochen-Key) gegen die gelaufene Aktivität halten — Struktur, Pace-Targets vs. real, HF, Renncharakter. Ehrlich bewerten (getroffen/übertroffen/verfehlt/anders). Ergebnis via `set_week` in den Key. **km-Spalte + Wochensumme dabei stets mitführen** (Plan → Ist umstellen, Σ aktualisieren; s. „Wochentabelle"). Bei Schlüsseleinheiten Pace und – wo vorhanden – HF/Laktat **zusammen** lesen, nicht Pace isoliert (wie der Athlet steuert, steht im Steuerungsplan). **Multisport** (Rad/Schwimmen/Wandern) ist aerobe Cross-Last, **kein Lauf-Defizit** — als Gesamtbelastung einordnen, nicht gegen das Lauf-Soll rechnen und **nicht** in die Lauf-Wochen-km zählen.
 
 ## Körperdaten-Erholungs-Overlay
 
-Körperdaten als **Belastungs-/Regenerations-Schicht** über die Lauf-Daten legen — sie erklären, warum eine Einheit gut/schlecht lief und ob Erholung der Limiter ist. `get_koerperdaten_range` über die betrachtete Woche ziehen.
+Körperdaten als **Belastungs-/Regenerations-Schicht** über die Lauf-Daten legen — sie erklären, warum eine Einheit gut/schlecht lief und ob Erholung der Limiter ist. `get_body_metrics_range` über die betrachtete Woche ziehen.
 
 **Relative Bewegungen gegen die im Steuerungsplan hinterlegte Erholungs-Baseline lesen, nicht absolute Scores.**
 - **Ruhepuls (RHR):** verlässlichstes Signal, Wochentrend gegen die Baseline.
@@ -113,21 +113,21 @@ Wöchentliches Standortbestimmungs-Ritual. **Kein Schedule** — der Athlet trig
 
 **Wochenkonvention (hart):** Woche = Montag–Sonntag (ISO-KW). Der Lauf wertet die **gerade abgeschlossene Mo–So-Woche aus, die heute (So) endet** (= aktuelle KW) und skizziert die **kommende Mo–So-Woche** als Entwurf. **Sonntags-Edge:** Longrun kann schon gelaufen oder noch offen sein — kurz prüfen (Ist-Läufe + nachfragen), bevor die Woche abgeschlossen wird.
 
-1. **Kontext laden:** `get_steuerungsplan()`; `list_wochen()`, dann `get_woche(aktuelle KW)` (enthält schon den Entwurf + subjektive Notizen) + `get_woche(Vorwoche)`.
+1. **Kontext laden:** `get_training_profile()`; `list_weeks()`, dann `get_week(aktuelle KW)` (enthält schon den Entwurf + subjektive Notizen) + `get_week(Vorwoche)`.
 2. **Daten ziehen:** Ist-Läufe der abgeschlossenen Woche (Mo 00:00 – So 23:59) mit Schlüsseleinheiten; Coach-Plan (falls vorhanden) für 7 Tage; Körperdaten-Range über die Woche.
 3. **Rückblick:** Soll/Ist gegen den **Entwurf im aktuellen Wochen-Key** + subjektive Nachträge. Volumen, Schlüsseleinheiten, Pace-Targets vs. real, HF/Laktat wo vorhanden. **km-Spalte auf Ist umstellen** (Plan-Schätzungen durch Strava-Tagessummen ersetzen) und **Σ Woche auf reines Ist** setzen. Multisport als aerobe Last (nicht in die Lauf-km). Körperdaten-Overlay (RHR-Trend, HRV-Wochenmittel, Schlaf, Cluster). Fit zur Phase, auf Renn-Ziel-Kurs, Überlastung proaktiv flaggen.
 4. **Entwurf kommende Woche:** Coach-Einheiten gegen das Ziel interpretieren (bzw. selbst planen), konkreter Tages-Entwurf Mo–So **mit km-Schätzung pro Tag (`~N (Plan)`) und `Σ Woche`-Plansumme**. Eigene Einheiten nur, wo der Coach-Plan schlecht passt. Kraft/Stabi schlank. **Klar als Entwurf markieren, kein Befehl** — der Athlet schränkt danach ein. Knapp, Tag für Tag.
 5. **In den Store schreiben (Whole-Object):**
-   - **Aktuelle KW:** `set_woche(aktuelle KW, …)` mit der **kompletten** Woche = Entwurf (B) + neuer Rückblick (A) + Subjektives, zusammengeführt, **km-Spalte auf Ist + Σ auf Ist**. Vorher Gelesenes einbauen, nichts verlieren (Key wird komplett überschrieben).
-   - **Kommende KW:** `set_woche(kommende KW, …)` mit dem **Entwurf** (Teil B; Rückblick folgt nächsten Sonntag in denselben Key), inkl. km-Plan-Spalte + Σ-Plan.
-   - **Form-Snapshot verschoben?** `set_steuerungsplan(…)` mit dem komplett neu gebauten Plan (Snapshot-Zahlen aktualisiert + Änderungslog-Zeile mit Datum). Größere strukturelle Umbauten → Makro-Verfahren.
-6. **Kurzbericht:** knapp (Rückblick, Fit zum Plan, Erholungslage, **Wochen-km Ist + Entwurf-Σ**, Entwurf zum Bestätigen/Einschränken, Flags). Hinweis, dass der volle Eintrag im Wochen-Key steht und im Browser anpassbar ist (`get_dashboard_link`).
+   - **Aktuelle KW:** `set_week(aktuelle KW, …)` mit der **kompletten** Woche = Entwurf (B) + neuer Rückblick (A) + Subjektives, zusammengeführt, **km-Spalte auf Ist + Σ auf Ist**. Vorher Gelesenes einbauen, nichts verlieren (Key wird komplett überschrieben).
+   - **Kommende KW:** `set_week(kommende KW, …)` mit dem **Entwurf** (Teil B; Rückblick folgt nächsten Sonntag in denselben Key), inkl. km-Plan-Spalte + Σ-Plan.
+   - **Form-Snapshot verschoben?** `set_training_profile(…)` mit dem komplett neu gebauten Plan (Snapshot-Zahlen aktualisiert + Änderungslog-Zeile mit Datum). Größere strukturelle Umbauten → Makro-Verfahren.
+6. **Kurzbericht:** knapp (Rückblick, Fit zum Plan, Erholungslage, **Wochen-km Ist + Entwurf-Σ**, Entwurf zum Bestätigen/Einschränken, Flags). Hinweis, dass der volle Eintrag im Wochen-Key steht und im Browser anpassbar ist (`get_web_links`).
 
 ## Tägliche Autoregulation (im Chat)
 
-Unter der Woche: fragt der Athlet nach einer Einheit oder spricht über seine Tagesform → `get_koerperdaten(heute)` + die für heute geplante Einheit → ggf. anpassen (entschärfen, schieben, grünes Licht). Roh-Marker lesen, Readiness wie oben nachrangig.
+Unter der Woche: fragt der Athlet nach einer Einheit oder spricht über seine Tagesform → `get_body_metrics(heute)` + die für heute geplante Einheit → ggf. anpassen (entschärfen, schieben, grünes Licht). Roh-Marker lesen, Readiness wie oben nachrangig.
 
-**Subjektives Feedback fließt über den Chat in den Store:** Erwähnt der Athlet, wie sich eine Einheit angefühlt hat, wird es via `set_woche(laufende KW, …)` in die laufende Woche geschrieben (ganzen Key neu schreiben, Bestehendes erhalten). Wird dabei ein durchgeführter Tag erwähnt/bestätigt, **gleich die km-Spalte dieses Tags auf Ist nachziehen** (Strava-Tagessumme), Σ aktualisieren.
+**Subjektives Feedback fließt über den Chat in den Store:** Erwähnt der Athlet, wie sich eine Einheit angefühlt hat, wird es via `set_week(laufende KW, …)` in die laufende Woche geschrieben (ganzen Key neu schreiben, Bestehendes erhalten). Wird dabei ein durchgeführter Tag erwähnt/bestätigt, **gleich die km-Spalte dieses Tags auf Ist nachziehen** (Strava-Tagessumme), Σ aktualisieren.
 
 ## Aufbau des Steuerungsplans (Referenz für Updates)
 
