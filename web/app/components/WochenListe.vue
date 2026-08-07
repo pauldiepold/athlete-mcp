@@ -10,7 +10,7 @@ import type { WochenAggregat } from '@shared/garmin/koerperdatenWochen'
 // Die Liste ist zugleich die Wochen-Auswahl des Zeitraums: ein Klick auf die
 // Kalenderwoche stellt die Charts darüber auf genau diese Woche (`?kw=`), statt die
 // Seite zu verlassen — „diese Woche" ist der Ausschnitt, den kein Fenster aus
-// 30/90/allen Tagen trifft. Erst „Steuerung öffnen ›" wechselt in die Steuerung.
+// 30/90/allen Tagen trifft. Erst „Trainingsbuch öffnen ›" wechselt in die Steuerung.
 // Beides rein lesend, editiert wird hier nichts.
 const props = defineProps<{
   wochen: (WochenAggregat & { auszug: string | null })[]
@@ -51,7 +51,7 @@ const text = (wert: number | null, stellen = 0, einheit = '') =>
     </template>
 
     <p v-if="absteigend.length === 0" class="text-sm text-muted italic">
-      Noch keine Woche mit Körperdaten oder Steuerungseintrag.
+      Noch keine Woche mit Körperdaten oder Eintrag im Trainingsbuch.
     </p>
 
     <ul v-else class="divide-y divide-default">
@@ -78,14 +78,14 @@ const text = (wert: number | null, stellen = 0, einheit = '') =>
 
         <p class="min-w-0 flex-1 truncate text-sm text-dimmed">
           <template v-if="woche.auszug">{{ woche.auszug }}</template>
-          <template v-else-if="!woche.hatSteuerungseintrag">Kein Steuerungseintrag</template>
+          <template v-else-if="!woche.hatSteuerungseintrag">Kein Eintrag im Trainingsbuch</template>
         </p>
 
         <ULink
           :to="`/steuerung/${woche.kw}`"
           class="shrink-0 text-xs text-muted hover:text-primary sm:text-sm"
         >
-          Steuerung öffnen ›
+          Trainingsbuch öffnen ›
         </ULink>
       </li>
     </ul>

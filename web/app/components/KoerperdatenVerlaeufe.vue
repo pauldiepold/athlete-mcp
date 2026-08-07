@@ -96,7 +96,7 @@ function oeffneTag(tag: string) {
         variant="ghost"
         size="xs"
         trailing-icon="i-lucide-arrow-right"
-      >{{ kw }} in der Steuerung öffnen</UButton>
+      >{{ kw }} im Trainingsbuch öffnen</UButton>
     </div>
 
     <template v-if="data">

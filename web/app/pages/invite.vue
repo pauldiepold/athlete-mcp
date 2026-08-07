@@ -42,7 +42,7 @@ async function einloesen() {
   }
 }
 
-useHead({ title: 'Invite-Code · athlete-mcp' })
+useHead({ title: 'Invite-Code' })
 </script>
 
 <template>
@@ -68,7 +68,7 @@ useHead({ title: 'Invite-Code · athlete-mcp' })
           <h1 class="text-xl font-semibold">Fast geschafft</h1>
           <p class="mt-2 text-sm text-muted">
             Du bist mit {{ verfahren }} angemeldet. Für dein Konto brauchst du einmalig
-            einen Invite-Code vom Betreiber.
+            einen Invite-Code von der Person, die dich eingeladen hat.
           </p>
 
           <form class="mt-8 flex flex-col gap-4" @submit.prevent="einloesen">

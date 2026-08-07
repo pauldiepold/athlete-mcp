@@ -1,6 +1,6 @@
 <script setup lang="ts">
-// Ein Text zum Kopieren, im Klartext daneben (Issue #52): die MCP-URL und der
-// Erstkontakt-Satz.
+// Ein Text zum Kopieren, im Klartext daneben (Issue #52): die persönliche Adresse und
+// der Startsatz.
 //
 // Der Text steht sichtbar und nicht nur hinter dem Knopf, weil beide Kopiervorgänge
 // woanders enden — in Claudes Connector-Dialog und im Chat. Wer dort feststellt, dass

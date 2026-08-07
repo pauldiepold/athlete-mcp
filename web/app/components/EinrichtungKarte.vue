@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ERSTKONTAKT_SATZ } from '@shared/steuerung/erstkontakt'
+import { STARTSATZ } from '@shared/steuerung/startsatz'
 import type { EinrichtungSchrittId } from '#shared/einrichtung'
 
 // Die **Einrichtung** (Issue #52): die vier Schritte, die ein neues Konto vom Login
@@ -18,8 +18,9 @@ import type { EinrichtungSchrittId } from '#shared/einrichtung'
 //
 // **Kein Assistent.** Keine erzwungene Reihenfolge, kein Weiter-Knopf, nichts
 // gespeichert: Jeder Haken ist abgeleitet (siehe `shared/einrichtung.ts`). Der einzige
-// Schritt, dessen Erfolg die Weboberfläche sonst gar nicht sähe, ist das Onboarding —
-// deshalb hängt er am vorhandenen Steuerungsplan und nicht an einem „hab ich gemacht".
+// Schritt, dessen Erfolg die Weboberfläche sonst gar nicht sähe, ist das Anlegen des
+// Trainingsbuchs — deshalb hängt er am vorhandenen Steuerungsplan und nicht an einem
+// „hab ich gemacht".
 const props = defineProps<{
   /**
    * Steht die Liste in den Einstellungen? Dann führen die beiden Verbindungs-Schritte
@@ -84,7 +85,7 @@ const fortschritt = computed(() =>
       </div>
       <p class="mt-1 text-sm text-muted">
         <template v-if="pflichtSchrittOffen">
-          Vier Schritte bis zur laufenden Steuerung. Die Reihenfolge ist eine
+          Vier Schritte bis zum laufenden Trainingsbuch. Die Reihenfolge ist eine
           Empfehlung — jeden kannst du einzeln machen und jederzeit nachholen.
         </template>
         <template v-else>
@@ -132,15 +133,20 @@ const fortschritt = computed(() =>
         :aufgeklappt="aufgeklappt('connector')"
         :optional="schritt('connector').optional"
       >
+        <!-- „Connector" bleibt stehen und wird einmal erklärt (Issue #59): Das Wort
+             steht so in Claudes eigener Oberfläche — wegübersetzt wäre die Anleitung
+             nicht mehr befolgbar. Erklärt wird es hier, beim ersten Vorkommen in der
+             Einrichtung. -->
         <p>
-          Ohne ihn kommt Claude nicht an deine Daten. In Claude: Einstellungen →
-          Connectors → Custom Connector hinzufügen, dann diese Adresse einsetzen und
-          den Zugriff freigeben.
+          Ein <strong>Connector</strong> ist Claudes Weg zu einer fremden Datenquelle —
+          das Wort steht so in Claudes Einstellungen. Ohne ihn kommt Claude nicht an
+          deine Daten. In Claude: Einstellungen → Connectors → Custom Connector
+          hinzufügen, dann diese Adresse einsetzen und den Zugriff freigeben.
         </p>
 
         <!-- Die URL erst, wenn sie da ist: Ein Kopieren-Knopf an einer leeren Zeile
              legt stillschweigend nichts in die Zwischenablage. -->
-        <KopierZeile v-if="mcpUrl" :text="mcpUrl" label="MCP-Adresse kopieren" />
+        <KopierZeile v-if="mcpUrl" :text="mcpUrl" label="Deine persönliche Adresse kopieren" />
 
         <p>
           Im kostenlosen Claude-Plan ist genau <strong>ein</strong> Custom Connector
@@ -150,18 +156,18 @@ const fortschritt = computed(() =>
 
       <EinrichtungSchrittZeile
         :nummer="nummer('onboarding')"
-        titel="Onboarding in Claude starten"
+        titel="Trainingsbuch in Claude anlegen"
         :erledigt="schritt('onboarding').erledigt"
         :aufgeklappt="aufgeklappt('onboarding')"
         :optional="schritt('onboarding').optional"
       >
         <p>
           Schick diesen Satz in Claude, sobald der Connector steht. Claude fragt dich
-          nach deinem Zielrennen und deiner Form und legt daraus deine Steuerung an —
-          hier im Browser kannst du sie danach lesen und ändern.
+          nach deinem Zielrennen und deiner Form und legt daraus dein Trainingsbuch an
+          — hier im Browser kannst du es danach lesen und ändern.
         </p>
 
-        <KopierZeile :text="ERSTKONTAKT_SATZ" label="Erstkontakt-Satz kopieren" />
+        <KopierZeile :text="STARTSATZ" label="Startsatz kopieren" />
 
         <p>
           Nach Zugangsdaten fragt Claude dabei nie — Passwörter und Codes gehören nur

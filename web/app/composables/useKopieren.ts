@@ -1,7 +1,7 @@
 /**
  * Etwas in die Zwischenablage legen und für zwei Sekunden „Kopiert" sagen (Issue #52).
  *
- * Zwei Schritte der Einrichtung leben davon — die MCP-URL und der Erstkontakt-Satz —,
+ * Zwei Schritte der Einrichtung leben davon — die persönliche Adresse und der Startsatz —,
  * und beide brauchen dieselbe Rückmeldung: Ohne sie drückt der Athlet ein zweites Mal,
  * weil ein Klick, der nichts sichtbar tut, wie ein Fehlklick aussieht.
  *

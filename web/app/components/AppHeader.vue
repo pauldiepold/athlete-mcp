@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { PRODUKTNAME } from '@shared/produkt'
+
 // Gemeinsames Kopfzeilen-Gerüst aller Flächen (Admin wie Athlet): sticky, damit die
 // Navigation beim Scrollen erreichbar bleibt, und überall dieselbe Leiste — der
 // Operator wechselt zwischen Admin und den Athleten-Ansichten ohne Bruch.
@@ -16,6 +18,11 @@
 // hängen jetzt die Einstellungen daran (Profil und die Verbindungen zu Final Surge und
 // Garmin). Sie gehören dorthin und nicht in die Navigation links — die trägt die
 // Flächen, mit denen der Athlet täglich arbeitet, nicht das, was er einmal einrichtet.
+//
+// Ganz links steht seit Issue #59 die **Wortmarke**: Das Produkt heißt „Trainermodus"
+// und nicht mehr `athlete-mcp` — ein Repo-Name, der einem Athleten nichts sagt. Sie
+// steht auf jeder Fläche, weil auch die anmeldefreien Seiten (Anmeldung, Consent,
+// Invite) sagen müssen, wovon sie eigentlich reden.
 defineProps<{
   /** Setzt den Admin-Eintrag aktiv — nur die Admin-Fläche selbst tut das. */
   aktiv?: boolean
@@ -48,6 +55,8 @@ const menue = computed(() => [
 <template>
   <header class="sticky top-0 z-10 border-b border-default bg-default/80 backdrop-blur">
     <UContainer class="flex flex-wrap items-center gap-3 py-3">
+      <ULink to="/" class="shrink-0 font-semibold text-highlighted">{{ PRODUKTNAME }}</ULink>
+
       <slot />
 
       <div class="ml-auto flex items-center gap-2">

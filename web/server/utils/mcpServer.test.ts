@@ -2,7 +2,8 @@ import { describe, it, expect } from 'vitest'
 import { Client } from '@modelcontextprotocol/sdk/client/index.js'
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js'
 
-import { ERSTKONTAKT_SATZ } from '@shared/steuerung/erstkontakt'
+import { PRODUKTNAME } from '@shared/produkt'
+import { STARTSATZ } from '@shared/steuerung/startsatz'
 
 import { buildMcpServer } from './mcpServer'
 import type { McpKontext } from './mcpServer'
@@ -98,6 +99,13 @@ function textVon(ergebnis: unknown): string {
 }
 
 describe('buildMcpServer', () => {
+  it('meldet sich unter dem Produktnamen', async () => {
+    // Der `name` des Servers ist das, was Claude in seiner Connector-Liste zeigt
+    // (Issue #59) — die einzige Stelle, an der der Athlet den Server benennen sieht.
+    // `athlete-mcp` stand hier bis dahin und bedeutete ihm nichts.
+    expect((await verbinde()).getServerVersion()?.name).toBe(PRODUKTNAME)
+  })
+
   it('registriert genau die erwarteten Tools, in unveränderter Reihenfolge', async () => {
     const { tools } = await (await verbinde()).listTools()
 
@@ -196,15 +204,15 @@ describe('Verfahrens-Tools', () => {
     expect(beschreibung('get_playbook_season')).toContain('get_playbook_week')
   })
 
-  it('trennt das Onboarding von beiden — es zielt auf den Erstkontakt-Satz', async () => {
+  it('trennt den Einstieg von beiden — er zielt auf den Startsatz', async () => {
     // Die `description` ist die einzige Stelle, an der das Modell erkennt, wann dieses
     // Tool dran ist. Sie muss auf den einen Satz zielen, den die Einrichtung zum
-    // Kopieren anbietet — ein Onboarding, das bei jedem „Hallo" anspringt, wäre für
+    // Kopieren anbietet — ein Einstieg, der bei jedem „Hallo" anspringt, wäre für
     // alle anderen eine Plage.
     const { tools } = await (await verbinde()).listTools()
     const beschreibung = tools.find((t) => t.name === 'get_playbook_onboarding')!.description!
 
-    expect(beschreibung).toContain(ERSTKONTAKT_SATZ)
+    expect(beschreibung).toContain(STARTSATZ)
     expect(beschreibung).toContain('Nicht aufrufen')
     // Und es verweist die gewöhnlichen Trainingsfragen weiter, statt mit den beiden
     // laufenden Verfahren um sie zu konkurrieren.
@@ -212,14 +220,18 @@ describe('Verfahrens-Tools', () => {
     expect(beschreibung).toContain('get_playbook_season')
   })
 
-  it('interviewt im Wochenverfahren nicht selbst, sondern verweist aufs Onboarding', async () => {
-    // Ein leerer Steuerungsplan ist das Signal „noch nicht onboarded" — dafür gibt es
+  it('interviewt im Wochenverfahren nicht selbst, sondern verweist auf den Einstieg', async () => {
+    // Ein leerer Steuerungsplan ist das Signal „noch kein Trainingsbuch" — dafür gibt es
     // ein eigenes Verfahren (Issue #50), nicht eine zweite Fassung desselben Interviews.
+    //
+    // Geprüft wird der **Tool-Name** und nicht das Wort „Onboarding": Das ist seit
+    // Issue #59 Repo-Sprache und darf aus dem Verfahrenstext verschwinden — der
+    // Verweis selbst darf es nicht.
     const text = textVon(
       await (await verbinde()).callTool({ name: 'get_playbook_week', arguments: {} }),
     )
 
-    expect(text).toContain('Onboarding')
+    expect(text).toContain('get_playbook_onboarding')
     expect(text).not.toContain('Kurzes Interview')
   })
 })

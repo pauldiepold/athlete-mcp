@@ -71,7 +71,7 @@ useHead({ title: 'Einstellungen' })
         <!-- Die Einrichtung (Issue #52) steht hier oben — und anders als auf der
              Startseite **dauerhaft**, auch wenn alles erledigt ist: Wer Final Surge
              später nachreicht oder seinen Connector neu aufsetzt, findet den Weg
-             sonst nirgends mehr. Sie trägt auch den Erstkontakt-Satz aus Issue #50;
+             sonst nirgends mehr. Sie trägt auch den Startsatz aus Issue #50;
              er ist ihr vierter Schritt und stand vorher als eigene Karte hier. -->
         <EinrichtungKarte in-einstellungen />
 
@@ -116,7 +116,7 @@ useHead({ title: 'Einstellungen' })
           <h2 class="mt-2 font-semibold">Verbindungen</h2>
           <p class="text-sm text-muted">
             Jede Verbindung steht für sich — du kannst sie einzeln einrichten und
-            jederzeit nachholen. Die Steuerung funktioniert auch ohne sie.
+            jederzeit nachholen. Dein Trainingsbuch funktioniert auch ohne sie.
           </p>
         </div>
 

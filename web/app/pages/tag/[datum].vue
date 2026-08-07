@@ -62,7 +62,7 @@ const events = computed(() => data.value?.tag?.body_battery?.events ?? [])
             variant="subtle"
             size="sm"
           >
-            Steuerung: {{ data.kw }} ›
+            Trainingsbuch: {{ data.kw }} ›
           </UButton>
         </div>
       </div>

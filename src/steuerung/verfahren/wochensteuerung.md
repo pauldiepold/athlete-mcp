@@ -6,10 +6,11 @@ Taktische Steuerung der Trainingswoche eines Läufers Richtung Zielrennen — in
 
 - **Verfahren = Arbeitsweise, Store = Fakten.** Alles Athleten-Spezifische (Ziel, Form, Paces, Phase, Block, Baseline, Coach-Setup, Einheiten) steht **ausschließlich im Steuerungs-Store**, nie in diesem Text — sonst veraltet er, wenn sich die Form ändert.
 - **Dieses Verfahren besitzt die Wochen-Keys.** Es darf die **Zahlen** im Form-Snapshot des Steuerungsplans nachziehen (neue Anker-Pace nach einem Schlüsselrennen + Änderungslog-Zeile), baut aber **Block/Phase/Strategie nicht um** — das ist Sache des Makro-Verfahrens (`get_playbook_season`).
+- **Sprache am Athleten.** Der Store heißt ihm gegenüber **Trainingsbuch**, der Steuerungsplan darin **Grundlagen**, die Wochen bleiben **Wochen**. „Steuerung"/„Steuerungsplan" sind Wörter aus dem Repo und stehen nur in diesem Text — sie tauchen in keiner Antwort an den Athleten auf.
 
-## Leerer Steuerungsplan → erst das Onboarding
+## Leerer Steuerungsplan → erst der Einstieg
 
-**Immer zuerst prüfen:** `get_training_profile()`. Ist er leer (`""`), gibt es keine Grundlage für eine Wochenbewertung — weder Zielrennen noch Phase noch Anker-Paces. Dann greift dieses Verfahren **nicht**: Sag dem Athleten, dass zuerst sein Steuerungsplan entstehen muss, und ruf `get_playbook_onboarding` auf — das Onboarding ist ein eigenes Verfahren dieses Servers. Hier wird **nicht** selbst interviewt — sonst gäbe es zwei Fassungen desselben Gesprächs.
+**Immer zuerst prüfen:** `get_training_profile()`. Ist er leer (`""`), gibt es keine Grundlage für eine Wochenbewertung — weder Zielrennen noch Phase noch Anker-Paces. Dann greift dieses Verfahren **nicht**: Sag dem Athleten, dass zuerst die **Grundlagen** seines Trainingsbuchs entstehen müssen, und ruf `get_playbook_onboarding` auf — der Einstieg ist ein eigenes Verfahren dieses Servers. Hier wird **nicht** selbst interviewt — sonst gäbe es zwei Fassungen desselben Gesprächs.
 
 Das Vorhandensein des Steuerungsplans *ist* das Signal „onboarded"; ein Flag daneben gibt es nicht.
 

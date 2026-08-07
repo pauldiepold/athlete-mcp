@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { PRODUKTNAME } from '@shared/produkt'
+
 // Die öffentliche Startseite (ADR-0007, Issue #49). Sie *ist* die Startseite für alle,
 // die nicht angemeldet sind — vorher gab es hier eine leere Visitenkarte, weil der
 // Zugang aus einem Link bestand, den jemand verschickt hatte.
@@ -21,6 +23,11 @@
 // Die Ziel-Adresse reist als `redirect` mit, damit ein geteilter Link auf eine
 // Wochenseite nach der Anmeldung dort ankommt. Server-seitig wird sie auf lokale
 // Pfade eingegrenzt (siehe server/utils/authState.ts).
+//
+// Das Versprechen oben arbeitet mit zwei Wörtern für zwei Jobs (Issue #59): Das
+// **Trainingsbuch** ist der Ort — ein Substantiv, das man später anklickt —, das
+// **Gedächtnis** ist das Bild dafür, was es leistet. Wer hier zum ersten Mal liest,
+// braucht das Bild; wer angemeldet ist, braucht den Ort.
 const route = useRoute()
 
 const ziel = computed(() => {
@@ -46,16 +53,20 @@ const voraussetzungen = [
     marke: 'nötig',
     farbe: 'primary' as const,
     icon: 'i-lucide-sparkles',
+    // Erstes Vorkommen von „Connector" überhaupt — deshalb steht die Erklärung schon
+    // hier und nicht erst in der Einrichtung (Issue #59): Das Wort bleibt stehen, weil
+    // es so in Claudes eigener Oberfläche steht, aber unerklärt sagt es nichts.
     text: 'Der kostenlose Plan genügt. Er erlaubt allerdings genau einen Custom '
-      + 'Connector — wer dort schon einen hat, müsste ihn ersetzen.',
+      + 'Connector — so heißt in Claude die Verbindung zu einer fremden Datenquelle. '
+      + 'Wer dort schon einen hat, müsste ihn ersetzen.',
   },
   {
     name: 'Ein Invite-Code',
     marke: 'nötig',
     farbe: 'primary' as const,
     icon: 'i-lucide-ticket',
-    text: 'Der Zugang läuft auf Einladung. Ohne Code vom Operator entsteht beim ersten '
-      + 'Anmelden kein Konto.',
+    text: 'Der Zugang läuft auf Einladung. Ohne Code von der Person, die dich '
+      + 'eingeladen hat, entsteht beim ersten Anmelden kein Konto.',
   },
   {
     name: 'Ein Garmin-Konto',
@@ -75,23 +86,28 @@ const voraussetzungen = [
   },
 ]
 
-useHead({ title: 'athlete-mcp' })
+// Der leere Titel setzt den vorherigen zurück: `/` trägt zwei Gesichter, und wer sich
+// vom Dashboard abmeldet, landet client-seitig hier — ohne dieses Zurücksetzen bliebe
+// „Körperdaten" im Tab stehen. Das `titleTemplate` in app.vue macht daraus den
+// Produktnamen allein, was auf der Startseite genau richtig ist.
+useHead({ title: '' })
 </script>
 
 <template>
   <UContainer class="flex w-full flex-1 flex-col items-center py-16">
     <div class="w-full max-w-xl">
       <div class="text-center">
-        <h1 class="text-2xl font-semibold">athlete-mcp</h1>
+        <h1 class="text-2xl font-semibold">{{ PRODUKTNAME }}</h1>
         <p class="mt-3 text-muted">
           Deine Trainingsdaten dort, wo du ohnehin nachdenkst: Claude liest den Plan
-          deines Coaches, deine täglichen Körperdaten und deine eigene Steuerung —
+          deines Coaches, deine täglichen Körperdaten und dein eigenes Trainingsbuch —
           live, ohne dass du etwas abtippst oder Screenshots hochlädst.
         </p>
         <p class="mt-3 text-sm text-muted">
           Du fragst „passt der lange Lauf morgen zu meinem Schlaf der letzten Woche?“
           und bekommst eine Antwort, die deine Zahlen kennt. Was du festlegst, schreibt
-          Claude in deine Steuerung zurück — im Browser siehst du dasselbe.
+          Claude in dein Trainingsbuch zurück — das Gedächtnis deiner Vorbereitung, das
+          jeder neue Chat wieder mitbringt. Im Browser siehst du dasselbe.
         </p>
       </div>
 

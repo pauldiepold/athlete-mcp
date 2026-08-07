@@ -3,7 +3,8 @@
 // gesamte Navigation, damit Blättern UND Speichern beim Scrollen immer erreichbar
 // bleiben. Das sticky Gerüst, das Konto-Menü und der Admin-Eintrag kommen aus
 // AppHeader; hier die athletenspezifischen Zonen:
-//   links  – Umschalter zwischen den beiden Flächen: Dashboard und Steuerung
+//   links  – Umschalter zwischen den beiden Flächen: Dashboard und Trainingsbuch
+//            (der Kontext heißt im Repo weiter `steuerung`, siehe src/steuerung/CONTEXT.md)
 //   mitte  – Wochen-Switcher, nur im Steuerungs-Kontext: die 3 neuesten als
 //            Shortcut-Chips (der häufige Fall), ein "Ältere"-Dropdown als Zugang zu
 //            den alten Wochen, ‹ › zum Blättern
@@ -71,7 +72,7 @@ function short(kw: string): string {
         :color="bereich === 'steuerung' ? 'primary' : 'neutral'"
         :variant="bereich === 'steuerung' ? 'soft' : 'ghost'"
         size="sm"
-      >Steuerung</UButton>
+      >Trainingsbuch</UButton>
     </div>
 
     <div class="flex-1" />

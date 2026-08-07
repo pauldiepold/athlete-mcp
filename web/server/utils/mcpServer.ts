@@ -26,7 +26,8 @@ import { KoerperdatenArchive } from '@shared/garmin/koerperdatenArchive'
 import { buildGarminClient, fetchKoerperdatenLive } from '@shared/garmin/koerperdatenLive'
 import { addDays } from '@shared/garmin/koerperdatenNachlauf'
 import { getKoerperdatenRange } from '@shared/garmin/koerperdatenReadThrough'
-import { ERSTKONTAKT_SATZ } from '@shared/steuerung/erstkontakt'
+import { PRODUKTNAME } from '@shared/produkt'
+import { STARTSATZ } from '@shared/steuerung/startsatz'
 import { SteuerungStore } from '@shared/steuerung/steuerungStore'
 // Die Verfahrenstexte als Rohtext ins Bundle (ADR-0008). Nitro löst `.md`-Importe von
 // sich aus zu einem String auf; für Vitest tut das der Plugin in web/vitest.config.ts.
@@ -70,16 +71,18 @@ const BODY_HINT =
   'Trainingsinhalt (Final Surge), sondern Rohwerte ohne interpretierte Tagesform.'
 
 const STEUERUNG_HINT =
-  'Der vom Athleten SELBST geschriebene Steuerungs-Store (rohes Markdown, UTF-8, ' +
+  'Das vom Athleten SELBST geschriebene Trainingsbuch (rohes Markdown, UTF-8, ' +
   'rein wie raus). Das ist NICHT der Coach-Plan aus Final Surge (get_planned_workouts) ' +
-  'und NICHT die Körperdaten aus Garmin, sondern die eigene strategische Steuerung: ' +
-  'der Steuerungsplan (Block/Periodisierung/Form-Snapshot) plus Wocheneinträge. ' +
+  'und NICHT die Körperdaten aus Garmin, sondern das eigene fortgeschriebene ' +
+  'Trainingstagebuch: die Grundlagen (Ziel, Form, Paces, Phase — was länger gilt) ' +
+  'plus die Wochen. Sprich gegenüber dem Athleten von „Trainingsbuch" und ' +
+  '„Grundlagen"; „Steuerung" ist ein Wort aus dem Repo. ' +
   'set-Tools überschreiben das jeweilige Objekt komplett.'
 
 const DASHBOARD_HINT =
   'Die Browser-Fläche des Athleten: Körperdaten-Dashboard (Verläufe, ' +
-  'Körperdaten-Index, Tages-Detail), darunter die Steuerung zum Lesen/Editieren und ' +
-  'die Einstellungen, in denen der Athlet seine Verbindungen zu Final Surge und ' +
+  'Körperdaten-Index, Tages-Detail), darunter das Trainingsbuch zum Lesen/Editieren ' +
+  'und die Einstellungen, in denen der Athlet seine Verbindungen zu Final Surge und ' +
   'Garmin selbst einrichtet. ' +
   'Die Links sind für alle gleich und enthalten kein Secret — wer welche Daten sieht, ' +
   'entscheidet die Anmeldung im Browser.'
@@ -258,7 +261,7 @@ function registerSteuerung(server: McpServer, { userId, db }: McpKontext): void 
     'get_training_profile',
     {
       title: 'Grundlagen lesen',
-      description: `Liefert den Steuerungsplan als rohes Markdown (leer, wenn noch keiner gesetzt). ${STEUERUNG_HINT}`,
+      description: `Liefert die Grundlagen als rohes Markdown (leer, wenn noch keine gesetzt). ${STEUERUNG_HINT}`,
       inputSchema: {},
     },
     async () => text(await store.getPlan(userId)),
@@ -268,9 +271,9 @@ function registerSteuerung(server: McpServer, { userId, db }: McpKontext): void 
     'set_training_profile',
     {
       title: 'Grundlagen schreiben',
-      description: `Überschreibt den GESAMTEN Steuerungsplan mit dem übergebenen Markdown. ${STEUERUNG_HINT}`,
+      description: `Überschreibt die GESAMTEN Grundlagen mit dem übergebenen Markdown. ${STEUERUNG_HINT}`,
       inputSchema: {
-        content: z.string().describe('Der vollständige Steuerungsplan als Markdown'),
+        content: z.string().describe('Die vollständigen Grundlagen als Markdown'),
       },
     },
     async ({ content }) => {
@@ -337,7 +340,8 @@ function registerDashboard(server: McpServer, { origin }: McpKontext): void {
       title: 'Links zur Weboberfläche',
       description:
         'Liefert die Links zur Weboberfläche des Athleten als JSON-Objekt mit benannten '
-        + 'Feldern: `dashboard` (Körperdaten-Verläufe), `steuerung` (Plan + Wochen), '
+        + 'Feldern: `dashboard` (Körperdaten-Verläufe), `steuerung` (das Trainingsbuch: '
+        + 'Grundlagen + Wochen), '
         + '`tagVorlage` (Tages-Detail; `YYYY-MM-DD` durch das Datum ersetzen) und '
         + `\`einrichtung\` (Einstellungen: Profil + Verbindungen). ${DASHBOARD_HINT}`,
       inputSchema: {},
@@ -388,7 +392,7 @@ const VERFAHREN_MAKRO_BESCHREIBUNG =
 /**
  * Das Onboarding (Issue #50) ist der einzige Verfahrenstext mit einem *engen* Auslöser:
  * Woche und Makro zielen auf ganze Themenfelder, dieses hier auf **einen Satz** — den
- * `ERSTKONTAKT_SATZ`, dessen Docblock die Begründung trägt. Deshalb steht hier
+ * `STARTSATZ`, dessen Docblock die Begründung trägt. Deshalb steht hier
  * ausdrücklich auch, wann **nicht**.
  *
  * Der Planzustand taucht in der Beschreibung bewusst *nicht* als Auslöser auf: Beim
@@ -398,15 +402,15 @@ const VERFAHREN_MAKRO_BESCHREIBUNG =
  * läuft andersherum: Woche und Makro lesen den Plan und verweisen hierher.
  */
 const VERFAHREN_ONBOARDING_BESCHREIBUNG =
-  'Die einmalige Ersteinrichtung der Trainingssteuerung dieses Athleten: Interview zu '
-  + 'Zielrennen und Form, Anlegen des Steuerungsplans, Erklärung von Steuerung und '
+  'Die einmalige Ersteinrichtung des Trainingsbuchs dieses Athleten: Interview zu '
+  + 'Zielrennen und Form, Anlegen der Grundlagen, Erklärung von Trainingsbuch und '
   + 'Dashboard. Rufe dieses Tool auf und folge dem zurückgegebenen Verfahren, wenn der '
-  + `Athlet den Erstkontakt-Satz aus seiner Einrichtung schickt – „${ERSTKONTAKT_SATZ}" `
-  + '– oder gleichbedeutend darum bittet, ihn einzurichten bzw. mit der Trainings'
-  + 'steuerung anzufangen. Nicht aufrufen bei einer bloßen Begrüßung, bei allgemeinen '
+  + `Athlet den Startsatz aus seiner Einrichtung schickt – „${STARTSATZ}" `
+  + '– oder gleichbedeutend darum bittet, ihn einzurichten bzw. sein Trainingsbuch '
+  + 'anzulegen. Nicht aufrufen bei einer bloßen Begrüßung, bei allgemeinen '
   + 'Fragen zu diesem Connector und nicht bei gewöhnlichen Trainingsfragen – dafür sind '
-  + 'get_playbook_week und get_playbook_season da; fehlt dem Athleten die Grundlage, '
-  + 'schicken die beiden von sich aus hierher.'
+  + 'get_playbook_week und get_playbook_season da; hat der Athlet noch kein '
+  + 'Trainingsbuch, schicken die beiden von sich aus hierher.'
 
 function registerVerfahren(server: McpServer): void {
   server.registerTool(
@@ -436,8 +440,10 @@ function registerVerfahren(server: McpServer): void {
  * einer Wirkung aus, die es nicht hat.
  */
 export function buildMcpServer(kontext: McpKontext): McpServer {
+  // Der `name` ist kein Repo-Name, sondern das, was Claude in seiner Connector-Liste
+  // zeigt (Issue #59) — also der Produktname und nicht `athlete-mcp`.
   const server = new McpServer(
-    { name: 'athlete-mcp', version: '1.0.0' },
+    { name: PRODUKTNAME, version: '1.0.0' },
     { capabilities: { tools: {} } },
   )
 

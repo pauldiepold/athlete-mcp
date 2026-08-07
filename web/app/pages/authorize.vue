@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { PRODUKTNAME } from '@shared/produkt'
+
 // Der Consent-Screen — die einzige Stelle, an der ein Connector Zugriff auf die Daten
 // eines Athleten bekommt (Issue #43, ADR-0007).
 //
@@ -64,7 +66,7 @@ async function entscheiden(zustimmung: boolean) {
   }
 }
 
-useHead({ title: 'Zugriff freigeben · athlete-mcp' })
+useHead({ title: 'Zugriff freigeben' })
 </script>
 
 <template>
@@ -100,7 +102,7 @@ useHead({ title: 'Zugriff freigeben · athlete-mcp' })
 
           <p class="mt-2 text-sm text-muted">
             <strong>{{ anfrage.clientName ?? 'Eine Anwendung' }}</strong> möchte auf
-            dein athlete-mcp-Konto zugreifen — angemeldet als
+            dein Konto im {{ PRODUKTNAME }} zugreifen — angemeldet als
             <strong>{{ user?.name || user?.email || 'du' }}</strong>.
           </p>
 
@@ -120,7 +122,7 @@ useHead({ title: 'Zugriff freigeben · athlete-mcp' })
               </li>
               <li class="flex gap-2">
                 <UIcon name="i-lucide-pencil-line" class="mt-0.5 size-4 shrink-0" />
-                <span>Deinen Steuerungsplan und deine Wochen lesen <strong>und schreiben</strong></span>
+                <span>Dein Trainingsbuch — Grundlagen und Wochen — lesen <strong>und schreiben</strong></span>
               </li>
             </ul>
           </div>
