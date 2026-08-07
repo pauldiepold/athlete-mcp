@@ -80,10 +80,10 @@ const STEUERUNG_HINT =
   'set-Tools überschreiben das jeweilige Objekt komplett.'
 
 const DASHBOARD_HINT =
-  'Die Browser-Fläche des Athleten: Körperdaten-Dashboard (Verläufe, ' +
-  'Körperdaten-Index, Tages-Detail), darunter das Trainingsbuch zum Lesen/Editieren ' +
-  'und die Einstellungen, in denen der Athlet seine Verbindungen zu Final Surge und ' +
-  'Garmin selbst einrichtet. ' +
+  'Die Browser-Fläche des Athleten: die Startseite (aktueller Stand der Körperdaten), ' +
+  'die Körperdaten-Verläufe (Charts, Körperdaten-Index, Wochen-Sicht, Tages-Detail), ' +
+  'das Trainingsbuch zum Lesen/Editieren und die Einstellungen, in denen der Athlet ' +
+  'seine Verbindungen zu Final Surge und Garmin selbst einrichtet. ' +
   'Die Links sind für alle gleich und enthalten kein Secret — wer welche Daten sieht, ' +
   'entscheidet die Anmeldung im Browser.'
 
@@ -329,9 +329,13 @@ function registerSteuerung(server: McpServer, { userId, db }: McpKontext): void 
  * weg: Es gibt für jeden Athleten eine.
  *
  * Die Antwort trägt **benannte Felder** statt einer Prosa-Liste (Issue #58): Es sind
- * vier Links, und die Verfahrenstexte schicken den Athleten mal in die Einstellungen,
+ * fünf Links, und die Verfahrenstexte schicken den Athleten mal in die Einstellungen,
  * mal auf die Steuerung. Über einen Feldnamen greift ein Verfahren genau den, den es
  * meint; aus einer Aufzählung müsste das Modell ihn raten.
+ *
+ * Seit Issue #60 stehen `start` und `dashboard` getrennt nebeneinander. Das ist kein
+ * kosmetischer Zusatz: Wer im Chat „schau mal in den Browser" sagt, meint fast nie die
+ * Charts, sondern den Ort, an dem der Athlet weiterkommt — und `/` ist genau das.
  */
 function registerDashboard(server: McpServer, { origin }: McpKontext): void {
   server.registerTool(
@@ -340,8 +344,9 @@ function registerDashboard(server: McpServer, { origin }: McpKontext): void {
       title: 'Links zur Weboberfläche',
       description:
         'Liefert die Links zur Weboberfläche des Athleten als JSON-Objekt mit benannten '
-        + 'Feldern: `dashboard` (Körperdaten-Verläufe), `steuerung` (das Trainingsbuch: '
-        + 'Grundlagen + Wochen), '
+        + 'Feldern: `start` (die Startseite — der allgemeine Einstieg, wenn kein '
+        + 'bestimmter Inhalt gemeint ist), `dashboard` (die Körperdaten-Verläufe), '
+        + '`steuerung` (das Trainingsbuch: Grundlagen + Wochen), '
         + '`tagVorlage` (Tages-Detail; `YYYY-MM-DD` durch das Datum ersetzen) und '
         + `\`einrichtung\` (Einstellungen: Profil + Verbindungen). ${DASHBOARD_HINT}`,
       inputSchema: {},

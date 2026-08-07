@@ -6,12 +6,17 @@ import type { EinrichtungSchrittId } from '#shared/einrichtung'
 // bis zum ersten Steuerungsplan führen — mit echtem Zustand, damit ablesbar ist, was
 // noch fehlt.
 //
-// Sie steht auf `/` **oberhalb** des Dashboards, solange ein Pflichtschritt offen ist,
-// und verschwindet dort, sobald alle stehen. Bis Issue #57 trat sie an die Stelle des
+// Sie steht auf `/` **ganz oben**, solange ein Pflichtschritt offen ist, und
+// verschwindet dort, sobald alle stehen. Bis Issue #57 trat sie an die Stelle des
 // Dashboards — das nahm einem Athleten mit Körperdaten seine Verläufe weg, nur weil
 // noch ein Haken fehlte. Die Sorge dahinter (wer Verläufe sieht, hält die Einrichtung
 // für erledigt) tragen jetzt die Position, die Zeile „Noch n von m Schritten offen"
 // und der eine aufgeklappte Schritt: Die Karte sagt selbst, dass sie noch offen ist.
+//
+// Seit Issue #60 ist ihr Platz zugleich der des **Chat-Hinweises**: Genau eine Ansage
+// steht oben auf der Startseite, und solange die Einrichtung offen ist, ist sie es.
+// Der Hinweis entfällt dann komplett — wer noch einrichtet, braucht keinen Tipp für ein
+// Gespräch, das er noch gar nicht führen kann.
 //
 // In den Einstellungen bleibt sie dauerhaft: Wer Final Surge später nachreichen will,
 // findet den Weg dort — und nicht über einen Hinweis, den es dann nicht mehr gibt.
@@ -77,7 +82,7 @@ const fortschritt = computed(() =>
       <div class="flex flex-wrap items-center gap-2">
         <h2 class="font-semibold">Einrichtung</h2>
         <!-- Die Zahl steht neben dem Titel und nicht im Fließtext: Sie ist das, was
-             die Karte über dem Dashboard behaupten muss — hier ist noch etwas offen,
+             die Karte oben auf der Startseite behaupten muss — hier ist noch etwas offen,
              und zwar so viel. -->
         <UBadge v-if="pflichtSchrittOffen" color="warning" variant="subtle" size="sm">
           {{ fortschritt }}
@@ -106,8 +111,8 @@ const fortschritt = computed(() =>
         <p>
           Deine täglichen Körperdaten — Schlaf, HRV, Belastung. Direkt nach dem
           Verbinden holen wir die letzten 30 Tage; das läuft im Hintergrund weiter,
-          während du die übrigen Schritte machst. Ohne Garmin bleibt das Dashboard
-          leer, alles andere funktioniert.
+          während du die übrigen Schritte machst. Ohne Garmin bleiben deine
+          Körperdaten leer, alles andere funktioniert.
         </p>
         <EinrichtungVerbindungsWeg :in-einstellungen="inEinstellungen" />
       </EinrichtungSchrittZeile>

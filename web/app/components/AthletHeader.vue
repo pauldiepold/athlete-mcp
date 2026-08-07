@@ -1,9 +1,9 @@
 <script setup lang="ts">
 // Kopfzeile aller Athleten-Seiten (Issue #13, erweitert in #24) — trägt die
 // gesamte Navigation, damit Blättern UND Speichern beim Scrollen immer erreichbar
-// bleiben. Das sticky Gerüst, das Konto-Menü und der Admin-Eintrag kommen aus
-// AppHeader; hier die athletenspezifischen Zonen:
-//   links  – Umschalter zwischen den beiden Flächen: Dashboard und Trainingsbuch
+// bleiben. Das sticky Gerüst und das Konto-Menü kommen aus AppHeader; hier die
+// athletenspezifischen Zonen:
+//   links  – Umschalter zwischen den drei Flächen: Start, Körperdaten und Trainingsbuch
 //            (der Kontext heißt im Repo weiter `steuerung`, siehe src/steuerung/CONTEXT.md)
 //   mitte  – Wochen-Switcher, nur im Steuerungs-Kontext: die 3 neuesten als
 //            Shortcut-Chips (der häufige Fall), ein "Ältere"-Dropdown als Zugang zu
@@ -17,19 +17,35 @@ const props = defineProps<{
   /**
    * Welche Fläche gerade offen ist — steuert Umschalter und Wochen-Navigation.
    *
-   * `einstellungen` hebt bewusst **keinen** der beiden Knöpfe hervor: Die Einstellungen
-   * sind keine dritte tägliche Fläche, sondern hängen im Konto-Menü rechts. Die
-   * Kopfzeile trägt sie trotzdem, damit von dort der Weg zurück auf einen Klick geht.
+   * `einstellungen` hebt bewusst **keinen** der Knöpfe hervor: Die Einstellungen sind
+   * keine vierte tägliche Fläche, sondern hängen im Konto-Menü rechts. Die Kopfzeile
+   * trägt sie trotzdem, damit von dort der Weg zurück auf einen Klick geht.
    */
-  bereich: 'dashboard' | 'steuerung' | 'einstellungen'
+  bereich: 'start' | 'koerperdaten' | 'steuerung' | 'einstellungen'
   wochen?: string[]
   currentKw?: string
 }>()
 
 // Die Wege sind seit ADR-0007 fest: keine Secret-Präfixe mehr, die mitgereicht werden
 // müssten.
-const dashboardBase = '/'
-const base = '/steuerung'
+const steuerungBase = '/steuerung'
+
+/**
+ * Die drei täglichen Flächen (Issue #60).
+ *
+ * **Deutsch, weil der Rest der Oberfläche deutsch ist**: „Start" statt „Home", und
+ * „Körperdaten" statt „Dashboard" — das ist der Inhalt, während „Dashboard" nur ein
+ * Fremdwort für dasselbe wäre. Der *Pfad* heißt trotzdem weiter `/dashboard`: Pfade
+ * liest niemand vor, und ein Umbenennen bräche jeden geteilten Link.
+ *
+ * Als Liste und nicht als drei abgeschriebene Knöpfe: Bei zweien ging das noch
+ * durch, beim dritten wäre die Farb-/Variante-Logik dreimal dieselbe Zeile.
+ */
+const flaechen = [
+  { bereich: 'start', label: 'Start', to: '/' },
+  { bereich: 'koerperdaten', label: 'Körperdaten', to: '/dashboard' },
+  { bereich: 'steuerung', label: 'Trainingsbuch', to: steuerungBase },
+] as const
 
 // Store liefert kw aufsteigend; defensiv sortieren (lexikografisch = chronologisch).
 const sorted = computed(() => [...(props.wochen ?? [])].sort())
@@ -41,7 +57,7 @@ const olderItems = computed(() =>
   sorted.value
     .slice(0, -3)
     .reverse()
-    .map((kw) => ({ label: kw, to: `${base}/${kw}` })),
+    .map((kw) => ({ label: kw, to: `${steuerungBase}/${kw}` })),
 )
 
 // Prev/Next relativ zur offenen Woche, Lücken überspringend (nur auf der Wochen-Seite).
@@ -62,17 +78,13 @@ function short(kw: string): string {
   <AppHeader>
     <div class="flex items-center gap-1">
       <UButton
-        :to="dashboardBase"
-        :color="bereich === 'dashboard' ? 'primary' : 'neutral'"
-        :variant="bereich === 'dashboard' ? 'soft' : 'ghost'"
+        v-for="f in flaechen"
+        :key="f.bereich"
+        :to="f.to"
+        :color="bereich === f.bereich ? 'primary' : 'neutral'"
+        :variant="bereich === f.bereich ? 'soft' : 'ghost'"
         size="sm"
-      >Dashboard</UButton>
-      <UButton
-        :to="base"
-        :color="bereich === 'steuerung' ? 'primary' : 'neutral'"
-        :variant="bereich === 'steuerung' ? 'soft' : 'ghost'"
-        size="sm"
-      >Trainingsbuch</UButton>
+      >{{ f.label }}</UButton>
     </div>
 
     <div class="flex-1" />
@@ -80,7 +92,7 @@ function short(kw: string): string {
     <div v-if="bereich === 'steuerung' && sorted.length" class="flex items-center gap-1">
       <UButton
         v-if="currentKw"
-        :to="prev ? `${base}/${prev}` : undefined"
+        :to="prev ? `${steuerungBase}/${prev}` : undefined"
         :disabled="!prev"
         color="neutral"
         variant="ghost"
@@ -91,7 +103,7 @@ function short(kw: string): string {
       <UButton
         v-for="w in shortcuts"
         :key="w"
-        :to="`${base}/${w}`"
+        :to="`${steuerungBase}/${w}`"
         :title="w"
         :color="w === currentKw ? 'primary' : 'neutral'"
         :variant="w === currentKw ? 'solid' : 'ghost'"
@@ -104,7 +116,7 @@ function short(kw: string): string {
 
       <UButton
         v-if="currentKw"
-        :to="next ? `${base}/${next}` : undefined"
+        :to="next ? `${steuerungBase}/${next}` : undefined"
         :disabled="!next"
         color="neutral"
         variant="ghost"

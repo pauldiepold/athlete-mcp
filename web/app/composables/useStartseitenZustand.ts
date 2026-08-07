@@ -2,7 +2,7 @@ import type { ErstbefuellungLauf } from '@shared/garmin/koerperdatenErstbefuellu
 import {
   abfrageIntervallMs,
   startseitenZustand,
-  zeigtVerlaeufe as berechneZeigtVerlaeufe,
+  zeigtKoerperdaten as berechneZeigtKoerperdaten,
 } from '#shared/startseitenZustand'
 
 /**
@@ -14,7 +14,7 @@ import {
  * Nachfragen bliebe der Athlet vor einem Hinweis sitzen, der längst nicht mehr stimmt,
  * und lüde die Seite neu, um es herauszufinden.
  *
- * Genau **ein** Aufrufer montiert dieses Composable (`AthletDashboard`), sonst liefen
+ * Genau **ein** Aufrufer montiert dieses Composable (`AthletStartseite`), sonst liefen
  * mehrere Timer auf denselben `useFetch`-Key. Was die Karten darunter auslösen, geben
  * sie als Ereignis nach oben — hier steht der einzige Abfrage-Takt.
  */
@@ -60,8 +60,8 @@ export function useStartseitenZustand() {
     }),
   )
 
-  const zeigtVerlaeufe = computed(() =>
-    berechneZeigtVerlaeufe(zustand.value, hatKoerperdaten.value),
+  const zeigtKoerperdaten = computed(() =>
+    berechneZeigtKoerperdaten(zustand.value, hatKoerperdaten.value),
   )
 
   /**
@@ -95,11 +95,16 @@ export function useStartseitenZustand() {
   /**
    * Bei jedem Zustandswechsel ziehen die beiden anderen Flächen nach.
    *
-   * Ohne das wäre der Wechsel nur halb: Die Verläufe holen ihre Serien beim Montieren,
-   * und weil sie den Übergang `laeuft → daten` **montiert** erleben, zeigten sie danach
-   * weiter die drei Tage von vorhin, bis jemand neu lädt. Genauso der
+   * Ohne das wäre der Wechsel nur halb: Die Kachelzeile holt ihre Serien beim
+   * Montieren, und weil sie den Übergang `laeuft → daten` **montiert** erlebt, zeigte
+   * sie danach weiter die drei Tage von vorhin, bis jemand neu lädt. Genauso der
    * Verbindungs-Hinweis — wer im zweiten Tab verbindet, sähe sonst „Garmin ist noch
    * nicht verbunden" über einer Karte, die gerade Körperdaten holt.
+   *
+   * Die Keys der Verläufe stehen mit in der Liste, obwohl sie seit Issue #60 auf einer
+   * anderen Seite liegen: Ihre Nuxt-Daten überleben den Seitenwechsel, und ein Athlet,
+   * der während der Erstbefüllung auf `/dashboard` wechselt, bekäme sonst den Stand von
+   * vor dem Lauf serviert.
    *
    * Am Wechsel und nicht an jedem Nachfragen: Während des Laufs jede zehn Sekunden alle
    * Serien und Wochen neu zu rechnen, kostet mehr als es zeigt — die Tage kommen
@@ -107,7 +112,11 @@ export function useStartseitenZustand() {
    */
   watch(zustand, () => {
     verbindungenNeu()
-    refreshNuxtData(['koerperdaten-serien', 'koerperdaten-wochen'])
+    refreshNuxtData([
+      'koerperdaten-serien-start',
+      'koerperdaten-serien',
+      'koerperdaten-wochen',
+    ])
   })
 
   let timer: ReturnType<typeof setInterval> | undefined
@@ -135,7 +144,7 @@ export function useStartseitenZustand() {
     zustand,
     lauf,
     hatKoerperdaten,
-    zeigtVerlaeufe,
+    zeigtKoerperdaten,
     /** Die zweite Achse (Issue #57): Steht die Einrichtung über dem Dashboard? */
     einrichtungOffen: pflichtSchrittOffen,
     geladen,

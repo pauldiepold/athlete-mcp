@@ -5,7 +5,7 @@ import {
   ABFRAGE_INTERVALL_WARTEND_MS,
   abfrageIntervallMs,
   startseitenZustand,
-  zeigtVerlaeufe,
+  zeigtKoerperdaten,
   type StartseitenEingaben,
 } from './startseitenZustand'
 
@@ -85,13 +85,13 @@ describe('startseitenZustand', () => {
   })
 })
 
-describe('zeigtVerlaeufe', () => {
+describe('zeigtKoerperdaten', () => {
   it('hängt an den Daten, nicht am Zustand', () => {
-    expect(zeigtVerlaeufe('daten', true)).toBe(true)
-    expect(zeigtVerlaeufe('laeuft', true)).toBe(true)
-    expect(zeigtVerlaeufe('laeuft', false)).toBe(false)
-    expect(zeigtVerlaeufe('keine-daten', false)).toBe(false)
-    expect(zeigtVerlaeufe('nicht-verbunden', false)).toBe(false)
+    expect(zeigtKoerperdaten('daten', true)).toBe(true)
+    expect(zeigtKoerperdaten('laeuft', true)).toBe(true)
+    expect(zeigtKoerperdaten('laeuft', false)).toBe(false)
+    expect(zeigtKoerperdaten('keine-daten', false)).toBe(false)
+    expect(zeigtKoerperdaten('nicht-verbunden', false)).toBe(false)
   })
 
 })

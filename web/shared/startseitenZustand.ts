@@ -56,11 +56,16 @@ export function startseitenZustand({
 }
 
 /**
- * Ob die Verläufe gerendert werden. Bewusst an den Daten und nicht am Zustand: Während
- * eines Laufs sind die schon geholten Tage zu sehen, mit dem Ladehinweis darüber —
- * `laeuft` beschreibt, was *zusätzlich* passiert, nicht was die Seite ersetzt.
+ * Ob der Körperdaten-Block etwas zu zeigen hat. Bewusst an den Daten und nicht am
+ * Zustand: Während eines Laufs sind die schon geholten Tage zu sehen, mit dem
+ * Ladehinweis darüber — `laeuft` beschreibt, was *zusätzlich* passiert, nicht was die
+ * Seite ersetzt.
+ *
+ * Hieß bis Issue #60 `zeigtVerlaeufe`, weil die Startseite *war* das Dashboard. Sie
+ * zeigt jetzt die Kachelzeile; die Verläufe liegen unter `/dashboard` und stellen diese
+ * Frage gar nicht — wer dort landet, hat Körperdaten.
  */
-export function zeigtVerlaeufe(
+export function zeigtKoerperdaten(
   zustand: StartseitenZustand,
   hatKoerperdaten: boolean,
 ): boolean {

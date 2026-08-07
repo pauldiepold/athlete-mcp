@@ -40,7 +40,7 @@ const events = computed(() => data.value?.tag?.body_battery?.events ?? [])
 
 <template>
   <div class="flex flex-1 flex-col">
-    <AthletHeader bereich="dashboard" />
+    <AthletHeader bereich="koerperdaten" />
 
     <UContainer class="w-full max-w-5xl flex-1 py-6">
       <div class="mb-4 flex flex-wrap items-center justify-between gap-2">
@@ -50,8 +50,10 @@ const events = computed(() => data.value?.tag?.body_battery?.events ?? [])
         </div>
 
         <div class="flex flex-wrap items-center gap-2">
-          <UButton to="/" color="neutral" variant="ghost" size="sm">
-            ‹ Dashboard
+          <!-- Zurück auf die Verläufe und nicht auf `/`: Von dort kommt jeder, der
+               hier landet — der Weg hierher ist ein Klick auf einen Tag im Chart. -->
+          <UButton to="/dashboard" color="neutral" variant="ghost" size="sm">
+            ‹ Körperdaten
           </UButton>
           <!-- Die Brücke in die Steuerung: der Wochen-Key kommt aus isoWoche, damit
                ein Tag verlässlich am richtigen Wocheneintrag hängt. -->

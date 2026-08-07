@@ -100,65 +100,15 @@ function oeffneTag(tag: string) {
     </div>
 
     <template v-if="data">
-      <!-- Kachelzeile: der aktuelle Stand. Auf dem Handy zwei Spalten, damit die
-           Zahlen groß genug bleiben; darüber vier, sodass Index (doppelt breit) und
-           die sechs Marker genau zwei volle Reihen füllen. -->
-      <div class="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <!-- Der Körperdaten-Index eröffnet die Zeile als doppelt breite Kachel: eine
-             Zahl zum Einstieg, die auf Klick zeigt, woraus sie sich rechnet. Bewusst
-             keine Tagesform-Einschätzung, siehe ADR-0006. -->
-        <KoerperdatenIndexKachel class="col-span-2" :index="data.index" />
-
-        <KoerperdatenKachel
-          titel="HRV"
-          einheit="ms"
-          :kennzahl="data.kennzahlen.hrv"
-          :serie="data.serien.hrv.nachtwert"
-        >
-          <BaselineBand
-            :wert="data.kennzahlen.hrv.wert"
-            :unten="data.kennzahlen.hrv.band_unten"
-            :oben="data.kennzahlen.hrv.band_oben"
-          />
-        </KoerperdatenKachel>
-
-        <KoerperdatenKachel
-          titel="Schlaf"
-          einheit="h"
-          :stellen="1"
-          strich="stroke-info"
-          :kennzahl="data.kennzahlen.schlaf_stunden"
-          :serie="data.serien.schlaf.gesamt_stunden"
-        />
-
-        <KoerperdatenKachel
-          titel="Ruhepuls"
-          einheit="bpm"
-          strich="stroke-error"
-          :kennzahl="data.kennzahlen.ruhepuls"
-          :serie="data.serien.ruhepuls"
-        />
-
-        <KoerperdatenKachel
-          titel="Body-Battery-Bilanz"
-          strich="stroke-success"
-          :kennzahl="data.kennzahlen.body_battery_bilanz"
-          :serie="data.serien.body_battery.bilanz"
-        />
-
-        <KoerperdatenKachel
-          titel="Bereitschaft (morgens)"
-          :kennzahl="data.kennzahlen.bereitschaft_morgenwert"
-          :serie="data.serien.bereitschaft.morgenwert"
-        />
-
-        <KoerperdatenKachel
-          titel="Akute Last"
-          strich="stroke-secondary"
-          :kennzahl="data.kennzahlen.akute_last"
-          :serie="data.serien.bereitschaft.akute_last"
-        />
-      </div>
+      <!-- Die Kachelzeile liegt seit Issue #60 als eigene Komponente daneben: Sie steht
+           auch auf der Startseite, und zwei Abschriften desselben Grids liefen bei der
+           nächsten Kachel auseinander. -->
+      <KoerperdatenKacheln
+        class="mb-6"
+        :index="data.index"
+        :kennzahlen="data.kennzahlen"
+        :serien="data.serien"
+      />
 
       <!-- Der Bedienhinweis zu den Verläufen: klein, mit Icon und direkt über dem,
            wofür er gilt — als Untertitel der Seite hätte er wie deren Beschreibung

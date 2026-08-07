@@ -14,7 +14,7 @@ Es läuft **einmal**. Danach übernehmen `get_playbook_week` (taktisch) und `get
    **Steht dort schon etwas**, ist der Einstieg längst gelaufen: nicht überschreiben, nicht neu interviewen. Kurz sagen, was in seinen Grundlagen steht, und ins Wochenverfahren übergeben.
 2. `get_upcoming_workouts()` — liefert entweder Coach-Einheiten oder den Satz, dass Final Surge noch nicht verbunden ist (mitsamt Link). Beides ist eine Antwort auf die Frage „hat er einen Coach-Plan?".
 3. `get_body_metrics_range(heute − 29 Tage, heute)` — liefert entweder Körperdaten oder den Satz, dass Garmin noch nicht verbunden ist. Dreißig Tage, weil die Erstbefüllung beim Verbinden genau diesen Zeitraum holt. Ein leeres Array bei verbundenem Garmin heißt: die Erstbefüllung läuft noch oder ist ausgeblieben.
-4. `get_web_links()` — die Browser-Links (Dashboard, Trainingsbuch, Tages-Detail, Einstellungen). Die brauchst du gleich mehrfach.
+4. `get_web_links()` — die Browser-Links (Startseite, Körperdaten-Verläufe, Trainingsbuch, Tages-Detail, Einstellungen). Die brauchst du gleich mehrfach.
 
 Erzähl dem Athleten in **einem** Satz, was du vorgefunden hast („Final Surge ist verbunden, Garmin noch nicht"), statt ihn nach seinem eigenen Setup zu befragen.
 
@@ -51,13 +51,14 @@ Kein Roman. Was du nicht weißt, kommt unter „Offene Punkte", nicht als erfund
 
 **Das Vorhandensein des Steuerungsplans _ist_ das Fertig-Signal** des Einstiegs — abgeleitet, nicht gemeldet; ein Flag daneben gibt es nicht. Deshalb ist dieser Schreibvorgang der Moment, in dem das Setup aufhört, Setup zu sein.
 
-## Trainingsbuch und Dashboard erklären
+## Die Weboberfläche erklären
 
-Kurz, drei Absätze, mit den Links aus `get_web_links()`:
+Kurz, vier Absätze, mit den Links aus `get_web_links()`:
 
+- **Startseite** (`start`): der Einstieg — der aktuelle Stand der Körperdaten und ein Vorschlag, was sich gerade im Chat lohnt. Wenn du den Athleten allgemein „in den Browser" schickst, ist das der Link; die anderen nur, wenn du genau ihren Inhalt meinst.
 - **Trainingsbuch** (`/steuerung`): Hier stehen die eben geschriebenen **Grundlagen**, dazu je ein Eintrag pro Kalenderwoche. Der Athlet kann **alles selbst editieren** — Claude und Mensch schreiben dasselbe Dokument, zuletzt gespeichert gewinnt. Ihn dort einmal hinschicken: seine eigenen Grundlagen im Browser zu sehen, macht sie erst real. (Der Pfad heißt aus historischen Gründen `/steuerung` — das Wort dafür bleibt trotzdem *Trainingsbuch*.)
-- **Dashboard** (die Startseite): die Körperdaten-Verläufe aus Garmin — HRV, Schlaf, Ruhepuls, Stress, Body Battery, Hauttemperatur — plus Tages-Detail.
-- **Körperdaten-Index:** die gerechnete Zahl von 0 bis 100 auf dem Dashboard (HRV, Schlaf, Ruhepuls, Bereitschaft, gewichtet) mit sichtbarer Aufschlüsselung. **Wofür er gut ist:** ein Einstieg am Morgen, „wie stehe ich gerade da", und ein Verlauf über Wochen. **Wofür nicht:** Er ist **keine Tagesform** und kein Urteil über die geplante Einheit — die entsteht hier im Chat aus Plan, Kontext und Rohwerten. Eine niedrige Zahl kippt keine Einheit; das tun Roh-Marker im Zusammenspiel mit dem Trainingskontext.
+- **Körperdaten** (`dashboard`): die Verläufe aus Garmin — HRV, Schlaf, Ruhepuls, Stress, Body Battery, Hauttemperatur — plus Tages-Detail. In der Navigation heißt die Fläche „Körperdaten"; der Pfad `/dashboard` ist nur die Adresse.
+- **Körperdaten-Index:** die gerechnete Zahl von 0 bis 100 auf dieser Fläche (HRV, Schlaf, Ruhepuls, Bereitschaft, gewichtet) mit sichtbarer Aufschlüsselung. **Wofür er gut ist:** ein Einstieg am Morgen, „wie stehe ich gerade da", und ein Verlauf über Wochen. **Wofür nicht:** Er ist **keine Tagesform** und kein Urteil über die geplante Einheit — die entsteht hier im Chat aus Plan, Kontext und Rohwerten. Eine niedrige Zahl kippt keine Einheit; das tun Roh-Marker im Zusammenspiel mit dem Trainingskontext.
 
 ## Übergabe in den Normalbetrieb
 

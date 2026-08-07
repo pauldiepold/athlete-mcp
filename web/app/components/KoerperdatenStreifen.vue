@@ -31,10 +31,14 @@ const schlafText = computed(() =>
 )
 const hrvSerie = computed(() => props.woche?.hrvSerie ?? [])
 
-// Der Wochen-Key reist als er selbst ins Dashboard — die Umrechnung in sieben
+// Der Wochen-Key reist als er selbst auf die Verläufe — die Umrechnung in sieben
 // Kalendertage (wochenZeitraum) macht dort der Bereichs-Endpunkt, an einer Stelle.
-const dashboardLink = computed(() => ({
-  path: '/',
+//
+// Ziel ist seit Issue #60 `/dashboard` und nicht mehr `/`: Den `kw`-Ausschnitt liest
+// allein `KoerperdatenVerlaeufe`, und die Komponente steht auf der Startseite nicht
+// mehr — der Sprung landete dort auf der Startseite und verlöre seine Woche.
+const verlaeufeLink = computed(() => ({
+  path: '/dashboard',
   query: { kw: props.kw },
 }))
 </script>
@@ -59,8 +63,8 @@ const dashboardLink = computed(() => ({
 
     <div class="flex-1" />
 
-    <UButton :to="dashboardLink" color="neutral" variant="ghost" size="xs" class="shrink-0">
-      Dashboard: {{ kw }} ›
+    <UButton :to="verlaeufeLink" color="neutral" variant="ghost" size="xs" class="shrink-0">
+      Körperdaten: {{ kw }} ›
     </UButton>
   </div>
 </template>

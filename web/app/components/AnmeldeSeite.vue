@@ -89,7 +89,11 @@ const dialog = [
   },
 ]
 
-// Die drei Säulen. Die mittlere trägt in Überschrift *und* Text kein Substantiv für
+// Die drei Säulen. Sie sagen zweimal „Claude" statt „es": Ein Produkt, dessen Kern ein
+// Gegenüber ist, darf dieses Gegenüber nicht sächlich anreden — „es weiß" macht aus dem
+// Gesprächspartner ein Gerät, und genau das ist die Konkurrenz.
+//
+// Die mittlere trägt in Überschrift *und* Text kein Substantiv für
 // das, was da mitkommt — siehe oben; sie sagt stattdessen selbst, dass nichts zu
 // installieren ist, weil genau diese Frage sonst offenbleibt.
 const saeulen = [
@@ -101,7 +105,7 @@ const saeulen = [
   },
   {
     icon: 'i-lucide-compass',
-    titel: 'Und es weiß, wie man damit umgeht',
+    titel: 'Claude weiß, wie man damit umgeht',
     text: 'Claude bekommt nicht nur die Zahlen, sondern auch, wie man sie liest: '
       + 'worauf es in welcher Trainingsphase ankommt, wann ein lockerer Lauf der '
       + 'richtige ist, wann man einen Plan besser in Ruhe lässt. Installieren musst '
@@ -109,7 +113,7 @@ const saeulen = [
   },
   {
     icon: 'i-lucide-bookmark',
-    titel: 'Und es erinnert sich',
+    titel: 'Claude erinnert sich',
     text: 'Ziel, Form, Paces, was ihr in den Wochen davor besprochen habt: Jeder neue '
       + 'Chat bringt das wieder mit, statt bei null anzufangen.',
   },

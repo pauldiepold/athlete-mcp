@@ -389,19 +389,23 @@ describe('Tools ohne eingerichtete Verbindung', () => {
 /**
  * `get_web_links` liefert **benannte Felder** (Issue #58).
  *
- * Der frühere Name versprach einen Link, es waren immer vier. Die Verfahrenstexte
+ * Der frühere Name versprach einen Link, es waren immer mehrere. Die Verfahrenstexte
  * schicken den Athleten mal in die Einstellungen, mal auf die Steuerung — über einen
  * Feldnamen greifen sie genau den, den sie meinen, statt ihn aus einer Aufzählung
  * herauszulesen.
+ *
+ * Seit Issue #60 sind es fünf: Startseite und Verläufe liegen nicht mehr auf derselben
+ * Adresse.
  */
 describe('get_web_links', () => {
-  it('antwortet mit einem JSON-Objekt, dessen Felder die vier Flächen benennen', async () => {
+  it('antwortet mit einem JSON-Objekt, dessen Felder die fünf Flächen benennen', async () => {
     const antwort = textVon(
       await (await verbinde()).callTool({ name: 'get_web_links', arguments: {} }),
     )
 
     expect(JSON.parse(antwort)).toEqual({
-      dashboard: `${ORIGIN}/`,
+      start: `${ORIGIN}/`,
+      dashboard: `${ORIGIN}/dashboard`,
       steuerung: `${ORIGIN}/steuerung`,
       tagVorlage: `${ORIGIN}/tag/YYYY-MM-DD`,
       einrichtung: `${ORIGIN}/einstellungen`,

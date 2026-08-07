@@ -68,7 +68,7 @@ const verfahrenLabel = { google: 'Google', apple: 'Apple' } as const
 
 <template>
   <div class="flex flex-1 flex-col">
-    <AppHeader aktiv />
+    <AppHeader />
 
     <UContainer class="w-full flex-1 py-10">
       <UAlert

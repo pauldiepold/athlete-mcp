@@ -6,7 +6,8 @@ const BASIS = "https://training.pauldiepold.de";
 describe("buildDashboardLinks", () => {
   it("baut die Links der Browser-Fläche unter der Origin", () => {
     expect(buildDashboardLinks(BASIS)).toEqual({
-      dashboard: `${BASIS}/`,
+      start: `${BASIS}/`,
+      dashboard: `${BASIS}/dashboard`,
       steuerung: `${BASIS}/steuerung`,
       tagVorlage: `${BASIS}/tag/YYYY-MM-DD`,
       einrichtung: `${BASIS}/einstellungen`,
@@ -24,5 +25,14 @@ describe("buildDashboardLinks", () => {
 
     expect(Object.values(links).every((url) => url.startsWith(`${BASIS}/`))).toBe(true);
     expect(links.dashboard).not.toContain("secret");
+  });
+
+  it("trennt Startseite und Verläufe (Issue #60)", () => {
+    // Die beiden waren bis #60 dieselbe Adresse. Sie auseinanderzuhalten ist der
+    // ganze Zweck des neuen Feldes: Claude soll den Athleten zum Einstieg auf `/`
+    // schicken und nur dann auf die Charts, wenn es um die Charts geht.
+    const links = buildDashboardLinks(BASIS);
+
+    expect(links.start).not.toBe(links.dashboard);
   });
 });

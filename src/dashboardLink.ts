@@ -10,7 +10,8 @@
  *
  * Was bleibt, ist der eine Ort für diese Pfade — sie stehen hier und nicht verstreut
  * in Tool-Beschreibungen. Die Pfade selbst gehören der Browser-Fläche (ADR-0004): `/`
- * ist das Körperdaten-Dashboard, darunter liegen Steuerung und Tages-Detail.
+ * ist seit Issue #60 die **Startseite** (Hinweis + aktueller Stand), die Verläufe
+ * liegen unter `/dashboard`, daneben Steuerung und Tages-Detail.
  *
  * `baseUrl` ist die Origin des laufenden Requests: Seit ADR-0007 liegt die
  * Weboberfläche auf derselben Origin wie der MCP-Endpunkt, eine konfigurierte
@@ -18,7 +19,17 @@
  */
 
 export interface DashboardLinks {
-  /** Startseite: das Körperdaten-Dashboard. */
+  /**
+   * Die **Startseite** (Issue #60): der aktuelle Stand der Körperdaten und ein
+   * Hinweis, was sich gerade im Chat lohnt. Der Ort, auf den man einen Athleten
+   * schickt, wenn man ihn nirgendwo Bestimmtes hinschickt.
+   */
+  start: string;
+  /**
+   * Die Körperdaten-**Verläufe** — Charts über den gewählten Zeitraum, Wochen-Sicht,
+   * Körperdaten-Index. Lagen bis Issue #60 auf `/`; seither eine eigene Fläche, weil
+   * die Startseite in den Chat weisen soll und nicht in ein Chart.
+   */
   dashboard: string;
   /** Die Steuerungs-Fläche (Steuerungsplan + Wochen, lesbar und editierbar). */
   steuerung: string;
@@ -39,7 +50,8 @@ export interface DashboardLinks {
 export function buildDashboardLinks(baseUrl: string): DashboardLinks {
   const basis = baseUrl.replace(/\/+$/, "");
   return {
-    dashboard: `${basis}/`,
+    start: `${basis}/`,
+    dashboard: `${basis}/dashboard`,
     steuerung: `${basis}/steuerung`,
     tagVorlage: `${basis}/tag/YYYY-MM-DD`,
     einrichtung: `${basis}/einstellungen`,
