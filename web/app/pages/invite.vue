@@ -42,7 +42,7 @@ async function einloesen() {
   }
 }
 
-useHead({ title: 'Invite-Code' })
+useHead({ title: 'Einladungscode' })
 </script>
 
 <template>
@@ -57,7 +57,7 @@ useHead({ title: 'Invite-Code' })
         <template v-if="keinLogin">
           <h1 class="text-xl font-semibold">Erst anmelden</h1>
           <p class="mt-2 text-sm text-muted">
-            Um einen Invite-Code einzulösen, meld dich zuerst mit Google oder Apple an.
+            Um einen Einladungscode einzulösen, meld dich zuerst mit Google oder Apple an.
           </p>
           <UButton class="mt-6" to="/" block color="neutral" variant="subtle">
             Zur Anmeldung
@@ -68,11 +68,11 @@ useHead({ title: 'Invite-Code' })
           <h1 class="text-xl font-semibold">Fast geschafft</h1>
           <p class="mt-2 text-sm text-muted">
             Du bist mit {{ verfahren }} angemeldet. Für dein Konto brauchst du einmalig
-            einen Invite-Code von der Person, die dich eingeladen hat.
+            einen Einladungscode von der Person, die dich eingeladen hat.
           </p>
 
           <form class="mt-8 flex flex-col gap-4" @submit.prevent="einloesen">
-            <UFormField label="Invite-Code" required>
+            <UFormField label="Einladungscode" required>
               <UInput
                 v-model="code"
                 autofocus
