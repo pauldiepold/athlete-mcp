@@ -9,8 +9,9 @@
  *
  * Deshalb liegt er hier als reine Funktionen ohne `fetch`, gegen gespeicherte
  * Antwort-Schnipsel getestet: Bricht Garmin etwas, soll ein Test rot werden und nicht
- * ein Athlet vor einer weißen Seite stehen. Der Netz-Teil (`garminSsoLogin.ts`) ist
- * dagegen langweilig und in einem Test ohnehin nur simulierbar.
+ * ein Athlet vor einer weißen Seite stehen. Der Netz-Teil (`garminSsoLogin.ts`) liegt
+ * daneben und hängt sein `fetch` an einer Naht ein — dieselben Schnipsel tragen dort
+ * den Ablauf im Test.
  */
 
 /**

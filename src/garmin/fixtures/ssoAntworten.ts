@@ -13,6 +13,27 @@
  * Test mit `readFileSync` würde diese Zusicherung aufgeben.
  */
 
+/**
+ * Die Embed-Seite — Schritt 1. Ihr HTML wird nirgends gelesen; sie zählt allein wegen
+ * der Session-Cookies, die sie setzt (siehe `EMBED_COOKIES`). Steht hier trotzdem,
+ * damit der Ablauf im Test dieselben Antworten sieht wie im Netz.
+ */
+export const EMBED_SEITE = `<!DOCTYPE html>
+<html lang="en">
+<head><title>GARMIN Authentication Application</title></head>
+<body><div id="gauth-widget"></div></body>
+</html>`;
+
+/**
+ * Was die Embed-Seite an `Set-Cookie` mitgibt, gekürzt auf zwei Einträge. Das
+ * `Expires`-Datum steht bewusst drin: Es enthält ein Komma und ist der Grund, warum
+ * `garminSsoLogin.ts` die Header einzeln liest, statt an Kommata zu splitten.
+ */
+export const EMBED_COOKIES = [
+  "GARMIN-SSO=1; Path=/; Domain=.garmin.com; Expires=Mon, 04 Aug 2036 12:00:00 GMT; Secure",
+  "GARMIN-SSO-GUID=ABCDEF0123456789ABCDEF0123456789; Path=/; Domain=.garmin.com; Secure",
+];
+
 /** Die Signin-Seite: trägt das `_csrf`-Token, das der Credential-POST braucht. */
 export const SIGNIN_SEITE = `<!DOCTYPE html>
 <html lang="en">
@@ -27,6 +48,9 @@ export const SIGNIN_SEITE = `<!DOCTYPE html>
   </form>
 </body>
 </html>`;
+
+/** Das CSRF-Token in `SIGNIN_SEITE` — das der MFA-Schritt **nicht** mehr verwenden darf. */
+export const SIGNIN_CSRF = "3F8A21C4-CSRF-SIGNIN";
 
 /** Zugangsdaten akzeptiert, kein zweiter Faktor: die Seite trägt das Service-Ticket. */
 export const ERFOLG_SEITE = `<!DOCTYPE html>
@@ -108,3 +132,33 @@ export const GESPERRT_SEITE = `<!DOCTYPE html>
 export const CLOUDFLARE_SEITE = `<!DOCTYPE html>
 <html><head><title>Just a moment...</title></head>
 <body><div id="challenge-running"></div></body></html>`;
+
+/**
+ * Schritt 4, die Antwort von `diauth.garmin.com`: das DI-Bündel. Gekürzt auf die drei
+ * Felder, an denen der Login hängt — die echte Antwort trägt zusätzlich Ablaufzeiten,
+ * Scopes und eine JTI. Die Tokens sind erfunden.
+ */
+export const DI_TOKEN_ANTWORT = JSON.stringify({
+  scope: "CONNECT_READ CONNECT_WRITE",
+  jti: "00000000-1111-2222-3333-444444444444",
+  access_token: "di-access-token-erfunden",
+  token_type: "Bearer",
+  refresh_token: "di-refresh-token-erfunden",
+  expires_in: 3599,
+  refresh_token_expires_in: 7775999,
+});
+
+export const DI_TOKEN = "di-access-token-erfunden";
+export const DI_REFRESH_TOKEN = "di-refresh-token-erfunden";
+
+/**
+ * Schritt 5, `userprofile-service/socialProfile`: gekürzt auf den `displayName`, den
+ * die Anmeldung mitnimmt (der Schlaf-Endpunkt trägt ihn im Pfad).
+ */
+export const PROFIL_ANTWORT = JSON.stringify({
+  profileId: 1234567,
+  displayName: "a1b2c3d4-e5f6-7890-abcd-ef0123456789",
+  userName: "athlet",
+});
+
+export const PROFIL_DISPLAY_NAME = "a1b2c3d4-e5f6-7890-abcd-ef0123456789";

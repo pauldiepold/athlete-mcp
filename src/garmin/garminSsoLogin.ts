@@ -25,7 +25,15 @@
  * - Der Pfad **wird brechen**. Deshalb wirft dieses Modul `GarminLoginFehler` mit einer
  *   für den Athleten formulierten `benutzerMeldung` statt roher HTTP-Texte, und der
  *   Teil, der brechen wird — das Lesen der Seiten —, liegt getestet in
- *   `garminSsoParsing.ts`.
+ *   `garminSsoParsing.ts`, der Ablauf drumherum in `garminSsoLogin.test.ts`.
+ *
+ * **Der Netz-Zugang ist eine Naht.** Beide öffentlichen Funktionen nehmen `fetch` als
+ * defaultetes Argument entgegen (`optionen.netz`), statt das globale zu greifen — mit
+ * dem echten `fetch` als Default, also unverändertem Aufruf für die Routen in `web/`.
+ * Zwei Adapter rechtfertigen sie: das Netz in Produktion, gespeicherte Antworten im
+ * Test (`fixtures/ssoAntworten.ts`). Damit steht nicht nur das Lesen der Seiten unter
+ * Test, sondern auch die Abfolge, an der der Ablauf hängt — Cookie-Weitergabe, das
+ * frische CSRF-Token der MFA-Seite, die `DI_CLIENT_IDS`-Schleife.
  *
  * Bewusst nur `fetch`, `URLSearchParams` und Regex: keine Node-Builtins, keine
  * Abhängigkeiten. Derselbe Code läuft in workerd und (fürs CLI) in Node.
@@ -112,6 +120,26 @@ export interface MfaZustand {
   /** Das **frische** Token der MFA-Seite, nicht das der Signin-Seite. */
   csrf: string;
   referer: string;
+}
+
+/**
+ * Der Netz-Zugang, den dieses Modul braucht — genau die `fetch`-Form, die hier
+ * vorkommt: eine URL als Zeichenkette, ein optionales Init, eine `Response`.
+ */
+export type NetzZugang = (
+  url: string,
+  init?: { method?: string; headers?: Record<string, string>; body?: string },
+) => Promise<Response>;
+
+/** Der echte Pfad. Gewrappt, damit `fetch` nicht losgelöst von seinem Global läuft. */
+const ECHTES_NETZ: NetzZugang = (url, init) => fetch(url, init);
+
+export interface LoginOptionen {
+  /**
+   * Nur für Tests: der Netz-Zugang. Der Default ist der echte Pfad — Produktion
+   * ruft diese Funktionen unverändert mit zwei Argumenten auf.
+   */
+  netz?: NetzZugang;
 }
 
 /** Wie ein gestarteter Login endet: fertig oder mit offener Zwei-Faktor-Abfrage. */
@@ -222,11 +250,12 @@ function pruefeRateLimit(res: Response, schritt: string): void {
 export async function starteGarminLogin(
   email: string,
   password: string,
+  { netz = ECHTES_NETZ }: LoginOptionen = {},
 ): Promise<LoginStart> {
   const jar: Record<string, string> = {};
 
   // Schritt 1: Die Embed-Seite setzt die Session-Cookies.
-  const embedRes = await fetch(mitParams(SSO_EMBED, EMBED_PARAMS), {
+  const embedRes = await netz(mitParams(SSO_EMBED, EMBED_PARAMS), {
     headers: BROWSER_HEADER,
   });
   await embedRes.text();
@@ -243,7 +272,7 @@ export async function starteGarminLogin(
 
   // Schritt 2: Die Signin-Seite trägt das CSRF-Token im HTML.
   const signinUrl = mitParams(`${SSO_BASIS}/signin`, SIGNIN_PARAMS);
-  const csrfRes = await fetch(signinUrl, {
+  const csrfRes = await netz(signinUrl, {
     headers: { ...BROWSER_HEADER, Referer: SSO_EMBED, Cookie: cookieHeader(jar) },
   });
   const csrfBody = await csrfRes.text();
@@ -267,7 +296,7 @@ export async function starteGarminLogin(
   // ein, kommt sie an genau diese Zeile zurück.
 
   // Schritt 3: Zugangsdaten.
-  const loginRes = await fetch(signinUrl, {
+  const loginRes = await netz(signinUrl, {
     method: "POST",
     headers: {
       ...BROWSER_HEADER,
@@ -312,7 +341,7 @@ export async function starteGarminLogin(
     );
   }
 
-  return { art: "fertig", anmeldung: await holeAnmeldung(antwort.ticket) };
+  return { art: "fertig", anmeldung: await holeAnmeldung(antwort.ticket, netz) };
 }
 
 /** Das CSRF-Token der Signin-Seite; ohne es gibt es keinen POST. */
@@ -335,10 +364,11 @@ function deuteCsrf(html: string): string {
 export async function beendeGarminLoginMitMfa(
   zustand: MfaZustand,
   code: string,
+  { netz = ECHTES_NETZ }: LoginOptionen = {},
 ): Promise<GarminAnmeldung> {
   const jar = { ...zustand.cookies };
 
-  const res = await fetch(
+  const res = await netz(
     mitParams(`${SSO_BASIS}/verifyMFA/loginEnterMfaCode`, SIGNIN_PARAMS),
     {
       method: "POST",
@@ -378,13 +408,16 @@ export async function beendeGarminLoginMitMfa(
     );
   }
 
-  return holeAnmeldung(antwort.ticket);
+  return holeAnmeldung(antwort.ticket, netz);
 }
 
 /** Aus einem Service-Ticket wird das, was gespeichert werden darf: Bündel + displayName. */
-async function holeAnmeldung(ticket: string): Promise<GarminAnmeldung> {
-  const buendel = await tauscheTicket(ticket);
-  return { ...buendel, display_name: await holeDisplayName(buendel.di_token) };
+async function holeAnmeldung(
+  ticket: string,
+  netz: NetzZugang,
+): Promise<GarminAnmeldung> {
+  const buendel = await tauscheTicket(ticket, netz);
+  return { ...buendel, display_name: await holeDisplayName(buendel.di_token, netz) };
 }
 
 /**
@@ -392,7 +425,10 @@ async function holeAnmeldung(ticket: string): Promise<GarminAnmeldung> {
  * Signierung — ein Form-POST. `service_url` muss **exakt** die URL sein, mit der der
  * SSO-Login gefahren wurde, sonst weist Garmin das Ticket zurück.
  */
-async function tauscheTicket(ticket: string): Promise<{
+async function tauscheTicket(
+  ticket: string,
+  netz: NetzZugang,
+): Promise<{
   di_token: string;
   di_refresh_token: string;
   di_client_id: string;
@@ -400,7 +436,7 @@ async function tauscheTicket(ticket: string): Promise<{
   const fehlschlaege: string[] = [];
 
   for (const clientId of DI_CLIENT_IDS) {
-    const res = await fetch(DI_TOKEN_URL, {
+    const res = await netz(DI_TOKEN_URL, {
       method: "POST",
       headers: {
         ...NATIVE_HEADER,
@@ -454,8 +490,11 @@ async function tauscheTicket(ticket: string): Promise<{
  * Schritt 5: der `displayName`. Der Schlaf-Endpunkt trägt ihn im Pfad, also gehört er
  * mit zur Anmeldung (siehe docs/garmin-connect-api.md).
  */
-async function holeDisplayName(diToken: string): Promise<string> {
-  const res = await fetch(`${CONNECTAPI}/userprofile-service/socialProfile`, {
+async function holeDisplayName(
+  diToken: string,
+  netz: NetzZugang,
+): Promise<string> {
+  const res = await netz(`${CONNECTAPI}/userprofile-service/socialProfile`, {
     headers: {
       ...NATIVE_HEADER,
       Authorization: `Bearer ${diToken}`,
