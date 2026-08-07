@@ -8,6 +8,7 @@
     "generate": "nuxt generate",
     "preview": "nuxt preview",
     "deploy:dev": "nuxt build && wrangler deploy",
+    "deploy:prod": "nuxt build && wrangler deploy --env production",
     "dev:cron": "nuxt build && wrangler dev --test-scheduled",
     "typecheck": "nuxt typecheck",
     "test": "vitest run",
