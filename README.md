@@ -42,17 +42,20 @@ curl "http://localhost:8787/__scheduled?cron=0+5+*+*+*"
 KV** und bewusst **ohne Cron** — zwei Läufe gegen dieselben Garmin-Konten wären
 ein unnötiges Rate-Limit-Risiko.
 
-Die Produktion läuft bis zum Cutover (Issue #45) unverändert auf den alten Workern
-`athlete-mcp` und `athlete-web`: sie bleiben deployt, werden aber nicht mehr aus
-diesem Repo gebaut. Daraus folgt zweierlei, solange das so ist:
+Die Produktion ist seit dem Cutover (Issue #45) `training.pauldiepold.de` und wird
+wie die Testumgebung aus diesem Repo gebaut (`pnpm deploy:prod` in `web/`).
 
-- **Die lokalen CLIs (Onboarding, Probe, Backfill) bedienen ausschließlich die
-  Testumgebung**, weil sie `web/wrangler.jsonc` benutzen. Sie haben deshalb bewusst
-  keinen Schalter für die Umgebung: ein Flag hätte nur die *ausgegebene* URL
-  verstellt, nicht das Ziel-KV. Wer die Produktion bedienen muss, tut das über die
-  Config der alten Worker, nicht von hier aus.
-- **Die Produktion ist aus diesem Repo nicht deploybar** — ein Hotfix an der alten
-  Weboberfläche bräuchte deren Config zurück.
+Die alten Worker `athlete-mcp` und `athlete-web` sind **noch deployt**, werden aber
+nicht mehr aus diesem Repo gebaut und von keinem Code hier mehr bedient: Sie halten
+den Zugang der Bestandsathleten offen, bis die auf die Anmeldung per Identität
+umgezogen sind. Mit ihnen leben die `pathsecret:`- und `viewsecret:`-Einträge in der
+alten KV weiter — sie sind der letzte Rest der alten Welt und werden zusammen mit den
+Workern abgeräumt (Issue #56).
+
+> **Die lokalen CLIs (Probe, Backfill) bedienen die in `web/wrangler.jsonc`
+> konfigurierte Umgebung** und haben bewusst keinen Schalter dafür: Ein Flag hätte in
+> der alten Fassung nur die *ausgegebene* URL verstellt, nicht das Ziel-KV — ein Lauf
+> „für die Produktion" hätte still in die Testumgebung geschrieben.
 
 Das D1-Schema einer frischen Umgebung anlegen (in `web/`):
 
@@ -64,66 +67,31 @@ Die Migrationen liegen im Repo-Root unter `migrations/`; `web/wrangler.jsonc`
 zeigt über `migrations_dir` dorthin, damit beide Umgebungen dasselbe Schema
 bekommen.
 
-## Onboarding eines Nutzers
+## Ein Konto entsteht
 
-Provisioning ist manuell: pro Nutzer werden Credentials/Tokens einmalig **lokal**
-erzeugt und in die Produktions-KV geschrieben — kein Self-Service. Das erledigt
-das Onboarding-CLI:
+Der Operator stellt in `/admin` einen **Invite-Code** aus — *frei* für ein neues
+Konto, *kontogebunden* für einen Verfahrenswechsel an einem bestehenden. Der Athlet
+löst ihn unter `/invite` ein, meldet sich per Google oder Apple an und richtet seine
+**Verbindungen** zu Final Surge und Garmin unter `/einstellungen` selbst ein; den
+Connector trägt er in Claude mit der nackten Origin ein. Kein CLI, keine
+Geheim-URL, kein fremdes Passwort in der Konsole des Operators
+([ADR-0007](./docs/adr/0007-oauth-identitaet-statt-url-secrets-ein-deployable.md)).
 
-```bash
-npm run onboard -- --user <name>
-```
+Der **allererste** Code muss von Hand ins KV: Ohne Konto kein `/admin`, ohne
+`/admin` kein Code.
 
-Voraussetzungen:
-
-- **wrangler ist angemeldet** (`npx wrangler login`) und schreibt in die echte
-  KV (`--remote`, Binding `SESSION_KV` aus `web/wrangler.jsonc` — also in die
-  Testumgebung, siehe oben).
-- **[uv](https://docs.astral.sh/uv/)** ist installiert — der Garmin-Seed-Login
-  läuft über einen `garminconnect`-Helper (`uv run scripts/seed_garmin_login.py`).
-
-Ablauf (interaktiv, HITL):
-
-1. **Final-Surge-Login** — Email + Passwort werden erfragt und durch einen echten
-   Login verifiziert; gespeichert wird `user:<name>:finalsurge`.
-2. **Garmin-Seed-Login** — Passwort + **MFA-Code** (Mail/App), einmalig. Der
-   Worker bekommt nie das Garmin-Passwort, nur das DI-Token-Bündel
-   (`user:<name>:garmin`) plus Profil (`user:<name>:garmin:profile`). Garmin
-   rate-limitet den Login aggressiv (429) — der Helper toleriert das und
-   versucht es mit Backoff mehrfach; einzelne 429-Hinweise sind normal.
-3. **Pfad-Secret** — neu erzeugt oder bei Re-Seed wiederverwendet
-   (`pathsecret:<secret>` → `<name>`).
-4. Ausgabe der fertigen MCP-URL und des Browser-Links auf stdout —
-   beide auf derselben Origin: `…/{pathsecret}/mcp` und `…/{viewsecret}`.
-
-> **Veraltet ab Issue #43.** Die Schritte 3 und 4 beschreiben Secrets, die nichts mehr
-> aufschließen: Der MCP-Endpunkt ist `/mcp` für alle und hängt am Bearer-Token aus dem
-> eigenen Authorization Server, die Browser-Fläche an der Session. Der Connector wird in
-> Claude mit der nackten Origin eingetragen; ein Konto entsteht über einen Invite-Code
-> aus `/admin`. Das CLI schreibt die Einträge noch — sie fallen beim Aufräumen nach dem
-> Cutover (Issue #46), zusammen mit diesem Absatz.
-
-Optionale Env-Variablen statt interaktiver Eingabe:
-`FINALSURGE_EMAIL`, `FINALSURGE_PASSWORD`, `GARMIN_EMAIL`, `GARMIN_PASSWORD`
-(der MFA-Code bleibt immer interaktiv). Die Ziel-Umgebung steht als Konstantenpaar
-oben in `scripts/onboard.ts` und wird zu Beginn jedes Laufs ausgegeben.
-
-### Re-Seed (Onboarding)
-
-Ein erneuter Lauf für einen bestehenden Nutzer stellt einen abgerissenen
-Garmin-Refresh-Token wieder her (KV-`put` ist Upsert) und verwendet das
-vorhandene Pfad-Secret wieder. Das Wiederherstellen des Garmin-Tokens ist der Grund,
-aus dem der Re-Seed noch existiert; die MCP-URL hängt seit Issue #43 nicht mehr daran.
-Keine Code-Änderung nötig.
+Das alte Onboarding-CLI liegt unter [`archive/`](./archive/) — nicht mehr
+aufgerufen und nicht mehr gepflegt, aber als Recherche-Grundlage aufbewahrt,
+falls Garmin seinen Login-Pfad dreht.
 
 ## Körperdaten-Backfill
 
 Ändert sich die Form der Körperdaten (zuletzt mit
 [ADR-0002](./src/garmin/docs/adr/0002-koerperdaten-intraday-ereignisbasiert.md):
 `training_readiness` vom Objekt zur Liste), tragen archivierte Zeilen noch die
-alte Form. Zwei lokale CLIs ziehen sie nach — beide setzen wie das Onboarding
-ein angemeldetes `npx wrangler login` voraus und sprechen KV und D1 der in
-`web/wrangler.jsonc` konfigurierten Umgebung an.
+alte Form. Zwei lokale CLIs ziehen sie nach — beide setzen ein angemeldetes
+`npx wrangler login` voraus und sprechen KV und D1 der in `web/wrangler.jsonc`
+konfigurierten Umgebung an.
 
 **Erst prüfen**, was Garmin für ein altes Datum überhaupt noch liefert:
 

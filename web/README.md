@@ -66,12 +66,12 @@ und `../docs/adr/0007-oauth-identitaet-statt-url-secrets-ein-deployable.md`.
 - **Kacheln ohne Client-JS:** die Mini-Kurven (`MiniKurve`) und das HRV-Baseline-Band
   (`BaselineBand`) sind serverseitig gerendertes Inline-SVG — sie stehen beim ersten
   Rendern da, ohne Chart-Bibliothek.
-- **Eine `wrangler.jsonc` fürs ganze Repo:** sie liegt hier und beschreibt die
-  Testumgebung `dev.training.pauldiepold.de` mit **eigener** D1 und eigenem KV.
-  Bewusst **ohne** `triggers.crons` — der Cron ist gebaut, läuft aber nur in der
-  Produktion; zwei Läufe gegen dieselben Garmin-Konten wären ein Rate-Limit-Risiko.
-  Die Produktion bleibt bis zum Cutover (Issue #45) auf den alten Workern, weshalb
-  `wrangler deploy` sie nicht versehentlich treffen kann.
+- **Eine `wrangler.jsonc` fürs ganze Repo:** sie liegt hier. Die **Top-Level-Config
+  ist die Testumgebung** `dev.training.pauldiepold.de` mit **eigener** D1 und eigenem
+  KV, bewusst **ohne** `triggers.crons` — zwei Läufe gegen dieselben Garmin-Konten
+  wären ein Rate-Limit-Risiko. Die Produktion `training.pauldiepold.de` steht in
+  `env.production` und braucht das ausdrückliche `--env production` (`deploy:prod`):
+  Ein `wrangler deploy` ohne Flag trifft weiter dev.
 - **Last-Write-Wins:** kein Konflikt-Handling zwischen Browser- und Agent-Schreibzugriff
   (ADR-0004).
 

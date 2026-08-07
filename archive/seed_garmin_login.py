@@ -5,7 +5,14 @@
 # ]
 # ///
 """
-Garmin-Seed-Login fürs Onboarding-CLI (Issue #8) — HITL.
+ARCHIV (Issue #46) — nicht mehr aufgerufen, nicht mehr gepflegt.
+
+Garmin-Seed-Login fürs Onboarding-CLI (Issue #8) — HITL. Aufbewahrt neben
+`onboard.ts` als Recherche-Grundlage: Dreht Garmin seinen Login-Pfad, ist dies
+der einzige Weg im Repo, der über `garminconnect` statt über unseren eigenen
+Widget-Flow (src/garmin/garminSsoLogin.ts) geht — die Bibliothek zieht bei einer
+Änderung nach, wir nicht. Im Betrieb verbindet sich der Athlet selbst unter
+/einstellungen.
 
 Macht NUR den einmaligen Login (Passwort + interaktiver MFA-Code) und gibt das
 DI-Token-Bündel plus displayName als JSON auf **stdout** aus. Alle menschlichen

@@ -83,7 +83,7 @@ describe("listGarminUsers", () => {
       "user:paul:finalsurge",
       "user:jonas:garmin",
       "user:lena:finalsurge",
-      "pathsecret:abc",
+      "google:1234567890",
     ]);
 
     expect(await listGarminUsers(kv)).toEqual(["jonas", "paul"]);

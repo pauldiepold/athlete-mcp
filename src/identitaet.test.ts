@@ -11,8 +11,8 @@ import {
 } from "./identitaet.js";
 
 /**
- * Fake-KV über einer Map — wie in seeding.test.ts/operatorDirectory.test.ts, hier aber
- * zusätzlich schreibend (`put`/`delete`), weil das Einlösen ein Schreibvorgang ist.
+ * Fake-KV über einer Map, hier zusätzlich schreibend (`put`/`delete`), weil das
+ * Einlösen ein Schreibvorgang ist.
  * `expirationTtl` wird bewusst ignoriert: dass abgelaufene Codes verschwinden, ist eine
  * Zusage von KV; der Testwert liegt darin, dass „weg" und „unbekannt" derselbe Fall sind.
  */

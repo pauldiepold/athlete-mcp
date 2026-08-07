@@ -1,6 +1,15 @@
 # Admin-/Operator-Surface mit GitHub-OAuth (nuxt-auth-utils)
 
-Status: accepted
+Status: superseded by [ADR-0007](./0007-oauth-identitaet-statt-url-secrets-ein-deployable.md) — **von diesem ADR ist nichts mehr in Kraft.**
+
+Es überlebt der **Operator-Begriff**, den es eingeführt hat (Betreiber vs. Athlet), und die Admin-Fläche selbst. Alles andere ist gefallen, und zwar an der Wurzel:
+
+- **GitHub-OAuth ist raus.** Operator und Athlet melden sich über **dieselbe** Anmeldung an (Google oder Apple); `/admin` schaltet eine Allowlist von Google-`sub` frei (`NUXT_OPERATOR_SUBS`), keine zweite Session. Die hier begründete Trennung „GitHub-Session vs. URL-Secret" hatte nur Sinn, solange es das URL-Secret gab.
+- **Der Gegenstand der Seite hat sich gedreht.** Sie listet keine Secrets mehr, sondern **Konten, Identitäten und offene Invite-Codes** — und ist damit nicht mehr das „stärkste Gate im System"; die Begründung dafür (sie aggregiere alle Schreib-`pathsecret`s) ist gegenstandslos. Die Vorsichtsmaßnahme „MCP-URL nur hinter explizitem Anzeigen" ebenso: Es gibt keine per-Athleten-MCP-URL mehr.
+- **Nicht mehr read-only.** Die Seite **stellt Invite-Codes aus** — die einzige Mutation, die es braucht, seit Provisionierung Self-Service ist.
+- **Kein Onboarding-CLI mehr**, in das Re-Seed und Deboard ausgelagert wären; es liegt seit Issue #46 in `archive/`.
+
+Der historische Text folgt unverändert.
 
 Das Nuxt-Frontend bekommt eine `/admin`-Route, die den **ersten Betreiber-/Operator-Begriff** im System einführt (vs. Mandant). Sie listet die onboardeten Nutzer und deren Links (View-URL + MCP-URL), indem sie KV rückwärts auflöst (`userId → pathsecret/viewsecret`, wie `findExistingSecret` in `scripts/onboard.ts`). Authentifizierung über **`nuxt-auth-utils` + GitHub-OAuth**, allowlistet auf die GitHub-Identität des Betreibers — sealed-cookie-Session, **kein Secret in der URL**, kein geteiltes statisches Token. Erster Cut **read-only**: keine Mutationen in der UI (Re-Seed/Rotate/Deboard bleiben im Onboarding-CLI).
 

@@ -79,7 +79,6 @@ export interface KoerperdatenCronOptions {
 /**
  * Alle userIds mit einem Garmin-Token-Bündel im KV (`user:<id>:garmin`).
  * Der Anker auf `$` ist wesentlich: `user:<id>:garmin:profile` darf nicht matchen.
- * (Name analog zu `listOnboardedUsers` im Operator-Directory.)
  */
 export async function listGarminUsers(kv: KVNamespace): Promise<string[]> {
   const ids: string[] = [];

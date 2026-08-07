@@ -7,7 +7,7 @@ Was wann fiel:
 - **ADR-0004** löste die hier verworfene Option „separates Frontend" und den offenen Single-Writer-Punkt auf (eigenständiges Nuxt-Frontend, Browser-Editing, Last-Write-Wins) und lockerte die **read-only-Eigenschaft des View-Secrets**: im Frontend gewährt dasselbe Secret read+edit der eigenen Steuerung (weiterhin enger als das volle MCP-`pathsecret`). Die schlichte HTML-Ansicht im Worker blieb damals bewusst daneben bestehen.
 - **ADR-0007** hat sie ersatzlos entfernt. Mit einem einzigen Deployable lagen dieselben Daten unter zwei Rendering-Pfaden auf einer Origin — der schlichte HTML-Pfad hatte keinen Zweck mehr, den die Nuxt-Fläche nicht besser erfüllt, und wäre bei der OAuth-Umstellung eine zweite Fläche gewesen, die man mit absichern muss. Die Routen `/{secret}/steuerung` und `/{secret}/steuerung/{kw}` gibt es weiterhin, sie kommen jetzt aber aus Nuxt.
 
-Das **View-Secret als getrenntes Auth-Artefakt** überlebt dieses ADR und stirbt erst mit der OAuth-Umstellung (ADR-0007).
+Das **View-Secret als getrenntes Auth-Artefakt** überlebte dieses ADR und ist mit der OAuth-Umstellung gestorben: Seit Issue #46 kennt kein Code im Repo mehr ein URL-Secret — weder den `viewsecret:`-Namespace noch den `TenantResolver`, der ihn auflöste, noch das Seeding, das ihn anlegte. Damit ist von diesem ADR **nichts mehr in Kraft**; es steht als Denkweg.
 
 Der historische Text folgt unverändert.
 

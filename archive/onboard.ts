@@ -1,18 +1,28 @@
 /**
- * Onboarding-CLI (Issue #8): provisioniert einen Nutzer einmalig lokal.
+ * ARCHIV — nicht mehr aufgerufen, nicht mehr gepflegt, nicht typgeprüft.
  *
- *   npm run onboard -- --user <name>
+ * Das Onboarding-CLI (Issue #8) provisionierte einen Athleten einmalig lokal: Der
+ * Operator tippte fremde Zugangsdaten in seine eigene Konsole und gab am Ende zwei
+ * Geheim-URLs heraus. Mit [ADR-0007](../docs/adr/0007-oauth-identitaet-statt-url-secrets-ein-deployable.md)
+ * ist beides weg — ein Konto entsteht über einen Invite-Code aus `/admin`, die
+ * Verbindungen zu Final Surge und Garmin richtet der Athlet unter `/einstellungen`
+ * selbst ein.
  *
- * Ablauf (HITL): Final-Surge-Creds erfragen + verifizieren → Garmin-Seed-Login
- * (Passwort + MFA über den garth-Helper) → Pfad-Secret bestimmen (vorhandenes
- * wiederverwenden, sonst neu) → alle Per-Nutzer-KV-Einträge via `npx wrangler`
- * schreiben → fertige `/{secret}/mcp`-URL ausgeben.
+ * Warum es trotzdem hier liegt und nicht gelöscht ist: Der **interaktive Garmin-Login
+ * mit MFA** ist der einzige Ort im Repo, an dem dieser Weg über `garminconnect` läuft
+ * (`seed_garmin_login.py` daneben). Dreht Garmin seinen Login-Pfad, ist das die
+ * Recherche-Grundlage, um den neuen zu finden — die Bibliothek zieht dann nach, unser
+ * eigener Widget-Flow (`src/garmin/garminSsoLogin.ts`) nicht.
  *
- * Die sicherheitskritische Auflösung (userId → KV-Einträge, Token-Mapping) liegt
- * testbar in src/cli/seeding.ts. Dieser Orchestrator ist reine, ungetestete
- * Verdrahtung von Prompts, Subprozessen und Side-Effects (Issue: MFA-Login ist
- * naturgemäß HITL). Re-Seed eines bestehenden Nutzers stellt einen abgerissenen
- * Refresh-Token wieder her (KV-put = Upsert) — ohne Code-Änderung.
+ * Beim Archivieren (Issue #46) sind die **Pfad-/View-Secrets** herausgefallen: Sie
+ * schließen nichts mehr auf, ihre KV-Einträge werden abgeräumt, und ein Skript, das
+ * tote Schlüssel schreibt, ist eine Falle. Übrig ist der Weg, wie ein Garmin-Bündel und
+ * Final-Surge-Zugangsdaten in die KV kommen. Auch das ist Referenz, kein Betriebsmittel.
+ *
+ * Der ursprüngliche Ablauf: Final-Surge-Creds erfragen + verifizieren → Garmin-Seed-Login
+ * (Passwort + MFA über den garth-Helper) → Per-Athleten-KV-Einträge via `npx wrangler`
+ * schreiben. Reine, ungetestete Verdrahtung von Prompts, Subprozessen und Side-Effects;
+ * ein MFA-Login ist naturgemäß HITL.
  */
 
 import { execFileSync } from "node:child_process";
@@ -21,32 +31,65 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import * as readline from "node:readline";
 
-import {
-  buildSeedEntries,
-  buildMcpUrl,
-  buildViewUrl,
-  generatePathSecret,
-} from "../src/cli/seeding.js";
-import type { GarminSeed } from "../src/cli/seeding.js";
 import { login } from "../src/finalsurge/finalSurgeClient.js";
 
-// Die Umgebung, die dieses CLI bedient. Beide Konstanten beschreiben **dieselbe**
-// Umgebung und müssen zusammen wandern: `WRANGLER_CONFIG` bestimmt, in welches KV
-// geschrieben wird, `BASE_URL` nur, welche URLs am Ende ausgegeben werden.
-//
-// Bewusst Konstanten statt eines `--base-url`-Flags: ein Flag hätte nur die
-// ausgegebene URL verstellt, nicht das Ziel-KV. Ein Aufruf „für die Produktion"
-// hätte dann Prod-URLs gedruckt und still in die Testumgebung geseedet — ein Nutzer
-// mit funktionierender URL, die auf ein Konto zeigt, das dort nicht existiert.
-//
-// Seit ADR-0007 gibt es genau eine wrangler.jsonc (in `web/`), und sie beschreibt
-// die Testumgebung. Die Produktion läuft bis zum Cutover (Issue #45) auf den alten
-// Workern und wird von diesem Repo aus nicht mehr bedient; das Ticket zieht beide
-// Konstanten mit.
+/**
+ * Die Umgebung, in die ein Lauf schreibt: `wrangler.jsonc` bestimmt das Ziel-KV.
+ * Bewusst eine Konstante und nie ein Flag gewesen — ein Flag hätte nur die *ausgegebene*
+ * URL verstellt, nicht das Ziel; ein Aufruf „für die Produktion" hätte still in die
+ * Testumgebung geseedet.
+ */
 const WRANGLER_CONFIG = "web/wrangler.jsonc";
-const BASE_URL = "https://dev.training.pauldiepold.de";
 
-/** Fortschritt/Hinweise auf stderr, damit stdout nur die fertige URL trägt. */
+/** Das schlanke Garmin-DI-Token-Bündel plus der für die API nötige displayName. */
+interface GarminSeed {
+  di_token: string;
+  di_refresh_token: string;
+  di_client_id: string;
+  display_name: string;
+}
+
+/** Ein KV-Eintrag im `wrangler kv bulk put`-Format. */
+interface KvEntry {
+  key: string;
+  value: string;
+}
+
+/**
+ * Die drei Per-Athleten-KV-Einträge. Bewusst explizit pro Feld, damit kein
+ * Garmin-Passwort und keine Quervermischung in einen falschen Key gelangt — das war
+ * der sicherheitskritische Kern, der früher testbar in `src/cli/seeding.ts` lag.
+ */
+function buildSeedEntries(input: {
+  userId: string;
+  finalSurge: { email: string; password: string };
+  garmin: GarminSeed;
+}): KvEntry[] {
+  const { userId, finalSurge, garmin } = input;
+  return [
+    {
+      key: `user:${userId}:finalsurge`,
+      value: JSON.stringify({
+        email: finalSurge.email,
+        password: finalSurge.password,
+      }),
+    },
+    {
+      key: `user:${userId}:garmin`,
+      value: JSON.stringify({
+        di_token: garmin.di_token,
+        di_refresh_token: garmin.di_refresh_token,
+        di_client_id: garmin.di_client_id,
+      }),
+    },
+    {
+      key: `user:${userId}:garmin:profile`,
+      value: JSON.stringify({ display_name: garmin.display_name }),
+    },
+  ];
+}
+
+/** Fortschritt/Hinweise auf stderr. */
 function log(msg: string): void {
   process.stderr.write(`${msg}\n`);
 }
@@ -104,26 +147,11 @@ function wrangler(args: string[], stdio: "pipe" | "inherit" = "pipe"): string {
   );
 }
 
-/**
- * Sucht ein bereits vergebenes Secret der userId unter `prefix` (z. B.
- * `pathsecret:` oder `viewsecret:`), damit ein Re-Seed die URLs des Nutzers nicht
- * ändert. Scan über `<prefix>*` (wenige Nutzer).
- */
-function findExistingSecret(userId: string, prefix: string): string | null {
-  const listed = wrangler(["key", "list", "--prefix", prefix]);
-  const keys = JSON.parse(listed) as { name: string }[];
-  for (const { name } of keys) {
-    const value = wrangler(["key", "get", name]).trim();
-    if (value === userId) return name.slice(prefix.length);
-  }
-  return null;
-}
-
 async function main(): Promise<void> {
   const { user: userId } = parseArgs(process.argv.slice(2));
   log(`== Onboarding für Athlet "${userId}" ==`);
   // Zuerst und unübersehbar: in welche Umgebung dieser Lauf schreibt.
-  log(`== Ziel: ${BASE_URL} (KV aus ${WRANGLER_CONFIG}) ==`);
+  log(`== Ziel-KV aus ${WRANGLER_CONFIG} ==`);
 
   // --- Final Surge: Creds erfragen und durch einen echten Login verifizieren ---
   const fsEmail = process.env.FINALSURGE_EMAIL || (await ask("Final-Surge Email: "));
@@ -141,7 +169,7 @@ async function main(): Promise<void> {
   log(">> Starte Garmin-Seed-Login (interaktiv: Passwort + MFA-Code) …");
   let garthJson: string;
   try {
-    garthJson = execFileSync("uv", ["run", "scripts/seed_garmin_login.py"], {
+    garthJson = execFileSync("uv", ["run", "archive/seed_garmin_login.py"], {
       encoding: "utf8",
       stdio: ["inherit", "pipe", "inherit"],
     });
@@ -159,20 +187,9 @@ async function main(): Promise<void> {
     if (!garmin[field]) die(`Garmin-Seed-Login ohne ${field}.`);
   }
 
-  // --- Secrets: vorhandene wiederverwenden, sonst neu (stabile URLs) ---
-  const existing = findExistingSecret(userId, "pathsecret:");
-  const pathSecret = existing ?? generatePathSecret();
-  log(existing ? ">> Re-Seed: bestehendes Pfad-Secret wiederverwendet." : ">> Neues Pfad-Secret erzeugt.");
-
-  const existingView = findExistingSecret(userId, "viewsecret:");
-  const viewSecret = existingView ?? generatePathSecret();
-  log(existingView ? ">> Re-Seed: bestehendes View-Secret wiederverwendet." : ">> Neues View-Secret erzeugt.");
-
   // --- KV schreiben: eine Bulk-Invocation, Secrets in temporärer Datei (nicht in argv) ---
   const entries = buildSeedEntries({
     userId,
-    pathSecret,
-    viewSecret,
     finalSurge: { email: fsEmail, password: fsPassword },
     garmin,
   });
@@ -186,10 +203,7 @@ async function main(): Promise<void> {
     rmSync(dir, { recursive: true, force: true });
   }
 
-  // --- Ergebnis: MCP-URL + Browser-URL (einzige Ausgabe auf stdout) ---
-  log(">> Fertig. MCP-URL und Browser-Link (Dashboard-Startseite):");
-  process.stdout.write(`${buildMcpUrl(BASE_URL, pathSecret)}\n`);
-  process.stdout.write(`${buildViewUrl(BASE_URL, viewSecret)}\n`);
+  log(">> Fertig.");
 }
 
 main().catch((err) => die((err as Error).message));

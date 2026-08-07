@@ -4,9 +4,9 @@
  *
  * `kv.list` liefert seitenweise. Wer den Cursor vergisst, bekommt bei wenigen
  * Einträgen dasselbe Ergebnis wie mit — und verliert später still einzelne Athleten:
- * das Operator-Directory zeigte einen Nutzer nicht mehr an, der Cron holte seine
- * Körperdaten nicht mehr. Ein Fehler, der erst mit dem Wachstum auftaucht und dann
- * nach einem Datenproblem aussieht, nicht nach einem Schleifenfehler.
+ * der Cron holte deren Körperdaten nicht mehr, eine Identitäts-Auflösung fände ihren
+ * Invite-Code nicht. Ein Fehler, der erst mit dem Wachstum auftaucht und dann nach
+ * einem Datenproblem aussieht, nicht nach einem Schleifenfehler.
  *
  * Bis ADR-0007 lag diese Schleife zweimal vor, je einmal pro Deployable. Mit einer
  * einzigen Bibliothek gibt es dafür keinen Grund mehr.

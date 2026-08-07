@@ -14,8 +14,9 @@
  * der nie eingezogen wird — der realistische Fall ist ein Athlet, der sein Google-Konto
  * verliert und einen neuen Code bekommt, während das alte weiter die Tür öffnet.
  *
- * Sicherheitskritisch in derselben Weise wie das Seeding (siehe cli/seeding.ts): ein
- * falsches Mapping liefert stillschweigend fremde Körperdaten und fremde Steuerung aus.
+ * Sicherheitskritisch: Ein falsches Mapping liefert stillschweigend fremde Körperdaten
+ * und fremde Steuerung aus — dieselbe Sorte Auflösung, die früher das Onboarding-Seeding
+ * schrieb und der `TenantResolver` las.
  * Deshalb reine Funktionen mit KV als Argument und danebenliegenden Tests.
  *
  * Bewusst nur Web-APIs (crypto/btoa), damit das Modul ohne @types/node neben dem

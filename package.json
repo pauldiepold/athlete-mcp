@@ -6,7 +6,6 @@
   "scripts": {
     "test": "vitest run && pnpm --dir web run test",
     "test:watch": "vitest",
-    "onboard": "tsx scripts/onboard.ts",
     "probe:koerperdaten": "tsx scripts/probe-koerperdaten.ts",
     "backfill:koerperdaten": "tsx scripts/backfill-koerperdaten.ts",
     "typecheck": "tsc --noEmit"

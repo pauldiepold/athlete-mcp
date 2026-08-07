@@ -1,5 +1,7 @@
 # athlete-mcp: ein Worker, mehrere Kontexte, mandantenfähig
 
+Status: accepted in Teilen — die **Mandantentrennung** ist von [ADR-0007](./0007-oauth-identitaet-statt-url-secrets-ein-deployable.md) abgelöst: kein Pfad-Secret mehr in der URL, kein manuelles Provisionieren, kein `McpAgent`/Durable Object. Was gilt, ist der Schnitt selbst — **ein Endpunkt, mehrere Kontexte als getrennte Bounded Contexts**, Per-Athleten-Credentials im KV unter `user:<id>:<context>` und die Risikolage der Klartext-Credentials.
+
 Aus dem Single-Purpose-Server `finalsurge-mcp` wird **athlete-mcp**: ein Cloudflare-Worker mit *einer* MCP-URL, der mehrere unabhängige Read-Connectoren (heute Final Surge = Plan, Garmin = Körperdaten) als getrennte Bounded Contexts bündelt (`CONTEXT-MAP.md` + `src/<context>/`). Wir haben das einer zweiten, separaten MCP-URL vorgezogen, weil der Nutzer genau *einen* Endpunkt in seinen Chats haben will und die Server-Shell (`McpAgent`, KV-Auth-Cache, Pfad-Secret) ohnehin generisch ist.
 
 ## Considered Options

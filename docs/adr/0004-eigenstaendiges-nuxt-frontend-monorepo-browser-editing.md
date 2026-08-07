@@ -1,6 +1,18 @@
 # Eigenständiges Nuxt-Frontend (Monorepo) mit Browser-Editing der Steuerung
 
-Status: accepted — supersedet in Teilen [ADR-0003](./0003-read-only-browser-ansicht-zweite-surface.md)
+Status: accepted in Teilen — supersedet in Teilen [ADR-0003](./0003-read-only-browser-ansicht-zweite-surface.md), selbst **in Teilen supersedet von** [ADR-0007](./0007-oauth-identitaet-statt-url-secrets-ein-deployable.md)
+
+Was von hier **weiterhin gilt**: Nuxt mit SSR als Weboberfläche, **Browser-Editing** von Steuerungsplan + Wochen mit **Markdown als kanonischem Speicherformat**, **Last-Write-Wins** statt Konfliktlogik, der **direkte Modul-Import aus `src/`** als Schutz gegen Schema-Drift, und dass Bindings im Server bleiben und nie im Client-Bundle landen.
+
+Was **ADR-0007 abgelöst hat**:
+
+- **Das zweite Deploy-Target.** Aus zwei Workern ist einer geworden — der MCP-Endpunkt ist eine Nitro-Route derselben App. Die hier als „spätere, bewusste Konsolidierung" offengehaltene Option wurde gezogen; die „neue Kopplungsgrenze" zwischen zwei Deployables existiert nicht mehr.
+- **Das View-Secret in jeder Form.** Nicht nur das Adjektiv „read-only" ist gefallen, sondern das Artefakt: Der Nuxt-Server löst kein Secret mehr auf, sondern liest die **Session**; `/{viewsecret}/steuerung` ist `/steuerung`. Der Satz „derselbe per-User-Link authentifiziert ihn" gilt nicht mehr — ein Link ist keine Anmeldung.
+- **Der `TenantResolver`** aus der Import-Liste ist ersatzlos entfallen.
+- **Die Operator-Auth aus ADR-0005.** Admin und Athlet hängen an derselben Anmeldung, unterschieden durch eine Allowlist.
+- **Die read-only HTML-Ansicht aus ADR-0003**, die der letzte Punkt unten „gültig" lässt, ist entfernt.
+
+Der historische Text folgt unverändert.
 
 Wir bauen ein **eigenständiges Nuxt-Frontend** als **zweites Deploy-Target im selben Repo** (Monorepo), das die bestehende D1/KV bindet und `SteuerungStore`, `TenantResolver` und `migrations/` **direkt importiert** (Single Source of Truth fürs Schema). Es bringt **Browser-Editing** von Steuerungsplan + Wochen: ein Markdown-Quelltext-Editor (kein WYSIWYG im ersten Cut) mit `marked`-Live-Preview — **Markdown bleibt das kanonische Speicherformat**, exakt das, was der Agent über MCP liest/schreibt. Damit kehren wir die in ADR-0003 verworfene Option „separates Frontend" bewusst um: Editing braucht ohnehin Client-JS, und ein **server-seitiges** Nuxt (SSR) entkräftet die beiden Haupt-Einwände von ADR-0003 (CORS und Secret im Browser-Bundle entfallen, weil der Nuxt-Server das View-Secret auflöst und die Bindings nie im Bundle landen).
 
