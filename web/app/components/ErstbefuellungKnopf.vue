@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { ErstbefuellungLauf } from '@shared/garmin/koerperdatenErstbefuellung'
+import { erstbefuellungKnopfAnsicht } from '#shared/erstbefuellungKnopf'
 import { ABFRAGE_INTERVALL_LAEUFT_MS } from '#shared/startseitenZustand'
 
 // Die **Erstbefüllung** unter der Garmin-Karte (Issue #48): was der Hintergrundlauf
@@ -16,7 +17,11 @@ import { ABFRAGE_INTERVALL_LAEUFT_MS } from '#shared/startseitenZustand'
 // Ort gehört, an dem er gerade verbunden hat.
 const { data, refresh } = useFetch('/api/verbindungen/garmin/erstbefuellung', {
   key: 'erstbefuellung',
-  default: () => ({ verbunden: false, lauf: null as ErstbefuellungLauf | null }),
+  default: () => ({
+    verbunden: false,
+    lauf: null as ErstbefuellungLauf | null,
+    offen: null as number | null,
+  }),
 })
 
 // Dasselbe Anstoßen wie auf der Startseite (Issue #51) — ein Weg durch denselben POST,
@@ -41,30 +46,28 @@ watch(laeuft, (aktiv) => {
 }, { immediate: true })
 onBeforeUnmount(() => clearInterval(timer))
 
-const meldung = computed(() => {
-  const l = lauf.value
-  if (!l) return 'Deine Körperdaten der letzten 30 Tage sind noch nicht geholt worden.'
-  if (l.status === 'laeuft')
-    return 'Deine Körperdaten der letzten 30 Tage werden gerade geholt — das dauert etwa eine Minute.'
-  if (l.status === 'gescheitert')
-    return 'Der Abruf deiner Körperdaten ist gescheitert. Versuch es gleich noch einmal.'
-  if (l.geschrieben === 0)
-    return 'Deine Körperdaten der letzten 30 Tage liegen vollständig vor.'
-
-  const geholt = `${l.geschrieben} ${l.geschrieben === 1 ? 'Tag' : 'Tage'} Körperdaten geholt.`
-  // Ein teilweise gescheiterter Lauf sähe sonst aus wie ein geglückter: „20 Tage
-  // geholt" ohne den Hinweis, dass zehn fehlen, und der Athlet hätte keinen Anlass,
-  // den Knopf noch einmal zu drücken.
-  return l.gescheitert > 0
-    ? `${geholt} ${l.gescheitert} ${l.gescheitert === 1 ? 'Tag' : 'Tage'} hat Garmin nicht geliefert — ein zweiter Versuch holt sie nach.`
-    : geholt
-})
+// Was dasteht und was der Knopf anbietet, entscheidet die reine Fassung in
+// `#shared/erstbefuellungKnopf` — die Fall-Reihenfolge ist das Eigentliche daran und
+// in einer Template-Kette nicht prüfbar.
+const ansicht = computed(() =>
+  erstbefuellungKnopfAnsicht({ lauf: lauf.value, offen: data.value?.offen ?? null }),
+)
 
 async function holen() {
+  const neuerLauf = await starten()
+  if (fehler.value) return
+
   // Der Lauf aus der Antwort statt eines neuen Abrufs: Der KV-Zustand ist *eventually
   // consistent* und zeigte in derselben Sekunde womöglich noch den alten.
-  const neuerLauf = await starten()
-  if (!fehler.value) data.value = { ...data.value, lauf: neuerLauf }
+  if (neuerLauf) {
+    data.value = { ...data.value, lauf: neuerLauf }
+    return
+  }
+
+  // `null` heißt: Es wurde nichts angestoßen, weil nichts offen war. Ohne das Nachfragen
+  // bliebe genau hier ein Knopf stehen, der nichts tut — die offenen Tage stammen aus
+  // D1 und sind stark konsistent, die Antwort darauf stimmt sofort.
+  await refresh()
 }
 </script>
 
@@ -72,7 +75,7 @@ async function holen() {
   <div v-if="data?.verbunden" class="flex flex-wrap items-center justify-between gap-2">
     <p class="text-sm text-muted">
       <UIcon v-if="laeuft" name="i-lucide-loader-circle" class="mr-1 animate-spin align-[-2px]" />
-      {{ fehler ?? meldung }}
+      {{ fehler ?? ansicht.meldung }}
     </p>
 
     <UButton
@@ -80,10 +83,10 @@ async function holen() {
       variant="subtle"
       size="sm"
       :loading="startet || laeuft"
-      :disabled="laeuft"
+      :disabled="!ansicht.knopfAktiv"
       @click="holen"
     >
-      {{ lauf && lauf.status !== 'laeuft' ? 'Neu holen' : 'Körperdaten holen' }}
+      {{ ansicht.knopfText }}
     </UButton>
   </div>
 </template>
