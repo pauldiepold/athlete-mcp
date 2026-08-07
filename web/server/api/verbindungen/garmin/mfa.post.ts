@@ -25,10 +25,7 @@ export default defineEventHandler(async (event) => {
 
   const eingabe = KOERPER.safeParse(await readBody(event))
   if (!eingabe.success) {
-    throw createError({
-      statusCode: 400,
-      statusMessage: 'Bitte gib den Bestätigungscode ein.',
-    })
+    throw athletenFehler(400, 'Bitte gib den Bestätigungscode ein.')
   }
 
   const zustand = await loeseMfaZustandEin(
@@ -37,11 +34,10 @@ export default defineEventHandler(async (event) => {
     eingabe.data.handle,
   )
   if (!zustand) {
-    throw createError({
-      statusCode: 400,
-      statusMessage:
-        'Dieser Anmeldeversuch ist abgelaufen. Bitte fang die Verbindung noch einmal an.',
-    })
+    throw athletenFehler(
+      400,
+      'Dieser Anmeldeversuch ist abgelaufen. Bitte fang die Verbindung noch einmal an.',
+    )
   }
 
   const anmeldung = await mitGarminFehler('Garmin-MFA', () =>

@@ -27,10 +27,7 @@ export default defineEventHandler(async (event) => {
 
   const eingabe = KOERPER.safeParse(await readBody(event))
   if (!eingabe.success) {
-    throw createError({
-      statusCode: 400,
-      statusMessage: 'Bitte gib deinen Invite-Code ein.',
-    })
+    throw athletenFehler(400, 'Bitte gib deinen Invite-Code ein.')
   }
 
   const ergebnis = await einloesenInvite(envOf(event).SESSION_KV, {
@@ -43,11 +40,10 @@ export default defineEventHandler(async (event) => {
   })
 
   if (!ergebnis.ok) {
-    throw createError({
-      statusCode: 403,
-      statusMessage:
-        'Dieser Invite-Code ist unbekannt oder nicht mehr gültig. Bitte melde dich beim Operator.',
-    })
+    throw athletenFehler(
+      403,
+      'Dieser Invite-Code ist unbekannt oder nicht mehr gültig. Bitte melde dich beim Operator.',
+    )
   }
 
   await setzeAthletenSession(

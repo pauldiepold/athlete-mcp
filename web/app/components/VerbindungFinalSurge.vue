@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { fehlerMeldung } from '#shared/fehlerMeldung'
+
 // Das Formular der Final-Surge-Verbindung (Issue #44).
 //
 // Der Server prüft die Zugangsdaten durch einen **echten** Login, bevor er sie
@@ -33,9 +35,10 @@ async function verbinden() {
     abgeschlossen.value = true
     emit('fertig')
   } catch (e) {
-    fehler.value =
-      (e as { statusMessage?: string }).statusMessage
-      ?? 'Das Verbinden hat nicht geklappt. Bitte versuch es noch einmal.'
+    fehler.value = fehlerMeldung(
+      e,
+      'Das Verbinden hat nicht geklappt. Bitte versuch es noch einmal.',
+    )
   } finally {
     sendet.value = false
   }

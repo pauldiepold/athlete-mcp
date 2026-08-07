@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { fehlerMeldung } from '#shared/fehlerMeldung'
 import { PRODUKTNAME } from '@shared/produkt'
 
 // Der Consent-Screen — die einzige Stelle, an der ein Connector Zugriff auf die Daten
@@ -59,9 +60,7 @@ async function entscheiden(zustimmung: boolean) {
     // Zurück zum Client — mit Code oder mit `error`, je nach Entscheidung.
     await navigateTo(antwort.redirectTo, { external: true })
   } catch (e) {
-    fehler.value
-      = (e as { statusMessage?: string }).statusMessage
-        ?? 'Das hat nicht geklappt. Bitte versuch es noch einmal.'
+    fehler.value = fehlerMeldung(e, 'Das hat nicht geklappt. Bitte versuch es noch einmal.')
     sendet.value = null
   }
 }

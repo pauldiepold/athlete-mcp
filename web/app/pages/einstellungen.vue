@@ -11,6 +11,7 @@
 // Deshalb ist das auch eine gewöhnliche Fläche und kein Bildschirm, der nach dem
 // Einlösen des Invite-Codes einmal erscheint: Was hier steht, wird wieder gebraucht —
 // wenn ein Passwort sich ändert oder eine Anmeldung abläuft.
+import { fehlerMeldung } from '#shared/fehlerMeldung'
 import type { Datenquelle } from '@shared/verbindungen'
 
 const { user, fetch: sessionNeu } = useUserSession()
@@ -35,9 +36,10 @@ async function profilSpeichern() {
     await sessionNeu()
     gespeichert.value = true
   } catch (e) {
-    profilFehler.value =
-      (e as { statusMessage?: string }).statusMessage
-      ?? 'Das Speichern hat nicht geklappt. Bitte versuch es noch einmal.'
+    profilFehler.value = fehlerMeldung(
+      e,
+      'Das Speichern hat nicht geklappt. Bitte versuch es noch einmal.',
+    )
   } finally {
     speichert.value = false
   }

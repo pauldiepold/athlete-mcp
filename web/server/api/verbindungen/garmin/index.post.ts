@@ -30,10 +30,7 @@ export default defineEventHandler(async (event) => {
 
   const eingabe = KOERPER.safeParse(await readBody(event))
   if (!eingabe.success) {
-    throw createError({
-      statusCode: 400,
-      statusMessage: 'Bitte gib E-Mail-Adresse und Passwort ein.',
-    })
+    throw athletenFehler(400, 'Bitte gib E-Mail-Adresse und Passwort ein.')
   }
 
   const start = await mitGarminFehler('Garmin-Login', () =>

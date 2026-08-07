@@ -33,10 +33,7 @@ const KOERPER = z.object({
 export default defineEventHandler(async (event) => {
   const eingabe = KOERPER.safeParse(await readBody(event))
   if (!eingabe.success) {
-    throw createError({
-      statusCode: 400,
-      statusMessage: eingabe.error.issues[0]?.message ?? 'Ungültige Eingabe',
-    })
+    throw athletenFehler(400, eingabe.error.issues[0]?.message ?? 'Ungültige Eingabe')
   }
 
   return createInvite(envOf(event).SESSION_KV, eingabe.data.userId || undefined)

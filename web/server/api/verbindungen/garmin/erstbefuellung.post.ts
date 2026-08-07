@@ -20,10 +20,10 @@ export default defineEventHandler(async (event) => {
   const { userId, env } = await resolveAthlet(event)
 
   if (!(await istVerbunden(env.SESSION_KV, userId, 'garmin'))) {
-    throw createError({
-      statusCode: 400,
-      statusMessage: 'Verbinde zuerst Garmin, dann können wir deine Körperdaten holen.',
-    })
+    throw athletenFehler(
+      400,
+      'Verbinde zuerst Garmin, dann können wir deine Körperdaten holen.',
+    )
   }
 
   return { lauf: await starteErstbefuellungImHintergrund(event, userId, env) }

@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { fehlerMeldung } from '#shared/fehlerMeldung'
+
 // Die Invite-Fläche: der einzige Weg, auf dem ein Konto entsteht (ADR-0007).
 //
 // Wer hier landet, hat sich gerade erfolgreich bei Google oder Apple angemeldet — und
@@ -34,9 +36,10 @@ async function einloesen() {
     // jede Fläche mit der frischen Session rendert.
     await navigateTo(redirectTo, { external: true })
   } catch (e) {
-    fehler.value =
-      (e as { statusMessage?: string }).statusMessage
-      ?? 'Das Einlösen hat nicht geklappt. Bitte versuch es noch einmal.'
+    fehler.value = fehlerMeldung(
+      e,
+      'Das Einlösen hat nicht geklappt. Bitte versuch es noch einmal.',
+    )
   } finally {
     sendet.value = false
   }

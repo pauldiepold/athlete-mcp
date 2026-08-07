@@ -25,14 +25,14 @@ export default defineEventHandler(async (event) => {
 
   const eingabe = KOERPER.safeParse(await readBody(event))
   if (!eingabe.success) {
-    throw createError({ statusCode: 400, statusMessage: 'Ungültiger Anzeigename' })
+    throw athletenFehler(400, 'Ungültiger Anzeigename')
   }
 
   const profil = await getProfil(env.SESSION_KV, userId)
   if (!profil) {
     // Ohne Profil gibt es nichts zu ändern — und ein neues zu erfinden hieße,
     // Verfahren und `sub` zu raten.
-    throw createError({ statusCode: 409, statusMessage: 'Kein Profil vorhanden' })
+    throw athletenFehler(409, 'Kein Profil vorhanden')
   }
 
   const neu = { ...profil, anzeigename: eingabe.data.anzeigename }

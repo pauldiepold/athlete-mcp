@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { fehlerMeldung } from '#shared/fehlerMeldung'
+
 // Die Operator-Fläche (ADR-0007). Ihr Gegenstand hat sich mit der OAuth-Umstellung
 // vollständig gedreht: Vorher listete sie pro Nutzer die beiden URL-Secrets — ein
 // Screenshot davon war die Übernahme aller Konten. Jetzt zeigt sie **Identität**:
@@ -52,9 +54,7 @@ async function codeErzeugen() {
     await kopieren(invite.code, 'Invite-Code')
   } catch (e) {
     toast.add({
-      title:
-        (e as { statusMessage?: string }).statusMessage
-        ?? 'Code konnte nicht erzeugt werden',
+      title: fehlerMeldung(e, 'Code konnte nicht erzeugt werden'),
       color: 'error',
       icon: 'i-lucide-x',
     })
@@ -77,7 +77,7 @@ const verfahrenLabel = { google: 'Google', apple: 'Apple' } as const
         color="error"
         icon="i-lucide-triangle-alert"
         title="Die Admin-Daten konnten nicht geladen werden"
-        :description="error.statusMessage || 'Unbekannter Fehler'"
+        :description="fehlerMeldung(error, 'Unbekannter Fehler')"
       />
       <div v-else-if="pending" class="text-muted">Lade …</div>
 

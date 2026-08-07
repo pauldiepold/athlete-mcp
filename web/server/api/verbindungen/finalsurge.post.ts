@@ -1,4 +1,4 @@
-import { login } from '@shared/finalsurge/finalSurgeClient'
+import { FinalSurgeLoginFehler, login } from '@shared/finalsurge/finalSurgeClient'
 import { speichereFinalSurge } from '@shared/verbindungen'
 import { z } from 'zod'
 
@@ -24,25 +24,23 @@ export default defineEventHandler(async (event) => {
 
   const eingabe = KOERPER.safeParse(await readBody(event))
   if (!eingabe.success) {
-    throw createError({
-      statusCode: 400,
-      statusMessage: 'Bitte gib E-Mail-Adresse und Passwort ein.',
-    })
+    throw athletenFehler(400, 'Bitte gib E-Mail-Adresse und Passwort ein.')
   }
 
   try {
     await login(eingabe.data.email, eingabe.data.password)
   } catch (err) {
-    // Die rohe Meldung bleibt im Log: Sie unterscheidet „falsches Passwort" von
-    // „Final Surge ist gerade weg", trägt aber HTTP-Innereien, die niemanden im
-    // Formular weiterbringen.
+    // Die rohe Meldung bleibt im Log — sie trägt HTTP-Innereien, die niemanden im
+    // Formular weiterbringen. Was der Athlet sieht, hängt am `grund`: „prüf dein
+    // Passwort" auf einen Ausfall bei Final Surge zu antworten, schickt ihn auf die
+    // Suche nach einem Fehler, den er nicht hat.
     console.error('Final-Surge-Login beim Verbinden gescheitert:', err)
-    throw createError({
-      statusCode: 400,
-      statusMessage:
-        'Final Surge hat die Anmeldung abgelehnt. Bitte prüf E-Mail-Adresse und '
-        + 'Passwort — es sind die Daten von Final Surge, nicht die dieser Seite.',
-    })
+    throw athletenFehler(
+      400,
+      err instanceof FinalSurgeLoginFehler
+        ? err.benutzerMeldung
+        : 'Das Verbinden mit Final Surge hat nicht geklappt. Bitte versuch es noch einmal.',
+    )
   }
 
   await speichereFinalSurge(env.SESSION_KV, userId, eingabe.data)

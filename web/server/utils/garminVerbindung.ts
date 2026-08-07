@@ -23,12 +23,11 @@ export async function mitGarminFehler<T>(
     return await aufruf()
   } catch (err) {
     console.error(`${zweck} gescheitert:`, err)
-    throw createError({
-      statusCode: 400,
-      statusMessage:
-        err instanceof GarminLoginFehler
-          ? err.benutzerMeldung
-          : 'Die Verbindung zu Garmin hat nicht geklappt. Bitte versuch es noch einmal.',
-    })
+    throw athletenFehler(
+      400,
+      err instanceof GarminLoginFehler
+        ? err.benutzerMeldung
+        : 'Die Verbindung zu Garmin hat nicht geklappt. Bitte versuch es noch einmal.',
+    )
   }
 }

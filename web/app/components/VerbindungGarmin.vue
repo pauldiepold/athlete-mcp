@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { fehlerMeldung } from '#shared/fehlerMeldung'
+
 // Das Formular der Garmin-Verbindung (Issue #44, belegt durch Spike #38).
 //
 // Zwei Schritte, weil Garmins Login an der Zwei-Faktor-Abfrage zerfällt. Ob ein Konto
@@ -43,9 +45,10 @@ async function senden(aufruf: () => Promise<unknown>) {
   try {
     await aufruf()
   } catch (e) {
-    fehler.value =
-      (e as { statusMessage?: string }).statusMessage
-      ?? 'Die Verbindung zu Garmin hat nicht geklappt. Bitte versuch es noch einmal.'
+    fehler.value = fehlerMeldung(
+      e,
+      'Die Verbindung zu Garmin hat nicht geklappt. Bitte versuch es noch einmal.',
+    )
   } finally {
     sendet.value = false
   }

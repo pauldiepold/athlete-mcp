@@ -1,3 +1,4 @@
+import { fehlerMeldung } from '#shared/fehlerMeldung'
 import type { ErstbefuellungLauf } from '@shared/garmin/koerperdatenErstbefuellung'
 
 /**
@@ -29,9 +30,10 @@ export function useErstbefuellungStart() {
     } catch (e) {
       // Die Route schreibt ihre Meldungen für den Athleten (etwa „Verbinde zuerst
       // Garmin"); nur wenn keine ankommt, steht hier eine eigene.
-      fehler.value
-        = (e as { statusMessage?: string }).statusMessage
-          ?? 'Das Holen hat nicht geklappt. Bitte versuch es noch einmal.'
+      fehler.value = fehlerMeldung(
+        e,
+        'Das Holen hat nicht geklappt. Bitte versuch es noch einmal.',
+      )
       return null
     } finally {
       laeuftAn.value = false
