@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import {
   einrichtungsSchritte,
+  naechsterOffenerSchritt,
+  offenePflichtSchritte,
   pflichtOffen,
   type EinrichtungsEingaben,
 } from './einrichtung'
@@ -94,5 +96,56 @@ describe('pflichtOffen', () => {
         ),
       ),
     ).toBe(false)
+  })
+})
+
+describe('offenePflichtSchritte', () => {
+  it('zählt nur die Pflichtschritte', () => {
+    // Die überspringbaren Verbindungen fehlen hier beide — gezählt wird trotzdem nur,
+    // was die Einrichtung wirklich offen hält.
+    expect(offenePflichtSchritte(einrichtungsSchritte(eingaben()))).toBe(2)
+  })
+
+  it('zählt herunter, sobald ein Pflichtschritt steht', () => {
+    expect(offenePflichtSchritte(einrichtungsSchritte(eingaben({ connector: true })))).toBe(1)
+  })
+
+  it('ist null, wenn alle Pflichtschritte stehen', () => {
+    expect(
+      offenePflichtSchritte(
+        einrichtungsSchritte(eingaben({ connector: true, steuerungsplan: true })),
+      ),
+    ).toBe(0)
+  })
+})
+
+describe('naechsterOffenerSchritt', () => {
+  it('nennt den ersten offenen Pflichtschritt in der Reihenfolge', () => {
+    expect(naechsterOffenerSchritt(einrichtungsSchritte(eingaben()))).toBe('connector')
+  })
+
+  it('überspringt einen erledigten Pflichtschritt', () => {
+    expect(
+      naechsterOffenerSchritt(einrichtungsSchritte(eingaben({ connector: true }))),
+    ).toBe('onboarding')
+  })
+
+  it('bleibt an keiner übersprungenen Verbindung hängen', () => {
+    // Garmin steht in der Liste vorn und darf dauerhaft offen bleiben. Stünde es hier,
+    // klappte auf der Startseite für immer der Schritt auf, den der Athlet bewusst
+    // ausgelassen hat — statt dessen, der ihn noch aufhält.
+    expect(
+      naechsterOffenerSchritt(
+        einrichtungsSchritte(eingaben({ garmin: 'fehlt', connector: true })),
+      ),
+    ).toBe('onboarding')
+  })
+
+  it('nennt nichts, wenn alle Pflichtschritte stehen', () => {
+    expect(
+      naechsterOffenerSchritt(
+        einrichtungsSchritte(eingaben({ connector: true, steuerungsplan: true })),
+      ),
+    ).toBeNull()
   })
 })

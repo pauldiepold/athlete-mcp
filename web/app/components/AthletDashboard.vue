@@ -14,8 +14,15 @@
 // Die Kopfzeile steht über allen Zuständen: Die Steuerung braucht überhaupt keine
 // externe Verbindung und muss auch aus einem datenlosen Konto erreichbar bleiben — ein
 // neues Konto ist ab Sekunde eins nutzbar.
-const { zustand, lauf, hatKoerperdaten, zeigtVerlaeufe, geladen, uebernimmLauf }
-  = useStartseitenZustand()
+const {
+  zustand,
+  lauf,
+  hatKoerperdaten,
+  zeigtVerlaeufe,
+  einrichtungOffen,
+  geladen,
+  uebernimmLauf,
+} = useStartseitenZustand()
 
 // Der Titel steht hier und nicht bei den Verläufen: Er gilt für alle vier Zustände,
 // und ein datenloses Konto soll im Tab nicht namenlos stehen.
@@ -32,35 +39,35 @@ useHead({ title: 'Körperdaten' })
            „richte erst Garmin ein" an ein eingerichtetes Konto ist schlimmer als ein
            Moment Ruhe. -->
       <template v-if="geladen">
-        <!-- Solange ein Pflichtschritt der Einrichtung fehlt (Issue #52), steht sie an
-             der Stelle des Dashboards — und ersetzt es ganz, statt sich darüber zu
-             legen: Wer Verläufe sähe, hielte die Einrichtung für erledigt. Der
-             Verbindungs-Hinweis schweigt dann, weil die Liste dieselben zwei
-             Verbindungen schon führt, ausführlicher und mit dem Weg dorthin. -->
-        <EinrichtungKarte v-if="zustand === 'einrichtung'" />
+        <!-- Die Einrichtung ist seit Issue #57 eine **zweite Achse** und kein Zustand
+             mehr: Solange ein Pflichtschritt fehlt (Issue #52), steht sie oben —
+             darunter läuft das Dashboard nach seinen eigenen Regeln weiter. Vorher trat
+             sie an dessen Stelle, was einem Athleten mit Körperdaten seine Verläufe
+             wegnahm. Dass die Einrichtung offen ist, sagt jetzt die Karte selbst: durch
+             ihre Position, ihre Zahl und den einen aufgeklappten Schritt.
 
-        <template v-else>
-          <!-- Solange eine Datenquelle fehlt oder kaputt ist (Issue #44). Über den
-               Verläufen ein Balken, im Zustand „nicht verbunden" der Inhalt der Seite —
-               er trägt beides, weil er beide Male dasselbe sagt: was fehlt und wo man
-               es einrichtet. Verschwindet von selbst, sobald alles steht. -->
-          <VerbindungenHinweis />
+             Der Verbindungs-Hinweis steht daneben statt zu schweigen: Er schwieg,
+             solange die Einrichtung dieselben zwei Verbindungen ausführlicher führte —
+             auf der Startseite sind ihre Zeilen jetzt zugeklappt, und mit ihnen der Weg
+             in die Einstellungen. Eine unterbrochene Garmin-Verbindung stünde sonst
+             nirgends, solange ein Pflichtschritt offen ist. -->
+        <EinrichtungKarte v-if="einrichtungOffen" class="mb-6" />
+        <VerbindungenHinweis />
 
-          <KoerperdatenLadehinweis
-            v-if="zustand === 'laeuft'"
-            :mit-daten="hatKoerperdaten"
-          />
+        <KoerperdatenLadehinweis
+          v-if="zustand === 'laeuft'"
+          :mit-daten="hatKoerperdaten"
+        />
 
-          <!-- Nur in diesem einen Zustand ein Knopf: Während des Laufs gäbe es nichts
-               anzustoßen, und ohne Verbindung führt der Weg in die Einstellungen. -->
-          <ErstbefuellungKarte
-            v-else-if="zustand === 'keine-daten'"
-            :lauf="lauf"
-            @gestartet="uebernimmLauf"
-          />
+        <!-- Nur in diesem einen Zustand ein Knopf: Während des Laufs gäbe es nichts
+             anzustoßen, und ohne Verbindung führt der Weg in die Einstellungen. -->
+        <ErstbefuellungKarte
+          v-else-if="zustand === 'keine-daten'"
+          :lauf="lauf"
+          @gestartet="uebernimmLauf"
+        />
 
-          <KoerperdatenVerlaeufe v-if="zeigtVerlaeufe" />
-        </template>
+        <KoerperdatenVerlaeufe v-if="zeigtVerlaeufe" />
       </template>
     </UContainer>
   </div>

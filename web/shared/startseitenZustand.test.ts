@@ -20,13 +20,8 @@ function lauf(felder: Partial<ErstbefuellungLauf> = {}): ErstbefuellungLauf {
   }
 }
 
-/**
- * Der Normalfall der bestehenden Fälle: Die Einrichtung ist durch. Ohne diesen
- * Default stünde sie in jedem Test der drei Körperdaten-Zustände im Weg.
- */
 function eingaben(felder: Partial<StartseitenEingaben>): StartseitenEingaben {
   return {
-    einrichtungOffen: false,
     garminVerbunden: false,
     hatKoerperdaten: false,
     lauf: null,
@@ -41,37 +36,6 @@ describe('startseitenZustand', () => {
     ).toBe('daten')
   })
 
-  it('zeigt die Einrichtung, solange ein Pflichtschritt offen ist', () => {
-    expect(startseitenZustand(eingaben({ einrichtungOffen: true }))).toBe('einrichtung')
-  })
-
-  it('zeigt die Einrichtung auch vor fertigen Körperdaten', () => {
-    // Erst wenn alle Pflichtschritte stehen **und** Daten da sind, tritt das Dashboard
-    // an ihre Stelle. Ein halb eingerichtetes Konto hat Wichtigeres zu tun, als
-    // Verläufe anzusehen.
-    expect(
-      startseitenZustand(eingaben({
-        einrichtungOffen: true,
-        garminVerbunden: true,
-        hatKoerperdaten: true,
-        lauf: lauf(),
-      })),
-    ).toBe('einrichtung')
-  })
-
-  it('zeigt die Einrichtung auch während der Erstbefüllung', () => {
-    // Der Lauf läuft im Hintergrund weiter — er ist genau der Grund, warum Garmin der
-    // erste Schritt ist. Ihn hier vorzuziehen, ließe den Athleten einem Ladebalken
-    // zusehen, statt seinen Connector einzurichten.
-    expect(
-      startseitenZustand(eingaben({
-        einrichtungOffen: true,
-        garminVerbunden: true,
-        lauf: lauf({ status: 'laeuft' }),
-      })),
-    ).toBe('einrichtung')
-  })
-
   it('zeigt die Verläufe auch, wenn die Verbindung inzwischen weg ist', () => {
     // Ein Archiv aus der Zeit vor dem Bruch ist kein leeres Dashboard: Was da ist,
     // bleibt lesbar — auf das Fehlende weist der Verbindungs-Hinweis hin.
@@ -81,8 +45,6 @@ describe('startseitenZustand', () => {
   })
 
   it('schickt ein Konto ohne Verbindung zu den Einstellungen', () => {
-    // Die Einrichtung ist durch, Garmin wurde übersprungen — dann bleibt der
-    // Verbindungs-Hinweis, nicht die Liste, die der Athlet abgeschlossen hat.
     expect(startseitenZustand(eingaben({}))).toBe('nicht-verbunden')
   })
 
@@ -132,27 +94,31 @@ describe('zeigtVerlaeufe', () => {
     expect(zeigtVerlaeufe('nicht-verbunden', false)).toBe(false)
   })
 
-  it('zeigt während der Einrichtung keine Verläufe, auch mit Daten', () => {
-    // Die Einrichtung tritt an die Stelle des Dashboards, sie steht nicht darüber.
-    expect(zeigtVerlaeufe('einrichtung', true)).toBe(false)
-  })
 })
 
 describe('abfrageIntervallMs', () => {
   it('fragt während des Laufs eng nach', () => {
-    expect(abfrageIntervallMs('laeuft')).toBe(ABFRAGE_INTERVALL_LAEUFT_MS)
+    expect(abfrageIntervallMs('laeuft', false)).toBe(ABFRAGE_INTERVALL_LAEUFT_MS)
   })
 
   it('fragt in den wartenden Zuständen ruhiger nach', () => {
-    expect(abfrageIntervallMs('nicht-verbunden')).toBe(ABFRAGE_INTERVALL_WARTEND_MS)
-    expect(abfrageIntervallMs('keine-daten')).toBe(ABFRAGE_INTERVALL_WARTEND_MS)
-    // Auch die Einrichtung: Ihre beiden Pflichtschritte werden **außerhalb** dieser
-    // Fläche erledigt — im Connector-Dialog und im Chat. Ohne Nachfragen bliebe der
-    // Athlet vor einer Liste sitzen, die er gerade abgearbeitet hat.
-    expect(abfrageIntervallMs('einrichtung')).toBe(ABFRAGE_INTERVALL_WARTEND_MS)
+    expect(abfrageIntervallMs('nicht-verbunden', false)).toBe(ABFRAGE_INTERVALL_WARTEND_MS)
+    expect(abfrageIntervallMs('keine-daten', false)).toBe(ABFRAGE_INTERVALL_WARTEND_MS)
   })
 
   it('hört auf zu fragen, sobald die Daten da sind', () => {
-    expect(abfrageIntervallMs('daten')).toBeNull()
+    expect(abfrageIntervallMs('daten', false)).toBeNull()
+  })
+
+  it('fragt bei offener Einrichtung weiter, auch wenn die Daten da sind', () => {
+    // Die offene Einrichtung ist der zweite Grund nachzufragen: Ihre Pflichtschritte
+    // werden **außerhalb** dieser Fläche erledigt — im Connector-Dialog und im Chat.
+    // Ohne das bliebe der Athlet mit Körperdaten vor einer Liste sitzen, die er gerade
+    // abgearbeitet hat.
+    expect(abfrageIntervallMs('daten', true)).toBe(ABFRAGE_INTERVALL_WARTEND_MS)
+  })
+
+  it('behält den engen Takt des Laufs auch bei offener Einrichtung', () => {
+    expect(abfrageIntervallMs('laeuft', true)).toBe(ABFRAGE_INTERVALL_LAEUFT_MS)
   })
 })

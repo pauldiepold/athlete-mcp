@@ -19,9 +19,9 @@ umschaltbar über die Kopfzeile:
 
 - **Dashboard** (`/`) — die Startseite: abgemeldet die Anmeldung, angemeldet die
   Verläufe der **Körperdaten** aus dem Archiv, rein lesend. Solange ein Pflichtschritt
-  der **Einrichtung** offen ist (Connector, Onboarding), steht dort an seiner Stelle
-  die Einrichtung; ist sie durch, aber das Archiv leer, der Hinweis zum jeweiligen
-  *Startseiten-Zustand*.
+  der **Einrichtung** offen ist (Connector, Onboarding), steht sie **darüber** — das
+  Dashboard läuft darunter nach seinen eigenen Regeln weiter; ist das Archiv leer, der
+  Hinweis zum jeweiligen *Startseiten-Zustand*.
 - **Steuerung** (`/steuerung`) — Steuerungsplan + Wochen, lesen und editieren;
   Markdown bleibt das kanonische Speicherformat, byte-genau das, was der Agent über
   MCP liest/schreibt.
@@ -51,11 +51,14 @@ und `../docs/adr/0007-oauth-identitaet-statt-url-secrets-ein-deployable.md`.
   Fläche zeigt ihn als **Rechnung mit sichtbaren Bestandteilen**, nicht als Urteil, und
   beansprucht keine Tagesform-Einschätzung (`../docs/adr/0006-…`).
 - **Was die Startseite zeigt, ist eine reine Funktion:** `shared/startseitenZustand.ts`
-  (Reihenfolge der fünf Fälle) und `shared/einrichtung.ts` (Reihenfolge der vier
-  Schritte, und welche davon Pflicht sind). Beide sind getestet und kennen keine Texte
-  — die stehen in den Komponenten. Jeder Haken der Einrichtung ist **abgeleitet**:
-  Verbindungen aus dem KV, der Connector aus `listUserGrants`, das Onboarding aus dem
-  vorhandenen Steuerungsplan; gespeichert oder quittiert wird nichts.
+  (Reihenfolge der vier Körperdaten-Fälle) und `shared/einrichtung.ts` (Reihenfolge der
+  vier Schritte, welche davon Pflicht sind, wie viele noch offen stehen und welcher als
+  nächster dran ist). Beide sind getestet und kennen keine Texte — die stehen in den
+  Komponenten. Die beiden sind **zwei Achsen**, keine Kette: Die Einrichtung steht über
+  dem Dashboard, statt es zu ersetzen. Jeder Haken der Einrichtung ist **abgeleitet**:
+  Verbindungen aus dem KV, der Connector aus dem Marker des Freigabe-Handlers **oder**
+  einem Grant (`listUserGrants`), das Onboarding aus dem vorhandenen Steuerungsplan;
+  gespeichert oder quittiert wird nichts.
 - **Ein Zeitraum für die ganze Fläche:** 30 / 90 / Alles, Standard 30, als
   `?zeitraum=`-Query in der URL (`shared/zeitraum.ts`). Charts und Kacheln folgen ihm
   gemeinsam; „Alles" beginnt am ersten archivierten Tag.

@@ -38,10 +38,11 @@ export function useStartseitenZustand() {
   // Ladezustand gehört damit zu dem der Seite, und sein Nachfrage-Takt ist dieser hier.
   const { refresh: verbindungenNeu } = useVerbindungen()
 
-  // Und die Einrichtung (Issue #52), die vor allen anderen Zuständen steht. Ihre
-  // beiden Pflichtschritte werden **außerhalb** dieser Fläche erledigt — im
-  // Connector-Dialog und im Chat —, also hängt auch sie am Nachfrage-Takt hier: Sonst
-  // säße der Athlet vor einer Liste, die er gerade abgearbeitet hat.
+  // Und die Einrichtung (Issue #52), die seit Issue #57 **über** dem Dashboard steht
+  // statt an seiner Stelle. Ihre beiden Pflichtschritte werden **außerhalb** dieser
+  // Fläche erledigt — im Connector-Dialog und im Chat —, also hängt sie am
+  // Nachfrage-Takt hier: Sonst säße der Athlet vor einer Liste, die er gerade
+  // abgearbeitet hat.
   const {
     pflichtSchrittOffen,
     geladen: einrichtungGeladen,
@@ -53,7 +54,6 @@ export function useStartseitenZustand() {
 
   const zustand = computed(() =>
     startseitenZustand({
-      einrichtungOffen: pflichtSchrittOffen.value,
       garminVerbunden: data.value?.garminVerbunden ?? false,
       hatKoerperdaten: hatKoerperdaten.value,
       lauf: lauf.value,
@@ -112,11 +112,11 @@ export function useStartseitenZustand() {
 
   let timer: ReturnType<typeof setInterval> | undefined
   watch(
-    () => abfrageIntervallMs(zustand.value),
+    () => abfrageIntervallMs(zustand.value, pflichtSchrittOffen.value),
     (ms) => {
       clearInterval(timer)
       if (ms !== null) {
-        // Alle drei Abrufe, nicht nur der Stand: Im Zustand `einrichtung` sind die
+        // Alle drei Abrufe, nicht nur der Stand: Bei offener Einrichtung sind die
         // Verbindungen **Inhalt** der Liste, und ihr Nachziehen am `zustand`-Watcher
         // hängen zu lassen ginge genau dort schief — wer im zweiten Tab verbindet,
         // wechselt den Zustand ja nicht, sondern hakt einen Schritt darin ab.
@@ -131,5 +131,14 @@ export function useStartseitenZustand() {
   )
   onBeforeUnmount(() => clearInterval(timer))
 
-  return { zustand, lauf, hatKoerperdaten, zeigtVerlaeufe, geladen, uebernimmLauf }
+  return {
+    zustand,
+    lauf,
+    hatKoerperdaten,
+    zeigtVerlaeufe,
+    /** Die zweite Achse (Issue #57): Steht die Einrichtung über dem Dashboard? */
+    einrichtungOffen: pflichtSchrittOffen,
+    geladen,
+    uebernimmLauf,
+  }
 }
