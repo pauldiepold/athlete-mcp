@@ -3,6 +3,7 @@ import { KoerperdatenArchive } from '@shared/garmin/koerperdatenArchive'
 import type { ErstbefuellungLauf } from '@shared/garmin/koerperdatenErstbefuellung'
 import {
   fuehreErstbefuellungAus,
+  offeneErstbefuellungsTage,
   reserviereErstbefuellung,
 } from '@shared/garmin/koerperdatenErstbefuellung'
 import { heuteInBerlin } from '@shared/zeitzone'
@@ -32,6 +33,12 @@ import { heuteInBerlin } from '@shared/zeitzone'
  * in dem etwas läuft — der eigene neue Lauf oder der schon laufende. `null` heißt, dass
  * gar nichts angestoßen wurde.
  *
+ * **Ist nichts offen, wird auch nichts reserviert.** Wer sich neu verbindet, während
+ * sein Archiv schon vollständig ist, hat keinen Lauf zu sehen — und die Startseite darf
+ * ihm keinen Ladehinweis über vollständige Daten hängen. Es ist obendrein der Fall, in
+ * dem ein reservierter Lauf am gefährlichsten wäre: Er wäre in Millisekunden durch,
+ * und „läuft" und „fertig" fielen in dieselbe Sekunde auf denselben KV-Schlüssel.
+ *
  * **Wirft nie.** Der Hauptaufrufer ist das Verbinden selbst, und dort ist das
  * Speichern des DI-Bündels schon durch: Ein Fehler beim Anstoßen der Erstbefüllung
  * darf nicht als „Verbinden fehlgeschlagen" beim Athleten ankommen, während seine
@@ -43,6 +50,18 @@ export async function starteErstbefuellungImHintergrund(
   userId: string,
   env: Env,
 ): Promise<ErstbefuellungLauf | null> {
+  const archiv = new KoerperdatenArchive(env.ATHLETE_DB)
+  const heute = heuteInBerlin()
+
+  // Der Blick ins Archiv **vor** der Reservierung. Scheitert er, wird trotzdem
+  // angestoßen: Ein unlesbares Archiv ist keins, das nichts zu tun hätte, und der Lauf
+  // hinterlässt dafür den Fehler-Marker, den der Athlet sonst nie zu sehen bekäme.
+  try {
+    if ((await offeneErstbefuellungsTage(archiv, userId, heute)).length === 0) return null
+  } catch (err) {
+    console.error(`Erstbefüllung ${userId}: Archiv nicht lesbar:`, err)
+  }
+
   let reserviert: boolean
   let lauf: ErstbefuellungLauf
   try {
@@ -55,9 +74,9 @@ export async function starteErstbefuellungImHintergrund(
 
   const ausfuehrung = fuehreErstbefuellungAus({
     kv: env.SESSION_KV,
-    archiv: new KoerperdatenArchive(env.ATHLETE_DB),
+    archiv,
     userId,
-    heute: heuteInBerlin(),
+    heute,
     begonnen: lauf.begonnen,
   }).catch((err) => {
     // `fuehreErstbefuellungAus` fängt seine Fehler selbst; was hier ankäme, wäre ein

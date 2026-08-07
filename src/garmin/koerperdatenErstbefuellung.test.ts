@@ -4,11 +4,13 @@ import type { Koerperdaten } from "./formatKoerperdaten.js";
 import type { GarminClient } from "./garminClient.js";
 import {
   ERSTBEFUELLUNG_FENSTER_TAGE,
+  ERSTBEFUELLUNG_SCHREIBABSTAND_MS,
   erstbefuellungKey,
   erstbefuellungStart,
   erstzubefuellendeTage,
   fuehreErstbefuellungAus,
   leseErstbefuellung,
+  offeneErstbefuellungsTage,
   reserviereErstbefuellung,
 } from "./koerperdatenErstbefuellung.js";
 import type { ErstbefuellungOptions } from "./koerperdatenErstbefuellung.js";
@@ -65,7 +67,12 @@ function fakeArchiv(vorhanden: Koerperdaten[] = []) {
 const client = {} as GarminClient;
 const stilleLogs = { log: () => {}, logFehler: () => {} };
 
-/** Gemeinsame Test-Verdrahtung: nie echtes Garmin, nie echte Pausen. */
+/**
+ * Gemeinsame Test-Verdrahtung: nie echtes Garmin, nie echte Pausen. `warte` ist auch
+ * dann überschrieben, wenn `pauseMs` schon 0 ist — der Abstand vor dem
+ * Abschluss-Schreiben geht nicht über `pauseMs` und schliefe sonst in jedem Testlauf
+ * echte Sekunden.
+ */
 function optionen(over: Partial<ErstbefuellungOptions> = {}) {
   return {
     userId: "paul",
@@ -73,6 +80,7 @@ function optionen(over: Partial<ErstbefuellungOptions> = {}) {
     buildClient: async () => client,
     fetchLive: async (_c: GarminClient, date: string) => tag(date),
     pauseMs: 0,
+    warte: async () => {},
     ...stilleLogs,
     ...over,
   } as ErstbefuellungOptions;
@@ -163,8 +171,60 @@ describe("Erstbefüllungs-Lauf", () => {
       }),
     );
 
-    expect(pausen).toHaveLength(ERSTBEFUELLUNG_FENSTER_TAGE - 1);
-    expect(pausen.every((ms) => ms === 1000)).toBe(true);
+    // Eine Pause weniger als Tage, dazu am Ende der Abstand zum Reservierungs-Schreiben.
+    expect(pausen.slice(0, -1)).toHaveLength(ERSTBEFUELLUNG_FENSTER_TAGE - 1);
+    expect(pausen.slice(0, -1).every((ms) => ms === 1000)).toBe(true);
+    expect(pausen.at(-1)).toBeLessThanOrEqual(ERSTBEFUELLUNG_SCHREIBABSTAND_MS);
+  });
+
+  it("wartet vor dem Abschluss, damit KV den zweiten Schreibvorgang annimmt", async () => {
+    const kv = fakeKv();
+    // Alles schon da: Der Lauf ist in Millisekunden durch, und ohne den Abstand fielen
+    // „läuft" und „fertig" in dieselbe Sekunde auf denselben Schlüssel — der zweite
+    // ginge verloren und die Startseite bliebe im Ladehinweis stehen.
+    const { archiv } = fakeArchiv(
+      erstzubefuellendeTage({ vorhanden: [], heute: "2026-08-06" }).map(tag),
+    );
+    const pausen: number[] = [];
+
+    const { lauf } = await laufe(
+      optionen({
+        kv,
+        archiv,
+        warte: async (ms: number) => {
+          pausen.push(ms);
+        },
+      }),
+    );
+
+    expect(lauf.status).toBe("fertig");
+    expect(pausen).toHaveLength(1);
+    expect(pausen[0]).toBeGreaterThan(0);
+    expect(pausen[0]).toBeLessThanOrEqual(ERSTBEFUELLUNG_SCHREIBABSTAND_MS);
+    expect((await leseErstbefuellung(kv, "paul"))?.status).toBe("fertig");
+  });
+
+  it("wartet auch, wenn der Lauf schon am Client-Aufbau scheitert", async () => {
+    const kv = fakeKv();
+    const { archiv } = fakeArchiv();
+    const pausen: number[] = [];
+
+    const { lauf } = await laufe(
+      optionen({
+        kv,
+        archiv,
+        buildClient: async () => {
+          throw new Error("Refresh-Token abgelaufen");
+        },
+        warte: async (ms: number) => {
+          pausen.push(ms);
+        },
+      }),
+    );
+
+    expect(lauf.status).toBe("gescheitert");
+    expect(pausen).toHaveLength(1);
+    expect((await leseErstbefuellung(kv, "paul"))?.status).toBe("gescheitert");
   });
 
   it("ruft archivierte Tage nicht erneut ab", async () => {
@@ -315,6 +375,25 @@ describe("Erstbefüllungs-Lauf", () => {
     expect(geschrieben).toHaveLength(0);
     // Ein Lauf ohne Abruf sagt über die Verbindung nichts — der Marker bleibt.
     expect(kv.daten.has(fehlerKey("paul", "garmin"))).toBe(true);
+  });
+});
+
+describe("offeneErstbefuellungsTage", () => {
+  it("liefert leer, wenn das Fenster vollständig im Archiv steht", async () => {
+    const { archiv } = fakeArchiv(
+      erstzubefuellendeTage({ vorhanden: [], heute: "2026-08-06" }).map(tag),
+    );
+
+    expect(await offeneErstbefuellungsTage(archiv, "paul", "2026-08-06")).toEqual([]);
+  });
+
+  it("liefert die Lücken des Fensters", async () => {
+    const { archiv } = fakeArchiv([tag("2026-08-05"), tag("2026-08-06")]);
+
+    const offen = await offeneErstbefuellungsTage(archiv, "paul", "2026-08-06");
+
+    expect(offen).toHaveLength(ERSTBEFUELLUNG_FENSTER_TAGE - 2);
+    expect(offen).not.toContain("2026-08-06");
   });
 });
 

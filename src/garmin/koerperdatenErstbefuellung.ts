@@ -56,6 +56,21 @@ export const ERSTBEFUELLUNG_PAUSE_MS = 1000;
  */
 export const ERSTBEFUELLUNG_LAUF_TTL_SEKUNDEN = 15 * 60;
 
+/**
+ * Mindestabstand zwischen der Reservierung und dem Abschluss — beides schreibt
+ * **denselben** KV-Schlüssel, und KV erlaubt *einen Schreibvorgang pro Sekunde und
+ * Schlüssel*. Zwei Schreibvorgänge innerhalb derselben Sekunde können dazu führen, dass
+ * der zweite verlorengeht.
+ *
+ * Genau das war der Zustand, in dem die Startseite hängenblieb: Ein Lauf, der nichts zu
+ * holen hat, ist in Millisekunden durch — „läuft" und „fertig" fallen in dieselbe
+ * Sekunde, „fertig" verschwindet, und der Athlet sieht bis zum Ablauf der TTL einen
+ * Ladehinweis über vollständigen Daten. Der Lauf wartet deshalb, bevor er sich
+ * abmeldet; es kostet nur Wall-Clock in einem Hintergrundlauf, dem ohnehin niemand
+ * zusieht.
+ */
+export const ERSTBEFUELLUNG_SCHREIBABSTAND_MS = 1100;
+
 /** Der KV-Eintrag, in dem der Zustand des letzten Laufs steht. */
 export function erstbefuellungKey(userId: string): string {
   return `user:${userId}:garmin:erstbefuellung`;
@@ -125,6 +140,28 @@ export function erstzubefuellendeTage({
   }
 
   return tage;
+}
+
+/**
+ * Was ein Lauf **jetzt** zu holen hätte — der Blick ins Archiv, einmal ausgeschrieben.
+ *
+ * Zwei Aufrufer, und der zweite ist der Punkt: Der Web-Adapter stellt diese Frage
+ * **vor** der Reservierung, um gar keinen Lauf anzustoßen, wenn nichts offen ist. Ein
+ * Lauf ohne Arbeit hinterlässt sonst nur ein „läuft gerade" im KV, das er im selben
+ * Atemzug wieder zurücknehmen muss — und genau diese beiden Schreibvorgänge sind es,
+ * die KV pro Sekunde nicht beide annimmt.
+ */
+export async function offeneErstbefuellungsTage(
+  archiv: KoerperdatenStore,
+  userId: string,
+  heute: string,
+): Promise<string[]> {
+  const vorhanden = await archiv.readRange(
+    userId,
+    erstbefuellungStart(heute),
+    heute,
+  );
+  return erstzubefuellendeTage({ vorhanden, heute });
 }
 
 /** Der Zustand des letzten Laufs; unlesbares gilt als keiner. */
@@ -249,12 +286,10 @@ export async function fuehreErstbefuellungAus({
   let lauf: ErstbefuellungLauf;
 
   try {
-    const vorhanden = await archiv.readRange(
-      userId,
-      erstbefuellungStart(heute),
-      heute,
-    );
-    const offen = erstzubefuellendeTage({ vorhanden, heute });
+    // Noch einmal gelesen, obwohl der Web-Adapter schon geplant hat: Diese Funktion
+    // bleibt für sich allein lauffähig — ein Lauf, der seine Tage von außen gereicht
+    // bekäme, holte beim nächsten Aufrufer irgendwann die falschen.
+    const offen = await offeneErstbefuellungsTage(archiv, userId, heute);
 
     // Erst die Sperre steht, dann wird angerufen: Scheitert schon der Client-Aufbau
     // (abgerissener Refresh-Token), ist das der `catch` unten — ein Fall, den der
@@ -315,6 +350,14 @@ export async function fuehreErstbefuellungAus({
       gescheitert: 0,
     };
   }
+
+  // Erst Luft zur Reservierung, dann abmelden: Beides schreibt denselben Schlüssel, und
+  // KV nimmt pro Sekunde nur einen Schreibvorgang je Schlüssel an. Ein schneller Lauf
+  // (nichts offen, oder gleich am Client-Aufbau gescheitert) verlöre sonst seinen
+  // Abschluss und bliebe für die Oberfläche bis zum Ablauf der TTL „am Laufen".
+  const seitBeginn = Date.now() - Date.parse(begonnen);
+  const rest = ERSTBEFUELLUNG_SCHREIBABSTAND_MS - seitBeginn;
+  if (Number.isFinite(rest) && rest > 0) await warte(rest);
 
   await schreibeLauf(kv, userId, lauf);
   return lauf;
