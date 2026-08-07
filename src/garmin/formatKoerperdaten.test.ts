@@ -1,19 +1,34 @@
+/// <reference types="vite/client" />
 import { describe, it, expect } from "vitest";
 import { formatKoerperdaten } from "./formatKoerperdaten.js";
 
-import hrvVollstaendig from "./__fixtures__/vollstaendig/hrv.json";
-import sleepVollstaendig from "./__fixtures__/vollstaendig/sleep.json";
-import stressVollstaendig from "./__fixtures__/vollstaendig/stress.json";
-import bodyBatteryVollstaendig from "./__fixtures__/vollstaendig/body-battery.json";
-import trainingReadinessVollstaendig from "./__fixtures__/vollstaendig/training-readiness.json";
+// Die Fixtures sind echte Garmin-Antworten und deshalb gitignored (.gitignore,
+// „echte Gesundheitsdaten, nur lokal"). Wer frisch klont oder in einem Worktree
+// arbeitet, hat sie nicht — dann überspringt die Suite, statt beim Import zu
+// sterben und `pnpm test` rot zu färben. Deshalb glob statt statischem Import:
+// fehlt das Verzeichnis, bleibt die Map leer, statt dass die Auflösung wirft.
+// Struktur der Dateien: src/garmin/docs/garmin-connect-api.md.
+const fixtures = import.meta.glob("./__fixtures__/*/*.json", {
+  eager: true,
+  import: "default",
+}) as Record<string, any>;
 
-import hrvOhneDaten from "./__fixtures__/ohne-daten/hrv.json";
-import sleepOhneDaten from "./__fixtures__/ohne-daten/sleep.json";
-import stressOhneDaten from "./__fixtures__/ohne-daten/stress.json";
-import bodyBatteryOhneDaten from "./__fixtures__/ohne-daten/body-battery.json";
-import trainingReadinessOhneDaten from "./__fixtures__/ohne-daten/training-readiness.json";
+const fixturesVorhanden = Object.keys(fixtures).length > 0;
+const lade = (pfad: string): any => fixtures[`./__fixtures__/${pfad}.json`] ?? null;
 
-describe("formatKoerperdaten", () => {
+const hrvVollstaendig = lade("vollstaendig/hrv");
+const sleepVollstaendig = lade("vollstaendig/sleep");
+const stressVollstaendig = lade("vollstaendig/stress");
+const bodyBatteryVollstaendig = lade("vollstaendig/body-battery");
+const trainingReadinessVollstaendig = lade("vollstaendig/training-readiness");
+
+const hrvOhneDaten = lade("ohne-daten/hrv");
+const sleepOhneDaten = lade("ohne-daten/sleep");
+const stressOhneDaten = lade("ohne-daten/stress");
+const bodyBatteryOhneDaten = lade("ohne-daten/body-battery");
+const trainingReadinessOhneDaten = lade("ohne-daten/training-readiness");
+
+describe.skipIf(!fixturesVorhanden)("formatKoerperdaten", () => {
   it("mappt einen vollständigen Tag auf alle Körperdaten-Felder", () => {
     const result = formatKoerperdaten(
       "2026-06-13",
