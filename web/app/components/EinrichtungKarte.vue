@@ -68,9 +68,12 @@ const nummer = (id: EinrichtungSchrittId) =>
  * Wer aufgeklappt **beginnt** — jede Zeile lässt sich danach selbst öffnen und
  * schließen.
  *
- * In den Einstellungen **alle**: Dort ist die Liste ein Nachschlagewerk, und die
- * MCP-URL wird ausgerechnet dann wieder gebraucht, wenn der Connector schon einmal
- * stand.
+ * In den Einstellungen alle **offenen**: Dort ist die Liste ein Nachschlagewerk, und
+ * offen heißt hier „hier ist noch etwas zu tun". Erledigte Schritte klappen zu — sonst
+ * steht die ganze Anleitung samt zweier Anmeldeformulare auf einer Seite, deren
+ * einziger Zweck an dem Tag das Nachreichen eines einzelnen Schritts ist. Was
+ * trotzdem noch einmal gebraucht wird — die MCP-URL beim zweiten Connector —, ist
+ * einen Klick auf die Zeile entfernt.
  *
  * Auf der Startseite genau **einer** — der nächste offene Pflichtschritt (Issue #57).
  * Vorher klappte dort jeder offene Schritt auf; über dem Dashboard wäre das eine
@@ -79,7 +82,9 @@ const nummer = (id: EinrichtungSchrittId) =>
  * aufzuklappen hieße, zwei Passwortfelder vor die Verläufe zu stellen.
  */
 function aufgeklappt(id: EinrichtungSchrittId): boolean {
-  return props.inEinstellungen === true || naechsterOffener.value === id
+  return props.inEinstellungen === true
+    ? !schritt(id).erledigt
+    : naechsterOffener.value === id
 }
 
 /**

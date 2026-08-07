@@ -27,13 +27,25 @@ const props = defineProps<{
 
 const offen = ref(props.aufgeklappt)
 
-// Der Anfangszustand kommt aus abgeleiteten Daten und steht beim ersten Rendern noch
-// auf dem Default „alles fehlt" — er darf die Zeile deshalb nachträglich noch öffnen.
-// Eine Zeile, die der Athlet selbst aufgemacht hat, bleibt davon unberührt: zugeklappt
-// wird hier nie, das entscheidet nur der Klick.
+/**
+ * Hat der Athlet diese Zeile selbst geschaltet? Ab dann gehört sie ihm.
+ *
+ * Der Anfangszustand kommt aus abgeleiteten Daten und steht beim ersten Rendern noch
+ * auf dem Default „alles fehlt" — die Zeile folgt ihm deshalb auch **nachträglich**
+ * noch, in beide Richtungen. Nur zu öffnen reichte nicht: In den Einstellungen sind
+ * bis zum Eintreffen der Haken alle Schritte offen, und ein erledigter, der nie wieder
+ * zuklappt, wäre genau der Zustand, den das Zuklappen vermeiden soll.
+ */
+const selbstGeschaltet = ref(false)
+
 watch(() => props.aufgeklappt, (jetzt) => {
-  if (jetzt) offen.value = true
+  if (!selbstGeschaltet.value) offen.value = jetzt
 })
+
+function umschalten() {
+  selbstGeschaltet.value = true
+  offen.value = !offen.value
+}
 </script>
 
 <template>
@@ -42,7 +54,7 @@ watch(() => props.aufgeklappt, (jetzt) => {
       type="button"
       class="flex w-full gap-3 text-left"
       :aria-expanded="offen"
-      @click="offen = !offen"
+      @click="umschalten"
     >
       <div
         class="mt-0.5 flex size-6 shrink-0 items-center justify-center rounded-full text-xs font-medium"
