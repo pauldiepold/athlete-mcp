@@ -5,6 +5,12 @@ import { PRODUKTNAME } from '@shared/produkt'
 // für alle, die nicht angemeldet sind — vorher gab es hier eine leere Visitenkarte,
 // weil der Zugang aus einem Link bestand, den jemand verschickt hatte.
 //
+// **„Trainermodus" allein sagt niemandem, wofür.** Der Produktname beschreibt eine
+// Betriebsart — und die Frage „von was?" muss die Überschrift beantworten, nicht der
+// dritte Absatz. Deshalb steht in der H1 „für Claude" hinter dem Namen, während
+// PRODUKTNAME selbst kurz bleibt: Im Header, im Tab-Titel und in Claudes
+// Connector-Liste ist der Kontext schon da, hier ist er es nicht.
+//
 // **Sie verkauft nicht mehr den Datenanschluss.** Die erste Fassung stellte „Claude
 // liest deine Zahlen" nach vorn — und das ist genau das, was jeder auch mit drei
 // Screenshots hinbekommt. Was es woanders nicht gibt, sind die beiden anderen Säulen:
@@ -30,6 +36,14 @@ import { PRODUKTNAME } from '@shared/produkt'
 // **Die Seite adressiert den eingeladenen Freund, nicht den Fremden.** Kein „Zugang
 // anfragen": Es gibt keinen Anfrage-Flow, den so ein Knopf bedienen könnte. Für den,
 // der zufällig hier landet, steht stattdessen ein ehrlicher Satz.
+//
+// **Die Coach-Zeile teast die Rollenteilung an (#62).** „Der Plan deines Coaches wird
+// gelesen, nie überschrieben" war eine Zusicherung ohne vorher gestellte Frage — wer
+// keinen Coach hat, weiß nicht, was ihn das angeht, und wer einen hat, erfährt nicht,
+// wie der Plan überhaupt hereinkommt. Jetzt steht beides da: Final Surge als Weg, und
+// die zwei Rollen (Assistent neben dem Coach, sonst planend) als der eigentliche
+// Unterschied. Final Surge darf hier auftauchen, weil es hier ein Angebot ist — in der
+// Voraussetzungsliste wäre es eine Hürde, und deshalb steht es dort weiterhin nicht.
 //
 // **Die Voraussetzungen sind auf zwei Zeilen geschrumpft und unter die Knöpfe
 // gewandert.** Garmin und Final Surge standen früher mit in dieser Liste — beide sind
@@ -89,9 +103,13 @@ const dialog = [
   },
 ]
 
-// Die drei Säulen. Sie sagen zweimal „Claude" statt „es": Ein Produkt, dessen Kern ein
-// Gegenüber ist, darf dieses Gegenüber nicht sächlich anreden — „es weiß" macht aus dem
-// Gesprächspartner ein Gerät, und genau das ist die Konkurrenz.
+// Die drei Säulen. Alle drei fangen mit „Claude" an — nicht aus Symmetrieliebe: Die
+// erste hieß „Deine Zahlen sind schon da" und ließ offen, *wo* sie da sind (in der App?
+// auf der Uhr?). Subjekt jeder Säule ist Claude, weil Claude das Produkt ist.
+//
+// Und „Claude" statt „es": Ein Produkt, dessen Kern ein Gegenüber ist, darf dieses
+// Gegenüber nicht sächlich anreden — „es weiß" macht aus dem Gesprächspartner ein
+// Gerät, und genau das ist die Konkurrenz.
 //
 // Die mittlere trägt in Überschrift *und* Text kein Substantiv für
 // das, was da mitkommt — siehe oben; sie sagt stattdessen selbst, dass nichts zu
@@ -99,9 +117,10 @@ const dialog = [
 const saeulen = [
   {
     icon: 'i-lucide-activity',
-    titel: 'Deine Zahlen sind schon da',
+    titel: 'Claude hat deine Zahlen',
     text: 'Schlaf, HRV und Belastung von der Garmin-Uhr, der Trainingsplan deines '
-      + 'Coaches, später auch Strava. Ohne Abtippen, ohne Screenshots.',
+      + 'Coaches, später auch Strava — im Chat sofort da. Ohne Abtippen, ohne '
+      + 'Screenshots.',
   },
   {
     icon: 'i-lucide-compass',
@@ -119,7 +138,12 @@ const saeulen = [
   },
 ]
 
-// Zwei Zeilen, beide echte Voraussetzungen. Erstes Vorkommen von „Connector"
+// Zwei Zeilen, beide echte Voraussetzungen — und sie stehen unter einer eigenen
+// Überschrift („Was du dafür brauchst") mit Haken davor. Ohne die las sich die Liste
+// direkt unter den Anmeldeknöpfen wie Kleingedrucktes zur Anmeldung; sie ist aber die
+// Antwort auf „kann ich das überhaupt?" und muss vor dem Klick gelesen werden.
+//
+// Erstes Vorkommen von „Connector"
 // überhaupt — deshalb steht die Erklärung schon hier und nicht erst in der
 // Einrichtung (Issue #59): Das Wort bleibt stehen, weil es so in Claudes eigener
 // Oberfläche steht, aber unerklärt sagt es nichts.
@@ -147,10 +171,10 @@ useHead({ title: '' })
   <UContainer class="flex w-full flex-1 flex-col items-center py-16">
     <div class="w-full max-w-xl">
       <div class="text-center">
-        <h1 class="text-2xl font-semibold">{{ PRODUKTNAME }}</h1>
+        <h1 class="text-2xl font-semibold">{{ PRODUKTNAME }} für Claude</h1>
         <p class="mt-3 text-muted">
-          Ein Gegenüber für dein Training, das deine Daten kennt, weiß wie man sie
-          liest — und sich an das letzte Gespräch erinnert.
+          Claude wird zum Gegenüber für dein Training: kennt deine Daten, weiß wie man
+          sie liest — und erinnert sich an das letzte Gespräch.
         </p>
       </div>
 
@@ -189,8 +213,12 @@ useHead({ title: '' })
           </span>
         </p>
         <p class="flex gap-2">
-          <UIcon name="i-lucide-shield-check" class="mt-0.5 size-4 shrink-0 text-dimmed" />
-          <span>Der Plan deines Coaches wird gelesen, nie überschrieben.</span>
+          <UIcon name="i-lucide-users" class="mt-0.5 size-4 shrink-0 text-dimmed" />
+          <span>
+            Hast du einen Coach? Verbinde seinen Plan über Final Surge — dann arbeitet
+            Claude als Assistent daneben, liest den Plan und überschreibt ihn nie.
+            Ohne Coach plant Claude selbst.
+          </span>
         </p>
       </div>
 
@@ -229,11 +257,17 @@ useHead({ title: '' })
           icon="i-lucide-apple"
         >Mit Apple anmelden</UButton>
 
-        <ul class="mt-2 flex flex-col gap-1 text-xs text-dimmed">
-          <li v-for="v in voraussetzungen" :key="v.name">
-            <span class="font-medium text-muted">{{ v.name }}</span> — {{ v.text }}
-          </li>
-        </ul>
+        <div class="mt-2">
+          <p class="text-xs font-medium text-muted">Was du dafür brauchst</p>
+          <ul class="mt-1 flex flex-col gap-1 text-xs text-dimmed">
+            <li v-for="v in voraussetzungen" :key="v.name" class="flex gap-1.5">
+              <UIcon name="i-lucide-check" class="mt-0.5 size-3 shrink-0" />
+              <span>
+                <span class="font-medium text-muted">{{ v.name }}</span> — {{ v.text }}
+              </span>
+            </li>
+          </ul>
+        </div>
 
         <p class="text-center text-xs text-dimmed">
           Der Zugang läuft über persönliche Einladung.
