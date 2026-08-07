@@ -1,5 +1,10 @@
 import type { Datenquelle } from '@shared/verbindungen'
-import { einrichtungsSchritte, pflichtOffen } from '#shared/einrichtung'
+import {
+  einrichtungsSchritte,
+  naechsterOffenerSchritt,
+  offenePflichtSchritte,
+  pflichtOffen,
+} from '#shared/einrichtung'
 
 /**
  * Der Zustand der **Einrichtung** (Issue #52) — aus zwei Abrufen zusammengesetzt und
@@ -47,10 +52,24 @@ export function useEinrichtung() {
    */
   const pflichtSchrittOffen = computed(() => pflichtOffen(schritte.value))
 
+  /** Wie viele davon — die Zahl, die die Karte über dem Dashboard nennt (Issue #57). */
+  const offenePflicht = computed(() => offenePflichtSchritte(schritte.value))
+
+  /** Der Schritt, der auf der Startseite als einziger aufgeklappt steht. */
+  const naechsterOffener = computed(() => naechsterOffenerSchritt(schritte.value))
+
   const mcpUrl = computed(() => data.value?.mcpUrl ?? '')
 
   /** Beide Abrufe sind durch — vorher steht die Liste auf ihrem Default „alles fehlt". */
   const geladen = useKlebrigGeladen(status, verbindungenStatus)
 
-  return { schritte, pflichtSchrittOffen, mcpUrl, geladen, refresh }
+  return {
+    schritte,
+    pflichtSchrittOffen,
+    offenePflicht,
+    naechsterOffener,
+    mcpUrl,
+    geladen,
+    refresh,
+  }
 }

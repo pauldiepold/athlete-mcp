@@ -6,10 +6,15 @@ import type { EinrichtungSchrittId } from '#shared/einrichtung'
 // bis zum ersten Steuerungsplan führen — mit echtem Zustand, damit ablesbar ist, was
 // noch fehlt.
 //
-// Sie steht auf `/` an der Stelle, an der später das Dashboard steht, und verschwindet
-// dort, sobald alle Pflichtschritte stehen. In den Einstellungen bleibt sie: Wer Final
-// Surge später nachreichen will, findet den Weg dort — und nicht über einen Hinweis,
-// den es dann nicht mehr gibt.
+// Sie steht auf `/` **oberhalb** des Dashboards, solange ein Pflichtschritt offen ist,
+// und verschwindet dort, sobald alle stehen. Bis Issue #57 trat sie an die Stelle des
+// Dashboards — das nahm einem Athleten mit Körperdaten seine Verläufe weg, nur weil
+// noch ein Haken fehlte. Die Sorge dahinter (wer Verläufe sieht, hält die Einrichtung
+// für erledigt) tragen jetzt die Position, die Zeile „Noch n von m Schritten offen"
+// und der eine aufgeklappte Schritt: Die Karte sagt selbst, dass sie noch offen ist.
+//
+// In den Einstellungen bleibt sie dauerhaft: Wer Final Surge später nachreichen will,
+// findet den Weg dort — und nicht über einen Hinweis, den es dann nicht mehr gibt.
 //
 // **Kein Assistent.** Keine erzwungene Reihenfolge, kein Weiter-Knopf, nichts
 // gespeichert: Jeder Haken ist abgeleitet (siehe `shared/einrichtung.ts`). Der einzige
@@ -24,7 +29,8 @@ const props = defineProps<{
   inEinstellungen?: boolean
 }>()
 
-const { schritte, pflichtSchrittOffen, mcpUrl } = useEinrichtung()
+const { schritte, pflichtSchrittOffen, offenePflicht, naechsterOffener, mcpUrl }
+  = useEinrichtung()
 
 function schritt(id: EinrichtungSchrittId) {
   return schritte.value.find(s => s.id === id)!
@@ -34,17 +40,48 @@ const nummer = (id: EinrichtungSchrittId) =>
   schritte.value.findIndex(s => s.id === id) + 1
 
 /**
- * In den Einstellungen bleiben auch erledigte Schritte aufgeklappt: Dort ist die
- * Liste ein Nachschlagewerk, und die MCP-URL wird ausgerechnet dann wieder gebraucht,
- * wenn der Connector schon einmal stand.
+ * Wer aufgeklappt steht.
+ *
+ * In den Einstellungen **alle**: Dort ist die Liste ein Nachschlagewerk, und die
+ * MCP-URL wird ausgerechnet dann wieder gebraucht, wenn der Connector schon einmal
+ * stand.
+ *
+ * Auf der Startseite genau **einer** — der nächste offene Pflichtschritt (Issue #57).
+ * Vorher klappte dort jeder offene Schritt auf; über dem Dashboard wäre das eine
+ * Textwand vor den Verläufen. Ein Schritt sagt dasselbe: was jetzt dran ist.
  */
-const ausfuehrlich = computed(() => props.inEinstellungen === true)
+function aufgeklappt(id: EinrichtungSchrittId): boolean {
+  return props.inEinstellungen === true || naechsterOffener.value === id
+}
+
+/**
+ * Was noch aussteht — gezählt werden die **Pflicht**-Schritte, denn nur die halten die
+ * Karte auf der Startseite.
+ *
+ * Bewusst ohne „von 4": Zähler und Nenner wären zwei verschiedene Mengen. Wer beide
+ * Verbindungen überspringt und den Connector hat, sähe drei Zeilen ohne Haken über
+ * „Noch 1 von 4 Schritten offen" — und hielte die Karte für kaputt statt sich selbst
+ * für fast fertig.
+ */
+const fortschritt = computed(() =>
+  offenePflicht.value === 1
+    ? 'Noch 1 Pflichtschritt offen'
+    : `Noch ${offenePflicht.value} Pflichtschritte offen`,
+)
 </script>
 
 <template>
   <UCard>
     <template #header>
-      <h2 class="font-semibold">Einrichtung</h2>
+      <div class="flex flex-wrap items-center gap-2">
+        <h2 class="font-semibold">Einrichtung</h2>
+        <!-- Die Zahl steht neben dem Titel und nicht im Fließtext: Sie ist das, was
+             die Karte über dem Dashboard behaupten muss — hier ist noch etwas offen,
+             und zwar so viel. -->
+        <UBadge v-if="pflichtSchrittOffen" color="warning" variant="subtle" size="sm">
+          {{ fortschritt }}
+        </UBadge>
+      </div>
       <p class="mt-1 text-sm text-muted">
         <template v-if="pflichtSchrittOffen">
           Vier Schritte bis zur laufenden Steuerung. Die Reihenfolge ist eine
@@ -62,7 +99,7 @@ const ausfuehrlich = computed(() => props.inEinstellungen === true)
         :nummer="nummer('garmin')"
         titel="Garmin verbinden"
         :erledigt="schritt('garmin').erledigt"
-        :ausfuehrlich="ausfuehrlich"
+        :aufgeklappt="aufgeklappt('garmin')"
         :optional="schritt('garmin').optional"
       >
         <p>
@@ -78,7 +115,7 @@ const ausfuehrlich = computed(() => props.inEinstellungen === true)
         :nummer="nummer('finalsurge')"
         titel="Final Surge verbinden"
         :erledigt="schritt('finalsurge').erledigt"
-        :ausfuehrlich="ausfuehrlich"
+        :aufgeklappt="aufgeklappt('finalsurge')"
         :optional="schritt('finalsurge').optional"
       >
         <p>
@@ -92,7 +129,7 @@ const ausfuehrlich = computed(() => props.inEinstellungen === true)
         :nummer="nummer('connector')"
         titel="Connector in Claude hinzufügen"
         :erledigt="schritt('connector').erledigt"
-        :ausfuehrlich="ausfuehrlich"
+        :aufgeklappt="aufgeklappt('connector')"
         :optional="schritt('connector').optional"
       >
         <p>
@@ -115,7 +152,7 @@ const ausfuehrlich = computed(() => props.inEinstellungen === true)
         :nummer="nummer('onboarding')"
         titel="Onboarding in Claude starten"
         :erledigt="schritt('onboarding').erledigt"
-        :ausfuehrlich="ausfuehrlich"
+        :aufgeklappt="aufgeklappt('onboarding')"
         :optional="schritt('onboarding').optional"
       >
         <p>

@@ -43,7 +43,7 @@ export default defineEventHandler(async (event) => {
   // Erst hier die Session — wer zustimmt, muss angemeldet sein. `resolveAthlet` wirft
   // 401; die Fläche schickt daraufhin zur Anmeldung und kommt mit derselben Query
   // zurück.
-  const { userId } = await resolveAthlet(event)
+  const { userId, env } = await resolveAthlet(event)
 
   const { redirectTo } = await oauthHelpers(event).completeAuthorization({
     request: anfrage,
@@ -55,6 +55,20 @@ export default defineEventHandler(async (event) => {
     // **Ausschließlich die userId.** Alles andere wird pro Request frisch gelesen —
     // die Begründung steht in `utils/grantProps.ts`.
     props: { userId } satisfies GrantProps,
+  })
+
+  // Der Einrichtung sagen, dass der Connector steht (Issue #57). Der Grant selbst
+  // wäre der Beweis, aber er ist nur über ein `list` zu finden — *eventually
+  // consistent* und am Edge-Cache vorbei; der Haken erschien deshalb erst Minuten
+  // später. Der Marker ist ein direkt gelesener Schlüssel und da, sobald der Athlet
+  // aus dem Consent zurückkommt.
+  //
+  // Nach `completeAuthorization` und nicht davor: Der Marker behauptet einen Zugang,
+  // den es sonst nicht gäbe. Und ohne `await` im Fehlerfall abzubrechen, wäre falsch
+  // herum — scheitert das Schreiben, ist die Freigabe trotzdem erteilt, und der Haken
+  // fällt auf den Grant zurück wie bei den Bestandskonten.
+  await merkeConnector(env.SESSION_KV, userId).catch((fehler) => {
+    console.error('Connector-Marker nicht geschrieben', fehler)
   })
 
   return { art: 'freigabe' as const, redirectTo }

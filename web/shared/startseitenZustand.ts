@@ -9,15 +9,19 @@ import type { ErstbefuellungLauf } from '@shared/garmin/koerperdatenErstbefuellu
  * direkt nach dem Verbinden ein leeres Dashboard — und ein leeres Dashboard sieht aus
  * wie ein kaputtes.
  *
+ * **Nur die Körperdaten-Hälfte** (Issue #57). Die *Einrichtung* stand hier eine Zeit
+ * lang als erster Fall und ersetzte das Dashboard ganz; seit sie eine zweite Achse ist
+ * — oberhalb des Dashboards, solange ein Pflichtschritt offen ist —, entscheidet sie
+ * nichts mehr an dieser Stelle. Die Sorge dahinter (wer Verläufe sieht, hält die
+ * Einrichtung für erledigt) trägt jetzt die Position und der Ton der Karte.
+ *
  * Hier im Web-Target und nicht in `src/`, weil das keine Garmin-Fachlichkeit ist,
  * sondern die Politik einer Fläche: welcher Hinweis zu welchem Zustand gehört. Rein
  * und getestet bleibt sie trotzdem — die Reihenfolge der Fälle ist das Eigentliche
  * daran, und die ist in einer Vue-Template-Kette nicht prüfbar.
  */
 export type StartseitenZustand
-  = /** Ein Pflichtschritt der Einrichtung fehlt noch — sie steht an dieser Stelle. */
-  | 'einrichtung'
-  /** Ohne Garmin gibt es nichts zu zeigen — der Weg führt in die Einstellungen. */
+  = /** Ohne Garmin gibt es nichts zu zeigen — der Weg führt in die Einstellungen. */
   | 'nicht-verbunden'
   /** Die Erstbefüllung holt gerade; was schon da ist, wird trotzdem gezeigt. */
   | 'laeuft'
@@ -27,28 +31,16 @@ export type StartseitenZustand
   | 'daten'
 
 export interface StartseitenEingaben {
-  /** Fehlt noch ein Pflichtschritt der Einrichtung (Issue #52)? */
-  einrichtungOffen: boolean
   garminVerbunden: boolean
   hatKoerperdaten: boolean
   lauf: ErstbefuellungLauf | null
 }
 
 export function startseitenZustand({
-  einrichtungOffen,
   garminVerbunden,
   hatKoerperdaten,
   lauf,
 }: StartseitenEingaben): StartseitenZustand {
-  // Die Einrichtung vor allem anderen — auch vor dem laufenden Lauf und vor
-  // vorhandenen Daten (Issue #52). Sie tritt an die Stelle des Dashboards, bis alle
-  // Pflichtschritte stehen: Ohne Connector kommt Claude gar nicht an diese Daten, und
-  // wer stattdessen Verläufe zu sehen bekäme, hielte die Einrichtung für erledigt.
-  //
-  // Die Erstbefüllung stört das nicht — sie läuft im Hintergrund weiter, während der
-  // Athlet die übrigen Schritte macht. Genau deshalb steht Garmin dort zuerst.
-  if (einrichtungOffen) return 'einrichtung'
-
   // Der laufende Lauf zuerst, sogar vor vorhandenen Daten: An diesem Zustand hängt,
   // dass **kein** Nachladen-Knopf erscheint. Ein Knopf, der auftaucht, während der
   // Lauf schon läuft, provoziert den Doppelklick gegen ein rate-limitiertes Garmin.
@@ -90,8 +82,20 @@ export const ABFRAGE_INTERVALL_LAEUFT_MS = 10_000
  */
 export const ABFRAGE_INTERVALL_WARTEND_MS = 30_000
 
-/** Wie oft die Seite nachfragt; `null` heißt: gar nicht mehr. */
-export function abfrageIntervallMs(zustand: StartseitenZustand): number | null {
-  if (zustand === 'daten') return null
-  return zustand === 'laeuft' ? ABFRAGE_INTERVALL_LAEUFT_MS : ABFRAGE_INTERVALL_WARTEND_MS
+/**
+ * Wie oft die Seite nachfragt; `null` heißt: gar nicht mehr.
+ *
+ * Zwei Gründe nachzufragen, und beide zählen einzeln (Issue #57): der Zustand der
+ * Körperdaten und die offene Einrichtung. Der zweite steht ausdrücklich daneben, seit
+ * die Einrichtung kein Zustand mehr ist — sonst hörte ausgerechnet das Konto mit
+ * Verläufen und offenem Connector auf zu fragen, also genau das, für das der Haken
+ * gleich von außen gesetzt wird.
+ */
+export function abfrageIntervallMs(
+  zustand: StartseitenZustand,
+  einrichtungOffen: boolean,
+): number | null {
+  if (zustand === 'laeuft') return ABFRAGE_INTERVALL_LAEUFT_MS
+  if (zustand === 'daten' && !einrichtungOffen) return null
+  return ABFRAGE_INTERVALL_WARTEND_MS
 }

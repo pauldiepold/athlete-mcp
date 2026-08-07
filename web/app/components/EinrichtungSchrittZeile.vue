@@ -6,19 +6,20 @@
 // und jederzeit nachholbar, keiner wartet auf einen davor. Sie steht trotzdem da,
 // weil eine Reihenfolge beim ersten Mal Arbeit abnimmt.
 //
-// Ein erledigter Schritt klappt seinen Körper zu und lässt nur den Haken stehen: Was
-// getan ist, soll die Liste nicht länger belegen — und was noch zu tun ist, findet
-// man dann ohne Suchen. Auf der Startseite ist das richtig, in den Einstellungen
-// nicht: Dort ist die Liste ein **Nachschlagewerk** (`ausfuehrlich`), und wer seinen
-// Connector neu aufsetzt, sucht genau die MCP-URL, die hinter dem Haken steckt.
+// Ob der Körper eines Schritts sichtbar ist, entscheidet die **Liste** und nicht die
+// Zeile (`aufgeklappt`): Auf der Startseite steht seit Issue #57 genau einer offen —
+// der nächste offene Pflichtschritt —, damit die Karte über dem Dashboard keine
+// Textwand wird; in den Einstellungen alle, denn dort ist die Liste ein
+// **Nachschlagewerk**, und wer seinen Connector neu aufsetzt, sucht genau die MCP-URL,
+// die hinter dem Haken steckt.
 defineProps<{
   nummer: number
   titel: string
   erledigt: boolean
   /** Überspringbar — die Marke sagt das ausdrücklich, statt es offen zu lassen. */
   optional: boolean
-  /** Auch erledigte Schritte aufgeklappt lassen. */
-  ausfuehrlich?: boolean
+  /** Ist der Körper dieses Schritts sichtbar? */
+  aufgeklappt: boolean
 }>()
 </script>
 
@@ -43,7 +44,7 @@ defineProps<{
       </div>
 
       <div
-        v-if="!erledigt || ausfuehrlich"
+        v-if="aufgeklappt"
         class="mt-2 flex flex-col gap-3 text-sm text-muted"
       >
         <slot />

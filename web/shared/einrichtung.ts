@@ -78,3 +78,30 @@ export function einrichtungsSchritte({
 export function pflichtOffen(schritte: EinrichtungSchritt[]): boolean {
   return schritte.some(s => !s.optional && !s.erledigt)
 }
+
+/**
+ * Wie viele Pflichtschritte noch offen sind — die Zahl, die die Einrichtung über dem
+ * Dashboard ausspricht (Issue #57).
+ *
+ * Seit sie neben dem Dashboard steht statt an seiner Stelle, muss sie selbst sagen,
+ * wie weit sie noch ist: Vorher war ihre bloße Anwesenheit die Ansage, jetzt ist sie
+ * eine Karte unter anderen.
+ */
+export function offenePflichtSchritte(schritte: EinrichtungSchritt[]): number {
+  return schritte.filter(s => !s.optional && !s.erledigt).length
+}
+
+/**
+ * Der Schritt, an dem der Athlet gerade dran ist — aufgeklappt, während alle anderen
+ * zugeklappt bleiben (Issue #57).
+ *
+ * Nur **Pflicht**-Schritte kommen dafür in Frage, und das ist der Unterschied zur
+ * Reihenfolge der Liste: Eine bewusst übersprungene Verbindung steht vorn und bleibt
+ * für immer offen — sie hier zu nennen, hieße dauerhaft den Schritt aufzuklappen, den
+ * der Athlet gerade nicht machen will, statt den, der ihn noch aufhält.
+ */
+export function naechsterOffenerSchritt(
+  schritte: EinrichtungSchritt[],
+): EinrichtungSchrittId | null {
+  return schritte.find(s => !s.optional && !s.erledigt)?.id ?? null
+}
