@@ -29,6 +29,13 @@ import { PRODUKTNAME } from '@shared/produkt'
 // und nicht mehr `athlete-mcp` — ein Repo-Name, der einem Athleten nichts sagt. Sie
 // steht auf jeder Fläche, weil auch die anmeldefreien Seiten (Anmeldung, Consent,
 // Invite) sagen müssen, wovon sie eigentlich reden.
+//
+// Die Wortmarke ist zugleich der **Start-Knopf**: Sie führt nach `/`, deshalb gibt es
+// daneben keinen eigenen „Start" mehr (siehe AthletHeader). Damit das kein versteckter
+// Weg bleibt, färbt `startAktiv` sie auf der Startseite ein — der Athlet sieht dort
+// dasselbe „du bist hier", das die anderen Flächen als Knopf zeigen.
+defineProps<{ startAktiv?: boolean }>()
+
 const { user, loggedIn, clear } = useUserSession()
 
 // Ohne Anzeigename bleibt die Kopfzeile bei „Konto": eine technische ID dort ist
@@ -61,12 +68,21 @@ const menue = computed(() => [
 
 <template>
   <header class="sticky top-0 z-10 border-b border-default bg-default/80 backdrop-blur">
-    <UContainer class="flex flex-wrap items-center gap-3 py-3">
-      <ULink to="/" class="shrink-0 font-semibold text-highlighted">{{ PRODUKTNAME }}</ULink>
+    <!-- Eine Zeile, die nicht umbricht: Wortmarke, Navigation, dann rechtsbündig
+         Actions und Konto. Auf schmalen Geräten schrumpfen die Navigations-Knöpfe auf
+         ihre Icons (AthletHeader), statt dass die Leiste zweizeilig wird. -->
+    <UContainer class="flex items-center gap-2 py-3 sm:gap-3">
+      <ULink
+        to="/"
+        class="shrink-0 font-semibold"
+        :class="startAktiv ? 'text-primary' : 'text-highlighted'"
+        :aria-current="startAktiv ? 'page' : undefined"
+      >{{ PRODUKTNAME }}</ULink>
 
       <slot />
 
-      <div class="ml-auto flex items-center gap-2">
+      <div class="ml-auto flex min-w-0 items-center gap-2">
+        <slot name="actions" />
         <UDropdownMenu v-if="loggedIn" :items="menue">
           <UButton
             color="neutral"

@@ -13,7 +13,6 @@ useHead({ title: 'Grundlagen' })
 <template>
   <SteuerungDoc
     :wochen="data?.wochen ?? []"
-    title="Grundlagen"
     endpoint="/api/steuerung/plan"
     placeholder="# Grundlagen…"
     :initial-markdown="data?.markdown ?? ''"

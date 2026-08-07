@@ -29,7 +29,6 @@ const { data: koerperdatenData } = await useFetch('/api/koerperdaten/wochen', {
   <SteuerungDoc
     :wochen="data?.wochen ?? []"
     :current-kw="kw"
-    :title="kw"
     :endpoint="`/api/steuerung/woche/${kw}`"
     :placeholder="`# ${kw}…`"
     :initial-markdown="data?.markdown ?? ''"

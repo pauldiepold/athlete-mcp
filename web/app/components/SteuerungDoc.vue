@@ -7,7 +7,6 @@
 const props = defineProps<{
   wochen: string[]
   currentKw?: string
-  title: string
   endpoint: string
   placeholder?: string
   initialMarkdown: string
@@ -41,23 +40,34 @@ async function save() {
   <!-- Füllt die Restfläche unter der Kopfzeile (app.vue spannt die Spalte auf), damit
        der Editor die Höhe bekommt und die Fußzeile trotzdem unten bleibt. -->
   <div class="flex min-h-0 flex-1 flex-col">
-    <AthletHeader
-      bereich="steuerung"
-      :wochen="wochen"
-      :current-kw="currentKw"
-    >
+    <AthletHeader bereich="steuerung">
       <template #actions>
         <template v-if="editing">
-          <span class="text-sm text-muted">{{ dirty ? 'Ungespeicherte Änderungen' : 'Gespeichert' }}</span>
-          <UButton :loading="saving" :disabled="!dirty" @click="save">Speichern</UButton>
-          <UButton color="neutral" variant="ghost" @click="editing = false">Schließen</UButton>
+          <!-- Der Speicher-Zustand als Wort nur ab `sm`: Auf dem Handy braucht die
+               Kopfzeile ihre Breite für die Knöpfe, und „Ungespeicherte Änderungen"
+               steht ohnehin schon im `disabled` des Speichern-Knopfs. -->
+          <span class="hidden text-sm text-muted sm:inline">{{ dirty ? 'Ungespeicherte Änderungen' : 'Gespeichert' }}</span>
+          <UButton size="sm" :loading="saving" :disabled="!dirty" @click="save">Speichern</UButton>
+          <UButton
+            size="sm"
+            color="neutral"
+            variant="ghost"
+            icon="i-lucide-x"
+            aria-label="Bearbeiten schließen"
+            @click="editing = false"
+          />
         </template>
-        <UButton v-else variant="soft" @click="editing = true">Bearbeiten</UButton>
+        <UButton v-else size="sm" variant="soft" icon="i-lucide-pencil" @click="editing = true">
+          <span class="hidden sm:inline">Bearbeiten</span>
+        </UButton>
       </template>
     </AthletHeader>
 
     <UContainer class="flex w-full max-w-5xl flex-1 min-h-0 flex-col py-6">
-      <h1 class="mb-4 text-xl font-semibold">{{ title }}</h1>
+      <!-- Die Wochen-Auswahl ist zugleich die Überschrift der Seite — deshalb hat das
+           Dokument keine eigene `h1` mehr: Die Woche stünde sonst zweimal
+           untereinander, einmal als Titel und einmal als Auswahl. -->
+      <WochenWahl :wochen="wochen" :current-kw="currentKw" />
 
       <!-- Der Körperdaten-Streifen der Wochenseite (Issue #28, Richtung 2 der
            Steuerungs-Brücke) — leer auf dem Steuerungsplan, der diesen Slot nicht

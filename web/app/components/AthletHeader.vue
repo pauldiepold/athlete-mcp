@@ -1,134 +1,76 @@
 <script setup lang="ts">
 // Kopfzeile aller Athleten-Seiten (Issue #13, erweitert in #24) — trägt die
-// gesamte Navigation, damit Blättern UND Speichern beim Scrollen immer erreichbar
-// bleiben. Das sticky Gerüst und das Konto-Menü kommen aus AppHeader; hier die
-// athletenspezifischen Zonen:
-//   links  – Umschalter zwischen den drei Flächen: Start, Körperdaten und Trainingsbuch
+// Navigation, damit sie beim Scrollen immer erreichbar bleibt. Das sticky Gerüst und
+// das Konto-Menü kommen aus AppHeader; hier die athletenspezifischen Zonen:
+//   links  – Umschalter zwischen Körperdaten und Trainingsbuch
 //            (der Kontext heißt im Repo weiter `steuerung`, siehe src/steuerung/CONTEXT.md)
-//   mitte  – Wochen-Switcher, nur im Steuerungs-Kontext: die 3 neuesten als
-//            Shortcut-Chips (der häufige Fall), ein "Ältere"-Dropdown als Zugang zu
-//            den alten Wochen, ‹ › zum Blättern
 //   rechts – Actions-Slot (z. B. Speichern), nur im Edit-Kontext gefüllt
+//
+// **Zwei Knöpfe statt drei:** „Start" ist verschwunden, weil die Wortmarke links
+// bereits nach `/` führt — zwei Wege zur selben Fläche, nebeneinander in derselben
+// Leiste. Auf dem Handy war das der teuerste der drei Punkte: Wortmarke, drei
+// Knöpfe und das Konto-Menü passten nicht in eine Zeile, die Leiste brach um. Die
+// Wortmarke ist jetzt der Start und wird auf ihm hervorgehoben (`startAktiv`).
+//
+// **Die Wochen-Navigation ist hier raus** (früher: drei Chips, ein „Ältere"-Dropdown
+// und ‹ › zwischen den Flächen und dem Speichern). Sie steht jetzt als eigene Leiste
+// im Trainingsbuch selbst — siehe WochenWahl. In der Kopfzeile war sie auf dem Handy
+// weder unterzubringen noch als Auswahl zu erkennen: drei Kürzel wie „W24 W25 W26"
+// zwischen lauter Navigation liest niemand als „hier wählst du deine Woche".
 //
 // Athlet-Identität und Abmelden standen bis ADR-0007 hier links; seit die Anmeldung
 // eine Session ist statt eines Secrets in der URL, gehören sie ins Konto-Menü rechts —
 // dorthin, wo sie auf jeder Fläche gleich zu finden sind.
 const props = defineProps<{
   /**
-   * Welche Fläche gerade offen ist — steuert Umschalter und Wochen-Navigation.
+   * Welche Fläche gerade offen ist — steuert den Umschalter.
    *
    * `einstellungen` hebt bewusst **keinen** der Knöpfe hervor: Die Einstellungen sind
-   * keine vierte tägliche Fläche, sondern hängen im Konto-Menü rechts. Die Kopfzeile
+   * keine tägliche Fläche, sondern hängen im Konto-Menü rechts. Die Kopfzeile
    * trägt sie trotzdem, damit von dort der Weg zurück auf einen Klick geht.
    */
   bereich: 'start' | 'koerperdaten' | 'steuerung' | 'einstellungen'
-  wochen?: string[]
-  currentKw?: string
 }>()
 
-// Die Wege sind seit ADR-0007 fest: keine Secret-Präfixe mehr, die mitgereicht werden
-// müssten.
-const steuerungBase = '/steuerung'
-
 /**
- * Die drei täglichen Flächen (Issue #60).
+ * Die beiden täglichen Flächen (Issue #60).
  *
- * **Deutsch, weil der Rest der Oberfläche deutsch ist**: „Start" statt „Home", und
- * „Körperdaten" statt „Dashboard" — das ist der Inhalt, während „Dashboard" nur ein
- * Fremdwort für dasselbe wäre. Der *Pfad* heißt trotzdem weiter `/dashboard`: Pfade
- * liest niemand vor, und ein Umbenennen bräche jeden geteilten Link.
+ * **Deutsch, weil der Rest der Oberfläche deutsch ist**: „Körperdaten" statt
+ * „Dashboard" — das ist der Inhalt, während „Dashboard" nur ein Fremdwort für
+ * dasselbe wäre. Der *Pfad* heißt trotzdem weiter `/dashboard`: Pfade liest niemand
+ * vor, und ein Umbenennen bräche jeden geteilten Link.
  *
- * Als Liste und nicht als drei abgeschriebene Knöpfe: Bei zweien ging das noch
- * durch, beim dritten wäre die Farb-/Variante-Logik dreimal dieselbe Zeile.
+ * Jede Fläche hat ein Icon, weil auf schmalen Geräten nur das Icon stehen bleibt:
+ * Zwei Wörter dieser Länge plus Wortmarke plus Konto passen bei 375 px nicht in eine
+ * Zeile. Das `aria-label` trägt den Namen weiter, auch wenn er nicht zu sehen ist.
  */
 const flaechen = [
-  { bereich: 'start', label: 'Start', to: '/' },
-  { bereich: 'koerperdaten', label: 'Körperdaten', to: '/dashboard' },
-  { bereich: 'steuerung', label: 'Trainingsbuch', to: steuerungBase },
+  { bereich: 'koerperdaten', label: 'Körperdaten', icon: 'i-lucide-activity', to: '/dashboard' },
+  { bereich: 'steuerung', label: 'Trainingsbuch', icon: 'i-lucide-notebook-pen', to: '/steuerung' },
 ] as const
 
-// Store liefert kw aufsteigend; defensiv sortieren (lexikografisch = chronologisch).
-const sorted = computed(() => [...(props.wochen ?? [])].sort())
-
-// Die 3 neuesten chronologisch (Mini-Zeitstrahl: links früher, rechts später).
-const shortcuts = computed(() => sorted.value.slice(-3))
-// Der Rest, neueste zuerst — die "alten" Wochen fürs Dropdown.
-const olderItems = computed(() =>
-  sorted.value
-    .slice(0, -3)
-    .reverse()
-    .map((kw) => ({ label: kw, to: `${steuerungBase}/${kw}` })),
-)
-
-// Prev/Next relativ zur offenen Woche, Lücken überspringend (nur auf der Wochen-Seite).
-const prev = computed(() =>
-  props.currentKw ? [...sorted.value].reverse().find((w) => w < props.currentKw!) : undefined,
-)
-const next = computed(() =>
-  props.currentKw ? sorted.value.find((w) => w > props.currentKw!) : undefined,
-)
-
-// Kurzlabel fürs Chip: "2026-W26" → "W26" (Jahr steht im Dropdown / Seitentitel).
-function short(kw: string): string {
-  return kw.slice(5)
-}
+const startAktiv = computed(() => props.bereich === 'start')
 </script>
 
 <template>
-  <AppHeader>
-    <div class="flex items-center gap-1">
+  <AppHeader :start-aktiv="startAktiv">
+    <nav class="flex items-center gap-1" aria-label="Hauptnavigation">
       <UButton
         v-for="f in flaechen"
         :key="f.bereich"
         :to="f.to"
+        :icon="f.icon"
+        :aria-label="f.label"
         :color="bereich === f.bereich ? 'primary' : 'neutral'"
         :variant="bereich === f.bereich ? 'soft' : 'ghost'"
         size="sm"
-      >{{ f.label }}</UButton>
-    </div>
+      >
+        <span class="hidden sm:inline">{{ f.label }}</span>
+      </UButton>
+    </nav>
 
-    <div class="flex-1" />
-
-    <div v-if="bereich === 'steuerung' && sorted.length" class="flex items-center gap-1">
-      <UButton
-        v-if="currentKw"
-        :to="prev ? `${steuerungBase}/${prev}` : undefined"
-        :disabled="!prev"
-        color="neutral"
-        variant="ghost"
-        size="sm"
-        aria-label="Vorherige Woche"
-      >‹</UButton>
-
-      <UButton
-        v-for="w in shortcuts"
-        :key="w"
-        :to="`${steuerungBase}/${w}`"
-        :title="w"
-        :color="w === currentKw ? 'primary' : 'neutral'"
-        :variant="w === currentKw ? 'solid' : 'ghost'"
-        size="sm"
-      >{{ short(w) }}</UButton>
-
-      <UDropdownMenu v-if="olderItems.length" :items="olderItems">
-        <UButton color="neutral" variant="ghost" size="sm">Ältere ▾</UButton>
-      </UDropdownMenu>
-
-      <UButton
-        v-if="currentKw"
-        :to="next ? `${steuerungBase}/${next}` : undefined"
-        :disabled="!next"
-        color="neutral"
-        variant="ghost"
-        size="sm"
-        aria-label="Nächste Woche"
-      >›</UButton>
-    </div>
-
-    <div class="flex-1" />
-
-    <div class="flex items-center gap-4">
+    <template #actions>
       <slot name="actions" />
-    </div>
+    </template>
   </AppHeader>
 </template>
