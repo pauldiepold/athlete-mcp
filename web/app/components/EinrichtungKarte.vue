@@ -38,6 +38,19 @@ const props = defineProps<{
 const { schritte, pflichtSchrittOffen, offenePflicht, naechsterOffener, mcpUrl }
   = useEinrichtung()
 
+const { refresh: verbindungenNeu } = useVerbindungen()
+
+/**
+ * Nach einem geglückten Verbinden den Zustand neu holen, statt ihn zu erraten — die
+ * Haken der Liste hängen an den Verbindungen, die Erstbefüllung hat der Server beim
+ * Verbinden angestoßen (Issue #48). Dasselbe tut die Einstellungen-Seite für ihre
+ * Karten; hier braucht es das noch einmal, weil das Formular jetzt auch in der
+ * Einrichtung selbst steht.
+ */
+async function verbindungFertig() {
+  await Promise.all([verbindungenNeu(), refreshNuxtData('erstbefuellung')])
+}
+
 function schritt(id: EinrichtungSchrittId) {
   return schritte.value.find(s => s.id === id)!
 }
@@ -46,7 +59,8 @@ const nummer = (id: EinrichtungSchrittId) =>
   schritte.value.findIndex(s => s.id === id) + 1
 
 /**
- * Wer aufgeklappt steht.
+ * Wer aufgeklappt **beginnt** — jede Zeile lässt sich danach selbst öffnen und
+ * schließen.
  *
  * In den Einstellungen **alle**: Dort ist die Liste ein Nachschlagewerk, und die
  * MCP-URL wird ausgerechnet dann wieder gebraucht, wenn der Connector schon einmal
@@ -54,7 +68,9 @@ const nummer = (id: EinrichtungSchrittId) =>
  *
  * Auf der Startseite genau **einer** — der nächste offene Pflichtschritt (Issue #57).
  * Vorher klappte dort jeder offene Schritt auf; über dem Dashboard wäre das eine
- * Textwand vor den Verläufen. Ein Schritt sagt dasselbe: was jetzt dran ist.
+ * Textwand vor den Verläufen. Ein Schritt sagt dasselbe: was jetzt dran ist. Die
+ * beiden Verbindungen tragen inzwischen ihr Formular im Körper — sie zu Beginn
+ * aufzuklappen hieße, zwei Passwortfelder vor die Verläufe zu stellen.
  */
 function aufgeklappt(id: EinrichtungSchrittId): boolean {
   return props.inEinstellungen === true || naechsterOffener.value === id
@@ -114,7 +130,15 @@ const fortschritt = computed(() =>
           während du die übrigen Schritte machst. Ohne Garmin bleiben deine
           Körperdaten leer, alles andere funktioniert.
         </p>
-        <EinrichtungVerbindungsWeg :in-einstellungen="inEinstellungen" />
+        <EinrichtungVerbindungsWeg
+          :in-einstellungen="inEinstellungen"
+          :erledigt="schritt('garmin').erledigt"
+          @fertig="verbindungFertig"
+        >
+          <template #default="{ fertig }">
+            <VerbindungGarmin @fertig="fertig" />
+          </template>
+        </EinrichtungVerbindungsWeg>
       </EinrichtungSchrittZeile>
 
       <EinrichtungSchrittZeile
@@ -128,7 +152,15 @@ const fortschritt = computed(() =>
           Der Trainingsplan deines Coaches. Wenn du keinen hast und dein Training selbst
           steuerst, überspring diesen Schritt — dir fehlt dann nichts.
         </p>
-        <EinrichtungVerbindungsWeg :in-einstellungen="inEinstellungen" />
+        <EinrichtungVerbindungsWeg
+          :in-einstellungen="inEinstellungen"
+          :erledigt="schritt('finalsurge').erledigt"
+          @fertig="verbindungFertig"
+        >
+          <template #default="{ fertig }">
+            <VerbindungFinalSurge @fertig="fertig" />
+          </template>
+        </EinrichtungVerbindungsWeg>
       </EinrichtungSchrittZeile>
 
       <EinrichtungSchrittZeile

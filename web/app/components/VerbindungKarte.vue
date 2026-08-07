@@ -12,6 +12,13 @@ import type { Verbindung } from '@shared/verbindungen'
 // Eine bestehende Verbindung zeigt das Formular erst auf Klick. Es dauerhaft offen zu
 // lassen hieße, ein leeres Passwortfeld neben ein „verbunden" zu stellen — das liest
 // sich, als fehlte noch etwas.
+//
+// Der Zustand ist **Text und kein Abzeichen**. Als gefüllte Pille in Knopfgröße oben
+// rechts sah „− Nicht verbunden" aus wie der Knopf, mit dem man verbindet, und wurde
+// auch so angeklickt (beobachtet bei einem Nutzer); der echte Knopf stand unten rechts
+// am anderen Ende der Karte. Jetzt steht der Knopf direkt neben dem Zustand: An der
+// Stelle, an die die Hand ohnehin geht, liegt das, was sie sucht — und was nur meldet,
+// sieht auch nur wie eine Meldung aus.
 const props = defineProps<{
   verbindung: Verbindung
   /** Wozu diese Datenquelle gut ist — ein Satz, keine Werbung. */
@@ -25,14 +32,14 @@ const knopf = computed(() =>
   props.verbindung.zustand === 'fehlt' ? 'Verbinden' : 'Neu verbinden',
 )
 
-const abzeichen = computed(() => {
+const zustandsAnzeige = computed(() => {
   switch (props.verbindung.zustand) {
     case 'verbunden':
-      return { label: 'Verbunden', color: 'success' as const, icon: 'i-lucide-check' }
+      return { label: 'Verbunden', klasse: 'text-success', icon: 'i-lucide-check-circle-2' }
     case 'kaputt':
-      return { label: 'Unterbrochen', color: 'error' as const, icon: 'i-lucide-triangle-alert' }
+      return { label: 'Unterbrochen', klasse: 'text-error', icon: 'i-lucide-triangle-alert' }
     default:
-      return { label: 'Nicht verbunden', color: 'neutral' as const, icon: 'i-lucide-minus' }
+      return { label: 'Nicht verbunden', klasse: 'text-muted', icon: 'i-lucide-circle-dashed' }
   }
 })
 
@@ -47,22 +54,57 @@ function alsDatum(iso: string): string {
 function fertig() {
   offen.value = false
 }
+
+const slots = useSlots()
+
+/** Hat der Körper überhaupt etwas zu zeigen? */
+const koerperGefuellt = computed(
+  () => offen.value || props.verbindung.zustand === 'kaputt' || !!slots.fuss,
+)
 </script>
 
 <template>
-  <UCard>
+  <!-- Ohne Inhalt auch keine Polsterung: Eine zugeklappte, heile Verbindung ohne Fuß
+       hinterließe sonst einen leeren Streifen unter dem Kopf, der aussieht, als wäre
+       dort etwas nicht geladen. -->
+  <UCard :ui="koerperGefuellt ? undefined : { body: 'p-0 sm:p-0' }">
     <template #header>
       <div class="flex flex-wrap items-center justify-between gap-2">
         <div>
           <h3 class="font-semibold">{{ verbindung.name }}</h3>
           <p class="text-sm text-muted">{{ wofuer }}</p>
         </div>
-        <UBadge
-          :color="abzeichen.color"
-          :icon="abzeichen.icon"
-          variant="subtle"
-          size="lg"
-        >{{ abzeichen.label }}</UBadge>
+        <div class="flex items-center gap-3">
+          <span
+            class="flex items-center gap-1.5 text-sm font-medium"
+            :class="zustandsAnzeige.klasse"
+          >
+            <UIcon :name="zustandsAnzeige.icon" class="size-4" />
+            {{ zustandsAnzeige.label }}
+          </span>
+
+          <!-- Der Knopf steht neben dem Zustand und nicht unter der Karte: Wer den
+               Zustand liest, will genau hier handeln. Offen wird er zum Weg zurück —
+               sonst gäbe es keinen, sobald das Formular einmal aufgeklappt ist. -->
+          <UButton
+            v-if="!offen"
+            color="neutral"
+            variant="subtle"
+            size="sm"
+            @click="offen = true"
+          >
+            {{ knopf }}
+          </UButton>
+          <UButton
+            v-else-if="verbindung.zustand === 'verbunden'"
+            color="neutral"
+            variant="ghost"
+            size="sm"
+            @click="offen = false"
+          >
+            Abbrechen
+          </UButton>
+        </div>
       </div>
     </template>
 
@@ -78,17 +120,16 @@ function fertig() {
 
     <slot v-if="offen" :fertig="fertig" />
 
-    <div v-else class="flex justify-end">
-      <UButton color="neutral" variant="subtle" size="sm" @click="offen = true">
-        {{ knopf }}
-      </UButton>
-    </div>
+    <!-- Zugeklappt bleibt der Körper leer: Der Knopf steht oben beim Zustand, und eine
+         zweite Fläche für dieselbe Handlung wäre nur die Frage, welche gilt. -->
 
     <!-- Was zu dieser Datenquelle gehört, aber nicht zum Verbinden: bei Garmin die
          Erstbefüllung. Anders als das Formular immer sichtbar — sie ist gerade dann
          interessant, wenn die Verbindung schon steht. -->
     <template v-if="$slots.fuss">
-      <USeparator class="my-4" />
+      <!-- Der Trenner nur, wenn über ihm etwas steht — sonst begänne der Körper mit
+           einem Strich direkt unter dem Kopf. -->
+      <USeparator v-if="offen || verbindung.zustand === 'kaputt'" class="my-4" />
       <slot name="fuss" />
     </template>
   </UCard>
