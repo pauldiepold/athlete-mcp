@@ -1,10 +1,10 @@
 import type { H3Event } from 'h3'
 import type {
+  AuthorizationError,
   AuthRequest,
   ClientInfo,
   OAuthHelpers,
 } from '@cloudflare/workers-oauth-provider'
-import { AuthorizationError } from '@cloudflare/workers-oauth-provider'
 
 /**
  * Die Brücke von Nitro zum Authorization Server (Issue #43).
@@ -21,6 +21,21 @@ import { AuthorizationError } from '@cloudflare/workers-oauth-provider'
  * Deshalb liegt sie hier und nicht doppelt in den beiden Endpunkten; auseinander
  * gelaufene Prüfungen wären genau die Sorte Fehler, die man erst im Betrieb sieht.
  */
+
+/**
+ * Erkennt einen `AuthorizationError` am Namen statt per `instanceof`.
+ *
+ * Ein **Wert**-Import aus `@cloudflare/workers-oauth-provider` zieht dessen statisches
+ * `import { WorkerEntrypoint } from 'cloudflare:workers'` mit. Im Deployment ist das
+ * richtig, im `nuxt dev` aber nicht: Dort läuft Nitro in Node, und der ESM-Loader kennt
+ * das Schema `cloudflare:` nicht. Weil die Utils in einem Modulgraphen hängen, legt der
+ * Import dann nicht bloß `/authorize` lahm, sondern jede Route des Dev-Servers.
+ *
+ * Der Typ genügt hier: Der Provider setzt `name` in seinem Konstruktor selbst.
+ */
+function istAutorisierungsFehler(error: unknown): error is AuthorizationError {
+  return error instanceof Error && error.name === 'AuthorizationError'
+}
 
 /** Die Helfer des Providers für diesen Request. */
 export function oauthHelpers(event: H3Event): OAuthHelpers {
@@ -73,7 +88,7 @@ export async function leseAutorisierungsAnfrage(
   try {
     anfrage = await helpers.parseAuthRequest(toWebRequest(event))
   } catch (error) {
-    if (error instanceof AuthorizationError) {
+    if (istAutorisierungsFehler(error)) {
       // Eine `redirectUri` gibt der Provider nur heraus, wenn Client und URI geprüft
       // sind — genau dann darf (und soll) der Client die Antwort bekommen.
       if (error.redirectUri) {
