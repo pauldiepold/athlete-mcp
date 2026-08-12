@@ -1,3 +1,4 @@
+import { adminBereich } from '../utils/adminBereich'
 import { isOperator } from '../utils/isOperator'
 
 /**
@@ -18,9 +19,8 @@ import { isOperator } from '../utils/isOperator'
  * Guard wie `/admin` — die Fläche ist nur die Anzeige, die Endpunkte sind der Zugriff.
  */
 export default defineEventHandler(async (event) => {
-  const istSeite = event.path === '/admin' || event.path.startsWith('/admin/')
-  const istApi = event.path.startsWith('/api/admin/')
-  if (!istSeite && !istApi) {
+  const bereich = adminBereich(getRequestURL(event).pathname)
+  if (!bereich) {
     return
   }
 
@@ -33,7 +33,7 @@ export default defineEventHandler(async (event) => {
     return
   }
 
-  if (istApi) {
+  if (bereich === 'api') {
     throw createError({ statusCode: 403, statusMessage: 'Kein Operator-Zugang' })
   }
 
