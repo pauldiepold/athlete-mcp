@@ -44,27 +44,31 @@ const verlaeufeLink = computed(() => ({
 </script>
 
 <template>
+  <!-- Auf dem Handy ist die Zeile knapp: Die Zahlen sind die Hauptsache und bleiben,
+       die HRV-Kurve entfällt (sie braucht Breite, um überhaupt eine Kurve zu sein),
+       und der Knopf trägt die kw erst ab `sm` — die Woche steht direkt darüber im
+       Titel, im Knopf wäre sie dieselbe Angabe ein zweites Mal. -->
   <div
-    class="mb-4 flex h-14 items-center gap-4 rounded-lg border border-default bg-elevated/50 px-3 text-sm sm:gap-6 sm:px-4"
+    class="mb-4 flex h-14 items-center gap-3 rounded-lg border border-default bg-elevated/50 px-3 text-xs sm:gap-6 sm:px-4 sm:text-sm"
   >
-    <div class="flex items-baseline gap-1.5">
+    <div class="flex min-w-0 items-baseline gap-1.5">
       <span class="text-muted">Ø Index</span>
       <span class="font-medium tabular-nums">{{ indexText }}</span>
     </div>
 
-    <div class="flex items-baseline gap-1.5">
+    <div class="flex min-w-0 items-baseline gap-1.5">
       <span class="text-muted">Ø Schlaf</span>
       <span class="font-medium tabular-nums">{{ schlafText }}</span>
     </div>
 
-    <div class="h-7 w-20 shrink-0 sm:w-28">
+    <div class="hidden h-7 w-20 shrink-0 sm:block sm:w-28">
       <MiniKurve :werte="hrvSerie" />
     </div>
 
     <div class="flex-1" />
 
     <UButton :to="verlaeufeLink" color="neutral" variant="ghost" size="xs" class="shrink-0">
-      Körperdaten: {{ kw }} ›
+      Körperdaten<span class="hidden sm:inline">: {{ kw }}</span> ›
     </UButton>
   </div>
 </template>

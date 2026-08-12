@@ -73,11 +73,15 @@ const naechste = computed(() =>
       :items="menue"
       :ui="{ content: 'max-h-80 overflow-auto' }"
     >
+      <!-- Titel-Größe, aber Knopf-Maß: `size="sm"` nimmt der Fläche die Polsterung,
+           die ein Formular-Select bräuchte. Der Titel soll gelesen und nebenbei
+           angeklickt werden — nicht wie ein Eingabefeld die halbe Zeile füllen. -->
       <UButton
         color="neutral"
         variant="outline"
+        size="sm"
         trailing-icon="i-lucide-chevron-down"
-        class="min-w-0 text-lg font-semibold sm:text-xl"
+        class="min-w-0 text-base font-semibold sm:text-lg"
         aria-label="Woche wählen"
       >
         <span class="truncate">{{ titel }}</span>
