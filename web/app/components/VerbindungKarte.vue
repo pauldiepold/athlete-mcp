@@ -110,7 +110,7 @@ const koerperGefuellt = computed(
             color="neutral"
             variant="subtle"
             size="sm"
-            @click="offen = true"
+            @click="() => { offen = true }"
           >
             {{ knopf }}
           </UButton>
@@ -119,7 +119,7 @@ const koerperGefuellt = computed(
             color="neutral"
             variant="ghost"
             size="sm"
-            @click="offen = false"
+            @click="() => { offen = false }"
           >
             Abbrechen
           </UButton>

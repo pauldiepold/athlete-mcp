@@ -110,7 +110,7 @@ function nochEinmal() {
       variant="ghost"
       size="sm"
       class="self-start"
-      @click="neuVerbinden = false"
+      @click="() => { neuVerbinden = false }"
     >
       Abbrechen
     </UButton>
@@ -122,7 +122,7 @@ function nochEinmal() {
     variant="subtle"
     size="sm"
     class="self-start"
-    @click="neuVerbinden = true"
+    @click="() => { neuVerbinden = true }"
   >
     Neu verbinden
   </UButton>

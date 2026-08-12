@@ -54,10 +54,10 @@ async function save() {
             variant="ghost"
             icon="i-lucide-x"
             aria-label="Bearbeiten schließen"
-            @click="editing = false"
+            @click="() => { editing = false }"
           />
         </template>
-        <UButton v-else size="sm" variant="soft" icon="i-lucide-pencil" @click="editing = true">
+        <UButton v-else size="sm" variant="soft" icon="i-lucide-pencil" @click="() => { editing = true }">
           <span class="hidden sm:inline">Bearbeiten</span>
         </UButton>
       </template>
