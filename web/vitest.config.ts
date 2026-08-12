@@ -30,7 +30,10 @@ export default defineConfig({
     // Dazu `shared/` — die puren Module, die sich Server und Browser teilen; zuerst
     // die Zustandslogik der Startseite (Issue #51), deren Fall-Reihenfolge die
     // eigentliche Entscheidung ist und in keinem Vue-Template prüfbar wäre.
-    include: ['server/**/*.test.ts', 'shared/**/*.test.ts'],
+    // Und `app/utils/` — die Nuxt-freien Hilfen der Oberfläche. Vue-Komponenten bleiben
+    // draußen (sie bräuchten eine Nuxt-Umgebung); was sich als pure Funktion
+    // herausziehen lässt, wird hier geprüft statt im Template.
+    include: ['server/**/*.test.ts', 'shared/**/*.test.ts', 'app/utils/**/*.test.ts'],
   },
 
   // Derselbe @shared-Alias wie in nuxt.config.ts: die Domänen-Bibliothek unter ../src

@@ -17,6 +17,10 @@ useHead({
          unten steht statt mitten im Bild zu kleben. -->
     <div class="flex min-h-dvh flex-col">
       <NuxtPage />
+      <!-- Die Tab-Leiste steht hier und nicht in AthletHeader: Sie klebt am *unteren*
+           Rand und muss dafür am Ende der Spalte im Fluss liegen. Sie entscheidet
+           selbst anhand der Route, ob sie erscheint. -->
+      <AthletTabLeiste />
       <AppFooter />
     </div>
   </UApp>

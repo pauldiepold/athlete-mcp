@@ -69,8 +69,9 @@ const menue = computed(() => [
 <template>
   <header class="sticky top-0 z-10 border-b border-default bg-default/80 backdrop-blur">
     <!-- Eine Zeile, die nicht umbricht: Wortmarke, Navigation, dann rechtsbündig
-         Actions und Konto. Auf schmalen Geräten schrumpfen die Navigations-Knöpfe auf
-         ihre Icons (AthletHeader), statt dass die Leiste zweizeilig wird. -->
+         Actions und Konto. Auf schmalen Geräten entfällt die Navigation hier ganz und
+         steht als Leiste am unteren Rand (AthletTabLeiste), statt dass die Leiste
+         zweizeilig wird oder die Knöpfe auf unbeschriftete Icons schrumpfen. -->
     <UContainer class="flex items-center gap-2 py-3 sm:gap-3">
       <ULink
         to="/"
