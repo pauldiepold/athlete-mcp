@@ -115,19 +115,22 @@
       // stehen wie unter dem alten `athlete-mcp`. `userId` bleibt Primärschlüssel
       // (ADR-0007), es gibt deshalb keine Datenmigration — nur diese beiden IDs.
       //
-      // Kein "remote": true, anders als oben. Das Flag zieht `nuxt dev` auf die
-      // Ressourcen dieser Datei; für die Produktion wäre das genau das, was man nicht
-      // will, und `wrangler deploy` braucht es ohnehin nicht.
+      // "remote": true wie oben — aber mit anderer Tragweite: Das Flag wirkt nur in
+      // lokalen Sitzungen (`wrangler deploy` ignoriert es), und lokal ist es genau
+      // dann gemeint, wenn `nuxt dev` per `nitro.cloudflareDev.environment` auf diese
+      // Umgebung gezogen wird (nuxt.config.ts). Dann schreibt der localhost in die
+      // echte Produktions-D1 und die echten KVs — kein Sandkasten, keine Kopie.
       "kv_namespaces": [
-        { "binding": "SESSION_KV", "id": "b5f5aa9024b141608a93ef7388aed64d" },
-        { "binding": "OAUTH_KV", "id": "1e54d9ed3d5f42268ab3af11ec3975ff" }
+        { "binding": "SESSION_KV", "id": "b5f5aa9024b141608a93ef7388aed64d", "remote": true },
+        { "binding": "OAUTH_KV", "id": "1e54d9ed3d5f42268ab3af11ec3975ff", "remote": true }
       ],
       "d1_databases": [
         {
           "binding": "ATHLETE_DB",
           "database_name": "athlete-mcp-koerperdaten",
           "database_id": "2d146aa3-8fed-40dc-a7a8-b924e82a4343",
-          "migrations_dir": "../migrations"
+          "migrations_dir": "../migrations",
+          "remote": true
         }
       ],
 

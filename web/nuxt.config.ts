@@ -62,6 +62,16 @@ export default defineNuxtConfig({
     // beim Build nur eine Warnung und der Cron liefe still ins Leere.
     experimental: { tasks: true },
     scheduledTasks: { '0 5 * * *': ['koerperdaten'] },
+
+    // Welche Umgebung der wrangler.jsonc `nuxt dev` bindet (nitro-cloudflare-dev →
+    // getPlatformProxy). Ohne diesen Schalter wäre es die Top-Level-Konfiguration,
+    // also dev. `CF_DEV_ENV=production pnpm dev` (Default hier) hängt den localhost
+    // an die **Produktions**-D1 und -KVs — echte Athletendaten, echte Sessions,
+    // Schreibzugriffe inklusive. Auf dev zurück: `CF_DEV_ENV= pnpm dev`.
+    // Betrifft ausschließlich den Dev-Server; `wrangler deploy` liest das nicht.
+    cloudflareDev: {
+      environment: process.env.CF_DEV_ENV ?? 'production',
+    },
   },
 
   // Geteilte TS-Module direkt aus ../src importieren (Single Source of Truth fürs
@@ -75,7 +85,10 @@ export default defineNuxtConfig({
     server: { fs: { allow: ['..'] } },
     optimizeDeps: {
       include: [
+        'chart.js',
+        'chartjs-adapter-date-fns',
         'marked',
+        'vue-chartjs',
       ]
     }
   }
