@@ -1,23 +1,21 @@
 import type { AuthState } from '../../utils/authState'
 
 /**
- * Anmeldung per Google (ADR-0007). Ein Pfad, drei Rollen im Ablauf:
+ * Anmeldung per Google (ADR-0007). Ein Pfad, zwei Rollen im Ablauf:
  *
- * 1. Erster Aufruf, ohne `code` und ohne `state`: Autorisierungs-Zustand ins KV, dann
- *    Selbstaufruf mit dem opaken `state`.
- * 2. Zweiter Aufruf, mit `state`: der Handler von `nuxt-auth-utils` leitet zu Google.
- * 3. Callback, mit `code` und `state`: Zustand einlösen, Token tauschen, anmelden.
+ * 1. Aufruf ohne `code`: Nutzlast ins KV, Handle ins Cookie, dann leitet der Handler
+ *    von `nuxt-auth-utils` zu Google.
+ * 2. Callback mit `code`: Nutzlast einlösen, Token tauschen, anmelden.
  *
- * Der Umweg über den eigenen Pfad in Schritt 1 ist nötig, weil der Google-Handler
- * `state` nicht selbst erzeugt, sondern aus der Query des eigenen Requests durchreicht
- * (`state: query.state || ''`) und im Callback über `getQuery(event).state` zurückgibt.
- * Warum der Zustand überhaupt ins KV gehört und nicht in ein Cookie, steht in
- * `utils/authState.ts` — kurz: Apple, `form_post`, `SameSite=Lax`. Google käme mit
- * einem Cookie aus; zwei Pfade wären teurer als der eine.
+ * Den `state` besitzt seit 0.5.30 die Bibliothek — sie erzeugt ihn, bindet ihn per
+ * Cookie an den Browser und prüft ihn, bevor sie den Code eintauscht
+ * (GHSA-xc49-mgwh-9pjv). Der frühere Selbstaufruf über `/auth/google?state=…` ist
+ * damit hinfällig: Er existierte nur, um unseren eigenen `state` in die Query zu
+ * bekommen, die der Handler durchreichte. Heute überschriebe die Bibliothek ihn.
  *
- * Der Zustand wird **vor** dem Aufruf des Handlers eingelöst, nicht erst in
- * `onSuccess`. Sonst kostete ein Callback mit erfundenem `state` erst einen
- * Token-Tausch bei Google, bevor er abgewiesen würde.
+ * Unsere Nutzlast reist deshalb über ein eigenes Cookie (`utils/authState.ts`). Sie
+ * wird **vor** dem Aufruf des Handlers eingelöst, nicht erst in `onSuccess`: ein
+ * Callback ohne gültiges Handle soll keinen Token-Tausch bei Google kosten.
  *
  * Der Login ist **nicht** die Kontoerstellung: Kennt das KV die Identität nicht,
  * geht es in die Invite-Fläche (siehe `utils/anmeldung.ts`).
@@ -45,7 +43,7 @@ function callbackHandler(zustand: AuthState) {
   })
 }
 
-/** Der Handler des Hinwegs; er leitet nur zu Google und reicht `state` durch. */
+/** Der Handler des Hinwegs; er leitet nur zu Google. */
 const weiterleitungsHandler = defineOAuthGoogleEventHandler({
   onSuccess(event) {
     // Unerreichbar: Dieser Handler wird nur ohne `code` aufgerufen, und dann bleibt
@@ -62,17 +60,16 @@ export default defineEventHandler(async (event) => {
   const kv = envOf(event).SESSION_KV
 
   if (!query.code) {
-    if (query.state) {
-      return weiterleitungsHandler(event)
-    }
-
-    const state = await putAuthState(kv, { redirectTo: sichererZielpfad(query.redirect) })
-    return sendRedirect(event, `/auth/google?state=${encodeURIComponent(state)}`, 302)
+    const handle = await putAuthState(kv, { redirectTo: sichererZielpfad(query.redirect) })
+    // `lax` reicht: Googles Callback ist ein GET auf unsere eigene Origin. Damit bleibt
+    // der Hinweg auch über `http://localhost` gangbar, wo ein `secure`-Cookie stört.
+    setzeAuthStateCookie(event, handle, 'lax')
+    return weiterleitungsHandler(event)
   }
 
-  const zustand = await takeAuthState(kv, query.state)
+  const zustand = await takeAuthState(kv, nimmAuthStateCookie(event))
   if (!zustand) {
-    // Unbekannter, abgelaufener oder bereits benutzter `state`.
+    // Unbekanntes, abgelaufenes oder bereits benutztes Handle.
     return providerFehler(event, 'google', 'ungültiger state')
   }
 

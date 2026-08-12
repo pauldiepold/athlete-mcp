@@ -1,25 +1,37 @@
+// Explizit statt über Nitros Auto-Imports: Die Cookie-Hilfen sind der Teil dieses
+// Moduls, der sich ohne Nuxt-Umgebung testen lassen muss (authState.test.ts).
+import { deleteCookie, getCookie, setCookie, type H3Event } from 'h3'
+
 /**
- * Der Autorisierungs-Zustand über den Provider-Hop — kurzlebig im KV, **nicht** in
- * einem Cookie.
+ * Die **Nutzlast** über den Provider-Hop — kurzlebig im KV, angesprochen über ein
+ * Handle im Cookie.
  *
- * Der Grund ist Apple: Apple antwortet ausschließlich mit `response_mode=form_post`,
- * also einem **cross-site POST** auf unsere Return-URL. Cookies mit `SameSite=Lax` —
- * das sind alle von `nuxt-auth-utils` — werden bei so einem Request nicht mitgeschickt.
- * Alles, was den Hop überqueren muss, liegt deshalb im KV unter einem opaken `state`,
- * den wir dem Provider mitgeben.
+ * Was hier liegt, ist Transport und nur Transport. Den CSRF-Schutz besitzt seit
+ * `nuxt-auth-utils` 0.5.30 die Bibliothek: Sie erzeugt ihren eigenen `state`, legt ihn
+ * im Cookie `nuxt-auth-state` ab und vergleicht ihn im Callback (GHSA-xc49-mgwh-9pjv).
+ * Das ist die Bindung, die dieser Zustand nie hatte — er war einmalig und von uns
+ * ausgestellt, aber an **keinen** Browser gebunden: Wer sich selbst einen holte, konnte
+ * damit einem fremden Browser einen Callback unterschieben. `authorizationParams.state`
+ * wird von beiden Handlern ohnehin überschrieben; ein eigener `state` käme gar nicht
+ * mehr beim Provider an.
  *
- * Bewusst für **beide** Verfahren derselbe Weg, obwohl Googles GET-Callback auch mit
- * einem Cookie auskäme: zwei Pfade wären teurer als der eine. Nebeneffekt und zweiter
- * Grund: Der Apple-Handler von `nuxt-auth-utils` sendet von sich aus **kein** `state`
- * und prüft folglich auch keines — derselbe KV-Zustand liefert den fehlenden
- * CSRF-Schutz gleich mit, weil ein Callback ohne gültigen, von uns ausgestellten
- * `state` abgewiesen wird.
+ * Bleibt die Frage, warum die Nutzlast nicht einfach im Cookie steht: Sie wird größer
+ * als das eine Handle. Ab Issue #43 reist Claudes vollständige Autorisierungs-Anfrage
+ * mit, und die gehört nicht in einen Header, den jeder Request mitschleppt.
+ *
+ * Das `SameSite` des Handles ist Apples wegen ein Parameter und keine Konstante: Apple
+ * antwortet ausschließlich mit `response_mode=form_post`, also einem **cross-site
+ * POST** auf unsere Return-URL — ein `Lax`-Cookie käme dort nicht an. Die Bibliothek
+ * setzt ihr eigenes Cookie für Apple aus demselben Grund auf `none`.
  *
  * **Einmalig verwendbar:** Gelesen wird mit Löschen. Ein zweiter Callback mit demselben
- * `state` findet nichts mehr.
+ * Handle findet nichts mehr.
  */
 
 const PREFIX = 'authstate:'
+
+/** Name des Cookies, das das Handle über den Hop trägt. */
+const COOKIE = 'athlete-auth-state'
 
 /**
  * Zehn Minuten — die Spanne zwischen „auf Anmelden geklickt" und „beim Provider
@@ -53,7 +65,7 @@ export function sichererZielpfad(roh: unknown): string {
   return roh
 }
 
-/** Legt einen Zustand ab und liefert den opaken `state`, den der Provider zurückbringt. */
+/** Legt eine Nutzlast ab und liefert das opake Handle. */
 export async function putAuthState(kv: KVNamespace, state: AuthState): Promise<string> {
   const bytes = new Uint8Array(24)
   crypto.getRandomValues(bytes)
@@ -66,7 +78,7 @@ export async function putAuthState(kv: KVNamespace, state: AuthState): Promise<s
 }
 
 /**
- * Holt den Zustand zu einem `state` und entwertet ihn. `null` heißt: unbekannt,
+ * Holt die Nutzlast zu einem Handle und entwertet sie. `null` heißt: unbekannt,
  * abgelaufen oder schon benutzt — für den Aufrufer derselbe Fall, nämlich Abweisung.
  */
 export async function takeAuthState(
@@ -90,4 +102,37 @@ export async function takeAuthState(
   } catch {
     return null
   }
+}
+
+/**
+ * Legt das Handle in den Browser. `sameSite: 'none'` verlangt `secure` — und das ist
+ * für Apple auch kein Verlust, weil Apple ohnehin nicht auf `http://localhost`
+ * umleitet. Für Google bleibt es bei `lax`, damit die lokale Entwicklung über HTTP
+ * weiter funktioniert.
+ *
+ * `maxAge` ist bewusst dieselbe Zahl wie die KV-TTL: Ein Cookie, das ein totes Handle
+ * trägt, ist nur ein irreführender Fehler mehr.
+ */
+export function setzeAuthStateCookie(
+  event: H3Event,
+  id: string,
+  sameSite: 'lax' | 'none',
+): void {
+  setCookie(event, COOKIE, id, {
+    httpOnly: true,
+    secure: sameSite === 'none' || !import.meta.dev,
+    sameSite,
+    maxAge: TTL_SEKUNDEN,
+    path: '/',
+  })
+}
+
+/**
+ * Liest das Handle und räumt das Cookie ab — gelöscht wird auch dann, wenn keines da
+ * war, damit ein abgelaufener Rest nicht am nächsten Versuch klebt.
+ */
+export function nimmAuthStateCookie(event: H3Event): string | undefined {
+  const id = getCookie(event, COOKIE)
+  deleteCookie(event, COOKIE, { path: '/' })
+  return id
 }
