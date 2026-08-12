@@ -9,6 +9,27 @@ export default defineNuxtConfig({
   // Nuxt UI v4 / Tailwind v4 Styles (für die interaktive Edit-Seite, Issue #12).
   css: ['~/assets/css/main.css'],
 
+  // Icons in den Bundle kompilieren statt zur Laufzeit nachladen.
+  //
+  // Default wäre `provider: 'server'`: Der Client holt jedes Icon per Fetch von
+  // /api/_nuxt_icon. Beim SSR läuft derselbe Pfad — und dort setzt @nuxt/icon
+  // `$fetch.native` als Fetch-Implementierung. Die gibt es am request-gebundenen
+  // $fetch von Nuxt 4.5 nicht mehr (undefined), also fällt Iconify auf das globale
+  // fetch zurück und scheitert an der **relativen** URL `/api/_nuxt_icon/…`.
+  // Ergebnis: `WARN [Icon] failed to load icon lucide:…` bei jedem Seitenaufbau,
+  // Icons erscheinen erst nach der Hydration.
+  //
+  // `clientBundle.scan` sammelt die im Quellcode genutzten Icon-Namen beim Build
+  // ein und legt sie als Modul bei — kein Fetch, kein Warten, und im Worker auch
+  // kein Rundweg über die eigene Origin. Voraussetzung ist die lokal installierte
+  // Collection @iconify-json/lucide; die kam bis @nuxt/ui v3 huckepack mit, seit
+  // v4 ist sie eine eigene devDependency.
+  icon: {
+    // Icons, die erst zur Laufzeit aus Daten entstehen (dynamische Namen), findet
+    // der Scan nicht; die gehen weiter über den Server-Endpunkt.
+    clientBundle: { scan: true },
+  },
+
   // Anmeldung und Rollen (ADR-0007). Die Werte kommen real per Env-Secret; hier stehen
   // nur die Defaults, damit Nitro die Schlüssel kennt. nuxt-auth-utils liest sie selbst
   // aus NUXT_SESSION_PASSWORD und NUXT_OAUTH_<PROVIDER>_<FELD>.
