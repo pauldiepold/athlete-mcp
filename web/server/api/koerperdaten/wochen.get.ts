@@ -5,6 +5,7 @@ import { berechneIndex } from '@shared/garmin/koerperdatenIndex'
 import { berechneWochenAggregate } from '@shared/garmin/koerperdatenWochen'
 import { wochenZeitraum } from '@shared/garmin/isoWoche'
 import { heuteInBerlin } from '@shared/zeitzone'
+import { wochenAuszug } from '#shared/wochenAuszug'
 
 // Wochen-Aggregat-Endpunkt der Steuerungs-Brücke (Issue #28): die gemeinsame
 // Datengrundlage beider Richtungen — die Dashboard-Wochenliste (Richtung 1) und der
