@@ -55,7 +55,7 @@ async function profilSpeichern() {
  * Formular, das gerade ein „Verbunden" gemeldet hat.
  */
 async function verbindungFertig(quelle: Datenquelle) {
-  await Promise.all([refresh(), refreshNuxtData('erstbefuellung')])
+  await Promise.all([refresh(), refreshNuxtData('koerperdaten-stand')])
   uebernimmVerbunden(quelle)
 }
 

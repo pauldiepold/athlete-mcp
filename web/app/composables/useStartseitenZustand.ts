@@ -1,4 +1,4 @@
-import type { ErstbefuellungLauf } from '@shared/garmin/koerperdatenErstbefuellung'
+import type { Taktwunsch } from '#shared/erstbefuellung'
 import {
   abfrageIntervallMs,
   startseitenZustand,
@@ -14,43 +14,59 @@ import {
  * Nachfragen bliebe der Athlet vor einem Hinweis sitzen, der längst nicht mehr stimmt,
  * und lüde die Seite neu, um es herauszufinden.
  *
- * Genau **ein** Aufrufer montiert dieses Composable (`AthletStartseite`), sonst liefen
- * mehrere Timer auf denselben `useFetch`-Key. Was die Karten darunter auslösen, geben
- * sie als Ereignis nach oben — hier steht der einzige Abfrage-Takt.
+ * Genau **ein** Aufrufer montiert dieses Composable (`AthletStartseite`). Was die Karten
+ * darunter auslösen, gehört inzwischen ihnen selbst — die Erstbefüllung hat ein eigenes
+ * Modul, das den Lauf für alle Flächen hält.
+ *
+ * Und dort liegt auch das **Intervall**: Die Seite sagt nur, wie oft sie es gern hätte.
+ * Ihr eigener Timer ging genau dann daneben, wo die Erstbefüllung ohnehin sichtbar ist —
+ * bei offener Einrichtung steht die Einrichtungs-Karte mitsamt dem Erstbefüllungs-Knopf
+ * auf dieser Seite, und während eines Laufs fragten beide im Zehnsekundentakt denselben
+ * Abruf ab.
  */
 export function useStartseitenZustand() {
-  const { loggedIn } = useUserSession()
+  /**
+   * Wie oft die Seite nachgefragt haben will — ein Ref, das erst weiter unten gefüllt
+   * wird, denn der Wunsch hängt am `zustand`, und der wiederum am Stand von hier.
+   *
+   * Ausgesprochen wird der Wunsch, aufgezogen wird er nicht: Das Intervall auf den Stand
+   * gehört dem Erstbefüllungs-Modul, das die Wünsche aller Beobachter zu **einem**
+   * zusammenrechnet. Die Seite hatte hier lange ihren eigenen Timer, und weil die
+   * Einrichtungs-Karte mitsamt dem Erstbefüllungs-Knopf bei offener Einrichtung auf
+   * derselben Seite steht, liefen während eines Laufs zwei Intervalle auf denselben
+   * Abruf.
+   */
+  const taktwunsch = ref<Taktwunsch>(null)
 
-  const { data, refresh, status } = useFetch('/api/koerperdaten/stand', {
-    key: 'koerperdaten-stand',
-    // Abgemeldet gibt es nichts zu holen — wie bei den Verbindungen käme nur ein 401
-    // zurück, den in der Anmelde-Hälfte der Startseite niemand sehen soll.
-    immediate: loggedIn.value,
-    default: () => ({
-      garminVerbunden: false,
-      hatKoerperdaten: false,
-      lauf: null as ErstbefuellungLauf | null,
-    }),
-  })
-
-  // Derselbe geteilte Abruf, den auch der Verbindungs-Hinweis liest. Er hängt hier mit
-  // drin, weil er im Zustand „nicht verbunden" der **Inhalt** der Seite ist: Sein
-  // Ladezustand gehört damit zu dem der Seite, und sein Nachfrage-Takt ist dieser hier.
+  /**
+   * Der Stand kommt aus dem Erstbefüllungs-Modul: derselbe Abruf, dieselbe Antwort, ein
+   * Lauf. Was die Seite über den Stand hinaus nachzieht, hängt hier mit dran — es soll
+   * in **ihrem** Takt geschehen und nicht in einem zweiten.
+   *
+   * Die *Verbindungen* sind derselbe geteilte Abruf, den auch der Verbindungs-Hinweis
+   * liest: Er hängt hier mit drin, weil er im Zustand „nicht verbunden" der **Inhalt**
+   * der Seite ist. Und die *Einrichtung* (Issue #52) steht seit Issue #57 **über** dem
+   * Dashboard statt an seiner Stelle; ihre beiden Pflichtschritte werden **außerhalb**
+   * dieser Fläche erledigt — im Connector-Dialog und im Chat —, sonst säße der Athlet
+   * vor einer Liste, die er gerade abgearbeitet hat.
+   */
   const { refresh: verbindungenNeu } = useVerbindungen()
 
-  // Und die Einrichtung (Issue #52), die seit Issue #57 **über** dem Dashboard steht
-  // statt an seiner Stelle. Ihre beiden Pflichtschritte werden **außerhalb** dieser
-  // Fläche erledigt — im Connector-Dialog und im Chat —, also hängt sie am
-  // Nachfrage-Takt hier: Sonst säße der Athlet vor einer Liste, die er gerade
-  // abgearbeitet hat.
   const {
     pflichtSchrittOffen,
     geladen: einrichtungGeladen,
     refresh: einrichtungNeu,
   } = useEinrichtung()
 
+  const { stand: data, lauf, status } = useErstbefuellung({
+    takt: taktwunsch,
+    ziehtNach: () => {
+      einrichtungNeu()
+      verbindungenNeu()
+    },
+  })
+
   const hatKoerperdaten = computed(() => data.value?.hatKoerperdaten ?? false)
-  const lauf = computed(() => data.value?.lauf ?? null)
 
   const zustand = computed(() =>
     startseitenZustand({
@@ -83,16 +99,6 @@ export function useStartseitenZustand() {
   const geladen = computed(() => standGeladen.value && einrichtungGeladen.value)
 
   /**
-   * Den gerade angestoßenen Lauf übernehmen, ohne neu zu fragen. Der Zustand liegt im
-   * KV und ist *eventually consistent*: Ein Abruf unmittelbar nach dem Anstoßen sähe
-   * die Reservierung womöglich noch nicht — die Seite fiele auf „keine Daten" zurück
-   * und böte den Knopf ein zweites Mal an. Der Timer holt den Rest von selbst nach.
-   */
-  function uebernimmLauf(neu: ErstbefuellungLauf | null) {
-    if (data.value) data.value = { ...data.value, lauf: neu }
-  }
-
-  /**
    * Bei jedem Zustandswechsel ziehen die beiden anderen Flächen nach.
    *
    * Ohne das wäre der Wechsel nur halb: Die Kachelzeile holt ihre Serien beim
@@ -119,40 +125,29 @@ export function useStartseitenZustand() {
     ])
   })
 
-  // Nur im Browser: Ein Intervall im SSR-Durchlauf fragt niemanden nach, der noch
-  // zuhört — der Server rendert einmal und ist fertig. Nuxt bricht deshalb ab, wenn
-  // `setInterval` beim Rendern läuft, und der Watcher feuert wegen `immediate` sofort.
-  if (import.meta.client) {
-    let timer: ReturnType<typeof setInterval> | undefined
-    watch(
-      () => abfrageIntervallMs(zustand.value, pflichtSchrittOffen.value),
-      (ms) => {
-        clearInterval(timer)
-        if (ms !== null) {
-          // Alle drei Abrufe, nicht nur der Stand: Bei offener Einrichtung sind die
-          // Verbindungen **Inhalt** der Liste, und ihr Nachziehen am `zustand`-Watcher
-          // hängen zu lassen ginge genau dort schief — wer im zweiten Tab verbindet,
-          // wechselt den Zustand ja nicht, sondern hakt einen Schritt darin ab.
-          timer = setInterval(() => {
-            refresh()
-            einrichtungNeu()
-            verbindungenNeu()
-          }, ms)
-        }
-      },
-      { immediate: true },
-    )
-    onBeforeUnmount(() => clearInterval(timer))
-  }
+  /**
+   * Der Wunsch der Seite, wie oft nachgefragt wird — eng während eines Laufs, ruhiger in
+   * den wartenden Zuständen, gar nicht im eingeschwungenen Fall (`abfrageIntervallMs`).
+   *
+   * Zwei Gründe zählen einzeln (Issue #57): der Zustand der Körperdaten **und** die
+   * offene Einrichtung. Der zweite steht ausdrücklich daneben, seit die Einrichtung kein
+   * Zustand mehr ist — sonst hörte ausgerechnet das Konto mit Verläufen und offenem
+   * Connector auf zu fragen, also genau das, für das der Haken gleich von außen gesetzt
+   * wird.
+   *
+   * Ein `watchEffect` und kein Startwert: Der Wunsch ändert sich mit dem Zustand, und
+   * das Modul zieht daraufhin von selbst den passenden Takt auf oder ab.
+   */
+  watchEffect(() => {
+    taktwunsch.value = abfrageIntervallMs(zustand.value, pflichtSchrittOffen.value)
+  })
 
   return {
     zustand,
-    lauf,
     hatKoerperdaten,
     zeigtKoerperdaten,
     /** Die zweite Achse (Issue #57): Steht die Einrichtung über dem Dashboard? */
     einrichtungOffen: pflichtSchrittOffen,
     geladen,
-    uebernimmLauf,
   }
 }

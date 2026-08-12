@@ -53,7 +53,7 @@ const { refresh: verbindungenNeu, uebernimmVerbunden } = useVerbindungen()
  * seiner Kopfzeile weiter die offene Nummer.
  */
 async function verbindungFertig(quelle: Datenquelle) {
-  await Promise.all([verbindungenNeu(), refreshNuxtData('erstbefuellung')])
+  await Promise.all([verbindungenNeu(), refreshNuxtData('koerperdaten-stand')])
   uebernimmVerbunden(quelle)
 }
 

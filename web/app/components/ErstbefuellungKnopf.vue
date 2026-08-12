@@ -1,8 +1,4 @@
 <script setup lang="ts">
-import type { ErstbefuellungLauf } from '@shared/garmin/koerperdatenErstbefuellung'
-import { erstbefuellungKnopfAnsicht } from '#shared/erstbefuellungKnopf'
-import { ABFRAGE_INTERVALL_LAEUFT_MS } from '#shared/startseitenZustand'
-
 // Die **Erstbefüllung** unter der Garmin-Karte (Issue #48): was der Hintergrundlauf
 // gerade tut, und der Knopf, ihn noch einmal auszulösen.
 //
@@ -15,83 +11,71 @@ import { ABFRAGE_INTERVALL_LAEUFT_MS } from '#shared/startseitenZustand'
 // und der Athlet drückte mitten in einen laufenden Abruf hinein. Wie die **Startseite**
 // das zeigt, entscheidet ihr eigenes Ticket; hier steht die schlichte Fassung, die zum
 // Ort gehört, an dem er gerade verbunden hat.
-const { data, refresh } = useFetch('/api/verbindungen/garmin/erstbefuellung', {
-  key: 'erstbefuellung',
-  default: () => ({
-    verbunden: false,
-    lauf: null as ErstbefuellungLauf | null,
-    offen: null as number | null,
-  }),
-})
-
-// Dasselbe Anstoßen wie auf der Startseite (Issue #51) — ein Weg durch denselben POST,
-// damit der Satz nach einem Fehlschlag an beiden Orten derselbe bleibt.
-const { laeuftAn: startet, fehler, starten } = useErstbefuellungStart()
-
-const lauf = computed(() => data.value?.lauf ?? null)
-const laeuft = computed(() => lauf.value?.status === 'laeuft')
+//
+// Abruf, Takt und Anstoßen gehören dem Modul (`useErstbefuellung`) — diese Komponente
+// wird an **zwei** Stellen montiert und dürfte davon nichts doppelt aufziehen. Hier
+// steht nur, wie diese Fläche über den Fall redet: einzeilig und nebenbei.
+const { lauf, offen, laeuft, fall, aktiv, laeuftAn, fehler, stand, anstossen }
+  = useErstbefuellung()
 
 /**
- * Solange geholt wird, nachfragen. Der Lauf meldet sich nicht von selbst zurück — er
- * lebt in einem anderen Request.
- *
- * Der Takt steht bei den Startseiten-Zuständen (`ABFRAGE_INTERVALL_LAEUFT_MS`) und
- * gilt für beide Flächen: Es ist derselbe Lauf, der beobachtet wird, und zwei eigene
- * Intervalle wären zwei Aussagen darüber, wie schnell sich der KV-Zustand ändert.
- *
- * Nur im Browser: Beim Serverrendern gäbe es niemanden, dem das Nachfragen etwas
- * zeigt — Nuxt bricht bei `setInterval` im SSR ab, und `immediate` feuert dort sofort.
+ * Die Zahl gehört zum Knopf und nur zu ihm: Sie sagt, wie viel ein Klick noch zu tun
+ * hätte. `null` heißt „nicht feststellbar" — dann steht sie gar nicht da, statt einer
+ * erfundenen Null.
  */
-if (import.meta.client) {
-  let timer: ReturnType<typeof setInterval> | undefined
-  watch(laeuft, (aktiv) => {
-    clearInterval(timer)
-    if (aktiv) timer = setInterval(() => refresh(), ABFRAGE_INTERVALL_LAEUFT_MS)
-  }, { immediate: true })
-  onBeforeUnmount(() => clearInterval(timer))
-}
+const fehlt = computed(() => {
+  const n = offen.value
+  return n === null ? '' : ` ${n} ${n === 1 ? 'Tag fehlt' : 'Tage fehlen'} noch.`
+})
 
-// Was dasteht und was der Knopf anbietet, entscheidet die reine Fassung in
-// `#shared/erstbefuellungKnopf` — die Fall-Reihenfolge ist das Eigentliche daran und
-// in einer Template-Kette nicht prüfbar.
-const ansicht = computed(() =>
-  erstbefuellungKnopfAnsicht({ lauf: lauf.value, offen: data.value?.offen ?? null }),
-)
-
-async function holen() {
-  const neuerLauf = await starten()
-  if (fehler.value) return
-
-  // Der Lauf aus der Antwort statt eines neuen Abrufs: Der KV-Zustand ist *eventually
-  // consistent* und zeigte in derselben Sekunde womöglich noch den alten.
-  if (neuerLauf) {
-    data.value = { ...data.value, lauf: neuerLauf }
-    return
+const meldung = computed(() => {
+  switch (fall.value) {
+    case 'laeuft':
+      return 'Deine Körperdaten der letzten 30 Tage werden gerade geholt — das dauert etwa eine Minute.'
+    case 'vollstaendig':
+      return 'Deine Körperdaten der letzten 30 Tage liegen vollständig vor.'
+    case 'nie-gelaufen':
+      return `Deine Körperdaten der letzten 30 Tage sind noch nicht geholt worden.${fehlt.value}`
+    case 'gescheitert':
+      return 'Der Abruf deiner Körperdaten ist gescheitert. Versuch es gleich noch einmal.'
+    case 'leer-geliefert':
+      return `Für diese Tage hat Garmin nichts geliefert.${fehlt.value} Ein zweiter Versuch holt sie nach.`
+    // Durchgelaufen, und trotzdem fehlt etwas. Ein teilweise gescheiterter Lauf sähe
+    // sonst aus wie ein geglückter: „20 Tage geholt" ohne den Hinweis, dass zehn fehlen,
+    // und der Athlet hätte keinen Anlass, den Knopf noch einmal zu drücken.
+    // `default` und nicht `case 'unvollstaendig'`: Es ist der letzte Fall der Liste,
+    // und ohne ihn als Abschluss hielte die Linter-Regel die Kette für unvollständig.
+    default: {
+      const n = lauf.value?.geschrieben ?? 0
+      return `${n} ${n === 1 ? 'Tag' : 'Tage'} Körperdaten geholt.${fehlt.value} Ein zweiter Versuch holt sie nach.`
+    }
   }
+})
 
-  // `null` heißt: Es wurde nichts angestoßen, weil nichts offen war. Ohne das Nachfragen
-  // bliebe genau hier ein Knopf stehen, der nichts tut — die offenen Tage stammen aus
-  // D1 und sind stark konsistent, die Antwort darauf stimmt sofort.
-  await refresh()
-}
+// „Körperdaten holen" nur, solange noch nie geholt wurde — während eines Laufs steht der
+// Knopf ohnehin gesperrt und im Ladezustand da, aber sein Wort bleibt dasselbe wie das,
+// was gerade passiert.
+const knopfText = computed(() =>
+  fall.value === 'laeuft' || fall.value === 'nie-gelaufen' ? 'Körperdaten holen' : 'Neu holen',
+)
 </script>
 
 <template>
-  <div v-if="data?.verbunden" class="flex flex-wrap items-center justify-between gap-2">
+  <div v-if="stand?.garminVerbunden" class="flex flex-wrap items-center justify-between gap-2">
     <p class="text-sm text-muted">
       <UIcon v-if="laeuft" name="i-lucide-loader-circle" class="mr-1 animate-spin align-[-2px]" />
-      {{ fehler ?? ansicht.meldung }}
+      {{ fehler ?? meldung }}
     </p>
 
     <UButton
       color="neutral"
       variant="subtle"
       size="sm"
-      :loading="startet || laeuft"
-      :disabled="!ansicht.knopfAktiv"
-      @click="holen"
+      :loading="laeuftAn || laeuft"
+      :disabled="!aktiv"
+      @click="anstossen"
     >
-      {{ ansicht.knopfText }}
+      {{ knopfText }}
     </UButton>
   </div>
 </template>

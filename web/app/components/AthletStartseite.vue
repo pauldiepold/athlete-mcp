@@ -29,12 +29,10 @@
 // einem kaputten. Welcher Zustand gilt, rechnet die reine `startseitenZustand`.
 const {
   zustand,
-  lauf,
   hatKoerperdaten,
   zeigtKoerperdaten,
   einrichtungOffen,
   geladen,
-  uebernimmLauf,
 } = useStartseitenZustand()
 
 // Kein eigener Titel: Das `titleTemplate` in app.vue macht daraus den Produktnamen
@@ -70,12 +68,10 @@ useHead({ title: '' })
           />
 
           <!-- Nur in diesem einen Zustand ein Knopf: Während des Laufs gäbe es nichts
-               anzustoßen, und ohne Verbindung führt der Weg in die Einstellungen. -->
-          <ErstbefuellungKarte
-            v-else-if="zustand === 'keine-daten'"
-            :lauf="lauf"
-            @gestartet="uebernimmLauf"
-          />
+               anzustoßen, und ohne Verbindung führt der Weg in die Einstellungen. Was
+               die Karte anstößt, übernimmt das Erstbefüllungs-Modul für alle Flächen —
+               die Seite wechselt daraufhin von selbst auf den Ladehinweis. -->
+          <ErstbefuellungKarte v-else-if="zustand === 'keine-daten'" />
 
           <KoerperdatenStand v-if="zeigtKoerperdaten" />
         </div>
