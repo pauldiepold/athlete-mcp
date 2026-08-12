@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { wochenZeitraum } from '@shared/garmin/isoWoche'
+import { wochenTitel } from '#shared/wochenTitel'
 
 // Die Wochen-Auswahl des Trainingsbuchs — zugleich die **Überschrift** der Seite.
 //
@@ -30,29 +30,10 @@ const steuerungBase = '/steuerung'
 // Store liefert kw aufsteigend; defensiv sortieren (lexikografisch = chronologisch).
 const sortiert = computed(() => [...props.wochen].sort())
 
-// „22.–28. Juni" — der Zeitraum sagt einem Athleten mehr als die Wochennummer allein:
-// Wochennummern kennt kaum jemand auswendig, das Datum des letzten langen Laufs schon.
-const tagMonat = new Intl.DateTimeFormat('de-DE', { day: 'numeric', month: 'long' })
-const tag = new Intl.DateTimeFormat('de-DE', { day: 'numeric' })
-
-function zeitraumText(kw: string): string {
-  const { von, bis } = wochenZeitraum(kw)
-  const montag = new Date(`${von}T00:00:00Z`)
-  const sonntag = new Date(`${bis}T00:00:00Z`)
-  // Innerhalb eines Monats steht der Monatsname nur einmal („22.–28. Juni"),
-  // über die Monatsgrenze zweimal („29. Juni – 5. Juli").
-  return montag.getUTCMonth() === sonntag.getUTCMonth()
-    ? `${tag.format(montag)}.–${tagMonat.format(sonntag)}`
-    : `${tagMonat.format(montag)} – ${tagMonat.format(sonntag)}`
-}
-
-/** „2026-W26" → „KW 26" — das Jahr steht im Zeitraum daneben. */
-function kwKurz(kw: string): string {
-  return `KW ${kw.slice(6)}`
-}
-
+// Wie eine Woche heißt („KW 26 · 22.–28. Juni"), steht seit dem Wochen-Streifen der
+// Startseite in `shared/wochenTitel` — beide Flächen benennen dieselbe Woche gleich.
 const titel = computed(() =>
-  props.currentKw ? `${kwKurz(props.currentKw)} · ${zeitraumText(props.currentKw)}` : 'Grundlagen',
+  props.currentKw ? wochenTitel(props.currentKw) : 'Grundlagen',
 )
 
 // Neueste zuerst: Die aktuelle Woche ist fast immer die gesuchte, und wer weiter
@@ -70,7 +51,7 @@ const menue = computed(() => [
   [...sortiert.value]
     .reverse()
     .map((kw) => ({
-      label: `${kwKurz(kw)} · ${zeitraumText(kw)}`,
+      label: wochenTitel(kw),
       to: `${steuerungBase}/${kw}`,
       active: kw === props.currentKw,
     })),

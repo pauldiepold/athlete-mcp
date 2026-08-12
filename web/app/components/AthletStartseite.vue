@@ -52,9 +52,19 @@ useHead({ title: '' })
            Moment Ruhe. -->
       <template v-if="geladen">
         <!-- Block 1: die eine Ansage. Entweder die Einrichtung oder der Hinweis,
-             nie beides. -->
-        <EinrichtungKarte v-if="einrichtungOffen" />
-        <ChatHinweis v-else />
+             nie beides.
+             Der Wochen-Streifen hängt am Hinweis und nicht zwischen den Blöcken: Er
+             ist kein dritter Block, sondern die Fortsetzung derselben Ansage — der
+             Satz für Claude betrifft die laufende Woche, und das Trainingsbuch ist der
+             Ort, an dem sie steht. Bei offener Einrichtung entfällt er mit dem Hinweis
+             zusammen; wer noch einrichtet, führt weder Gespräch noch Trainingsbuch. -->
+        <template v-if="einrichtungOffen">
+          <EinrichtungKarte />
+        </template>
+        <template v-else>
+          <ChatHinweis />
+          <TrainingsbuchStreifen />
+        </template>
 
         <!-- Block 2: die Körperdaten. Der Verbindungs-Hinweis gehört dazu und steht
              deshalb hier drin: Er meldet eine **unterbrochene** Verbindung, also
