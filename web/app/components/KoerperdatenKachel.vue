@@ -26,6 +26,18 @@ const props = defineProps<{
   gross?: boolean
   /** Was statt des Deltas steht, wenn es keinen Wert gibt. */
   leerText?: string
+  /**
+   * Die id des ausführlichen Verlaufs zu diesem Marker. Ist sie gesetzt, wird die
+   * Kachel anklickbar: Die Mini-Kurve zeigt, dass es da eine Bewegung gibt, der
+   * Klick führt zu der Kurve, an der man sie lesen kann.
+   */
+  anker?: string
+  /**
+   * Die Seite, auf der der Verlauf steht — nur nötig, wenn die Kachelzeile
+   * woanders hängt als die Charts (Startseite). Ohne sie wird auf derselben Seite
+   * gescrollt.
+   */
+  zielSeite?: string
 }>()
 
 const zahl = (wert: number, stellen = props.stellen ?? 0) =>
@@ -47,10 +59,43 @@ const deltaText = computed(() => {
   const stellen = Math.abs(delta) < 10 && !Number.isInteger(delta) ? 1 : 0
   return `${delta > 0 ? '+' : '−'}${zahl(Math.abs(delta), stellen)}`
 })
+
+/**
+ * Der Weg von der Zahl zu ihrem Verlauf: auf der Verläufe-Seite ein Sprung im
+ * Dokument, von der Startseite aus ein Seitenwechsel mit demselben Anker. Beides
+ * hier statt in zwei Aufrufern, damit die Kachel überall gleich reagiert.
+ */
+function zumVerlauf() {
+  if (!props.anker) return
+  if (props.zielSeite) return navigateTo(`${props.zielSeite}#${props.anker}`)
+
+  const ziel = document.getElementById(props.anker)
+  // Wer Bewegung abbestellt hat, bekommt den Sprung ohne Animation — der Weg ist
+  // derselbe, nur ohne die Fahrt dorthin.
+  ziel?.scrollIntoView({
+    behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches
+      ? 'auto'
+      : 'smooth',
+    block: 'start',
+  })
+}
 </script>
 
 <template>
-  <UCard :ui="{ body: gross ? 'p-3 sm:p-4' : 'p-3' }">
+  <!-- Mit Anker ist die ganze Kachel der Knopf: Die Trefferfläche ist die Karte, nicht
+       ein kleiner Pfeil in der Ecke — auf dem Handy zählt das. Als Knopf auch für die
+       Tastatur, mit `aria-label`, weil der sichtbare Text die Zahl ist und nicht das
+       Ziel. -->
+  <UCard
+    :ui="{ body: gross ? 'p-3 sm:p-4' : 'p-3' }"
+    :class="anker && 'cursor-pointer transition-colors hover:bg-elevated/50'"
+    :role="anker ? 'button' : undefined"
+    :tabindex="anker ? 0 : undefined"
+    :aria-label="anker ? `${titel}: Verlauf ansehen` : undefined"
+    @click="zumVerlauf"
+    @keydown.enter.prevent="zumVerlauf"
+    @keydown.space.prevent="zumVerlauf"
+  >
     <p class="truncate text-muted" :class="gross ? 'text-sm' : 'text-xs'">{{ titel }}</p>
 
     <p
@@ -65,8 +110,10 @@ const deltaText = computed(() => {
       <template v-else>{{ leerText ?? 'keine Messung im Zeitraum' }}</template>
     </p>
 
-    <!-- Platz für Zusätze einzelner Marker, z. B. das HRV-Baseline-Band. -->
-    <div class="mt-2">
+    <!-- Platz für Zusätze einzelner Marker, z. B. das HRV-Baseline-Band. Klicks
+         bleiben hier: Der Aufklapper des Index sitzt in diesem Slot, und wer ihn
+         öffnet, will nicht gleichzeitig weggescrollt werden. -->
+    <div class="mt-2" @click.stop @keydown.stop>
       <slot />
     </div>
 

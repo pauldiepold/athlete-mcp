@@ -18,6 +18,12 @@ defineProps<{
   index: KoerperdatenIndex
   kennzahlen: Kennzahlen
   serien: KoerperdatenSerien
+  /**
+   * Wohin die Kacheln führen, wenn die ausführlichen Verläufe **nicht** auf
+   * derselben Seite stehen (Startseite → `/dashboard`). Ohne Angabe scrollt der
+   * Klick im Dokument zum Verlauf desselben Markers.
+   */
+  zielSeite?: string
 }>()
 </script>
 
@@ -29,13 +35,20 @@ defineProps<{
     <!-- Der Körperdaten-Index eröffnet die Zeile als doppelt breite Kachel: eine
          Zahl zum Einstieg, die auf Klick zeigt, woraus sie sich rechnet. Bewusst
          keine Tagesform-Einschätzung, siehe ADR-0006. -->
-    <KoerperdatenIndexKachel class="col-span-2" :index="index" />
+    <KoerperdatenIndexKachel
+      class="col-span-2"
+      :index="index"
+      :anker="VERLAUF_ANKER.index"
+      :ziel-seite="zielSeite"
+    />
 
     <KoerperdatenKachel
       titel="HRV"
       einheit="ms"
       :kennzahl="kennzahlen.hrv"
       :serie="serien.hrv.nachtwert"
+      :anker="VERLAUF_ANKER.hrv"
+      :ziel-seite="zielSeite"
     >
       <BaselineBand
         :wert="kennzahlen.hrv.wert"
@@ -51,6 +64,8 @@ defineProps<{
       strich="stroke-info"
       :kennzahl="kennzahlen.schlaf_stunden"
       :serie="serien.schlaf.gesamt_stunden"
+      :anker="VERLAUF_ANKER.schlaf"
+      :ziel-seite="zielSeite"
     />
 
     <KoerperdatenKachel
@@ -59,6 +74,8 @@ defineProps<{
       strich="stroke-error"
       :kennzahl="kennzahlen.ruhepuls"
       :serie="serien.ruhepuls"
+      :anker="VERLAUF_ANKER.ruhepuls"
+      :ziel-seite="zielSeite"
     />
 
     <KoerperdatenKachel
@@ -66,12 +83,16 @@ defineProps<{
       strich="stroke-success"
       :kennzahl="kennzahlen.body_battery_bilanz"
       :serie="serien.body_battery.bilanz"
+      :anker="VERLAUF_ANKER.bodyBattery"
+      :ziel-seite="zielSeite"
     />
 
     <KoerperdatenKachel
       titel="Bereitschaft (morgens)"
       :kennzahl="kennzahlen.bereitschaft_morgenwert"
       :serie="serien.bereitschaft.morgenwert"
+      :anker="VERLAUF_ANKER.bereitschaft"
+      :ziel-seite="zielSeite"
     />
 
     <KoerperdatenKachel
@@ -79,6 +100,8 @@ defineProps<{
       strich="stroke-secondary"
       :kennzahl="kennzahlen.akute_last"
       :serie="serien.bereitschaft.akute_last"
+      :anker="VERLAUF_ANKER.bereitschaft"
+      :ziel-seite="zielSeite"
     />
   </div>
 </template>

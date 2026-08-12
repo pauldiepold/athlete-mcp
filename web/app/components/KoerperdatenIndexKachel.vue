@@ -19,7 +19,14 @@ import { KALIBRIERUNG } from '@shared/garmin/koerperdatenIndex'
 //
 // Die Schwellen im Text kommen aus KALIBRIERUNG statt aus der Vorlage: wer die
 // Gewichte nachjustiert, muss diese Datei nicht anfassen.
-const props = defineProps<{ index: KoerperdatenIndex }>()
+// `anker`/`zielSeite` gehen unverändert an die Kachel darunter: Diese Komponente ist
+// nur der große Zuschnitt des Index, nicht ein zweiter Ort, an dem entschieden wird,
+// wohin ein Klick führt.
+const props = defineProps<{
+  index: KoerperdatenIndex
+  anker?: string
+  zielSeite?: string
+}>()
 
 /** Wie eine Achse heißt und woraus ihre Punkte entstehen. */
 const ACHSEN_TEXT: Record<Achse, { label: string, rechnung: string }> = {
@@ -79,6 +86,8 @@ const gemessen = computed(
     leer-text="zu wenige Marker für eine Zahl"
     :kennzahl="index.aktuell"
     :serie="index.serie"
+    :anker="anker"
+    :ziel-seite="zielSeite"
   >
     <UCollapsible v-if="zeilen.length">
       <template #default="{ open }">

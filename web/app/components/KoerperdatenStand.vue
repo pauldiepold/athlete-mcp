@@ -49,7 +49,11 @@ const untertitel = fensterTage === null
       >Alle Verläufe</UButton>
     </div>
 
+    <!-- Hier stehen die Kacheln ohne ihre Verläufe: Ein Klick führt deshalb nicht im
+         Dokument nach unten, sondern nach `/dashboard` — zum selben Verlauf, nur eine
+         Seite weiter. Der Knopf oben bleibt der Weg für „alles auf einmal". -->
     <KoerperdatenKacheln
+      ziel-seite="/dashboard"
       :index="data.index"
       :kennzahlen="data.kennzahlen"
       :serien="data.serien"

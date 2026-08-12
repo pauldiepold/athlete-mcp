@@ -123,6 +123,8 @@ function oeffneTag(tag: string) {
              an denen zu viele Marker fehlten, bleibt die Linie offen — der Index
              wird dort nicht geschätzt. -->
         <ZeitreihenChart
+          :id="VERLAUF_ANKER.index"
+          class="scroll-mt-20"
           titel="Körperdaten-Index: die vier Marker zu einer Zahl gerechnet"
           :tage="data.serien.tage"
           :reihen="[
@@ -132,6 +134,8 @@ function oeffneTag(tag: string) {
         />
 
         <ZeitreihenChart
+          :id="VERLAUF_ANKER.hrv"
+          class="scroll-mt-20"
           titel="HRV gegen das eigene Baseline-Band"
           einheit="ms"
           :tage="data.serien.tage"
@@ -151,6 +155,8 @@ function oeffneTag(tag: string) {
              der Zusammenhang, nicht die Aussage. Zweite Achse, weil ein Score
              (0–100) und die Last nicht dieselbe Skala haben. -->
         <ZeitreihenChart
+          :id="VERLAUF_ANKER.bereitschaft"
+          class="scroll-mt-20"
           titel="Bereitschaft am Morgen gegen die akute Last"
           :tage="data.serien.tage"
           :reihen="[
@@ -171,6 +177,8 @@ function oeffneTag(tag: string) {
         />
 
         <ZeitreihenChart
+          :id="VERLAUF_ANKER.schlaf"
+          class="scroll-mt-20"
           titel="Schlafphasen, Schlafscore und Sieben-Tage-Mittel"
           einheit="h"
           :tage="data.serien.tage"
@@ -192,6 +200,8 @@ function oeffneTag(tag: string) {
              Abweichung sind die Aussage, und von 0 bpm an wären sie nicht mehr
              zu sehen. -->
         <ZeitreihenChart
+          :id="VERLAUF_ANKER.ruhepuls"
+          class="scroll-mt-20"
           titel="Ruhepuls und Hauttemperatur-Abweichung"
           einheit="bpm"
           einheit-rechts="°C"
@@ -210,6 +220,8 @@ function oeffneTag(tag: string) {
         />
 
         <ZeitreihenChart
+          :id="VERLAUF_ANKER.bodyBattery"
+          class="scroll-mt-20"
           titel="Body-Battery-Bilanz: Ladetage und Zehrtage"
           :tage="data.serien.tage"
           :reihen="[
