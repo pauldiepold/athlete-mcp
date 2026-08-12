@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from "vitest";
 
 import { laufeKoerperdatenCron, listGarminUsers } from "./koerperdatenCron.js";
-import type { KoerperdatenCronArchiv } from "./koerperdatenCron.js";
+import type { KoerperdatenStore } from "./koerperdatenReadThrough.js";
 import type { Koerperdaten } from "./formatKoerperdaten.js";
 import type { GarminClient } from "./garminClient.js";
 
@@ -59,7 +59,7 @@ function tag(date: string): Koerperdaten {
 /** Archiv über einer Map, das mitschreibt, was der Cron upsertet. */
 function fakeArchiv(vorhanden: Record<string, Koerperdaten[]> = {}) {
   const geschrieben: { userId: string; date: string }[] = [];
-  const archiv: KoerperdatenCronArchiv = {
+  const archiv: KoerperdatenStore = {
     async readRange(userId, start, end) {
       return (vorhanden[userId] ?? []).filter(
         (d) => d.date >= start && d.date <= end,

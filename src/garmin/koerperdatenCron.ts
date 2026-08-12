@@ -18,24 +18,16 @@
  */
 
 import { listKvKeys } from "../kvKeys.js";
-import { FEHLER_MELDUNG, meldeErfolg, meldeFehler } from "../verbindungen.js";
+import { FEHLER_MELDUNG, meldeFehler } from "../verbindungen.js";
 import type { Koerperdaten } from "./formatKoerperdaten.js";
 import type { GarminClient } from "./garminClient.js";
-import {
-  buildGarminClient,
-  fetchKoerperdatenLive,
-} from "./koerperdatenLive.js";
+import { holeKoerperdatenTage } from "./koerperdatenHolLauf.js";
 import {
   addDays,
   fensterStart,
   nachzuholendeTage,
 } from "./koerperdatenNachlauf.js";
-
-/** Der Ausschnitt des Archivs, den der Cron braucht (KoerperdatenArchive erfüllt ihn). */
-export interface KoerperdatenCronArchiv {
-  readRange(userId: string, start: string, end: string): Promise<Koerperdaten[]>;
-  upsert(userId: string, date: string, daten: Koerperdaten): Promise<void>;
-}
+import type { KoerperdatenStore } from "./koerperdatenReadThrough.js";
 
 /**
  * Was ein Lauf pro Athlet erreicht hat. Ohne diese Bilanz wäre ein dauerhaft
@@ -62,7 +54,8 @@ export interface KoerperdatenCronBilanz {
 
 export interface KoerperdatenCronOptions {
   kv: KVNamespace;
-  archiv: KoerperdatenCronArchiv;
+  /** Dieselbe Archiv-Schnittstelle wie im Read-through; `KoerperdatenArchive` erfüllt sie. */
+  archiv: KoerperdatenStore;
   /** Heutiges Datum YYYY-MM-DD in der Zeitzone des Athleten. */
   heute: string;
   /**
@@ -94,8 +87,8 @@ export async function laufeKoerperdatenCron({
   kv,
   archiv,
   heute,
-  buildClient = buildGarminClient,
-  fetchLive = fetchKoerperdatenLive,
+  buildClient,
+  fetchLive,
   log = console.log,
   logFehler = console.error,
 }: KoerperdatenCronOptions): Promise<KoerperdatenCronBilanz[]> {
@@ -108,44 +101,25 @@ export async function laufeKoerperdatenCron({
         fensterStart(heute),
         addDays(heute, -1),
       );
-      const offen = nachzuholendeTage({ vorhanden, heute });
-
-      const client = await buildClient(kv, userId);
-      let geschrieben = 0;
-      const gescheitert: string[] = [];
-
-      // Sequentiell: die Connect-API ist inoffiziell und ratelimitet (ADR-0001).
-      for (const date of offen) {
-        try {
-          await archiv.upsert(userId, date, await fetchLive(client, date));
-          geschrieben++;
-        } catch (err) {
-          gescheitert.push(date);
-          logFehler(
-            `Cron Körperdaten ${userId} ${date}: ${(err as Error).message}`,
-          );
-        }
-      }
 
       // Der Cron ist der verlässlichste Beobachter der Garmin-Verbindung (Issue #44):
       // Er ruft jeden Morgen wirklich an, während ein Athlet wochenlang nichts
-      // abfragen kann. Asymmetrisch wie im MCP-Pfad: Ein geschriebener Tag beweist,
-      // dass die Verbindung trägt; kaputt ist sie erst, wenn kein einziger von
-      // mehreren offenen Tagen durchkam. Ein Lauf ohne offene Tage sagt über die
-      // Verbindung nichts und lässt den Marker deshalb, wie er ist — praktisch gibt
-      // es ihn nicht, weil `nachzuholendeTage` gestern immer mitnimmt.
-      if (geschrieben > 0) {
-        await meldeErfolg(kv, userId, "garmin");
-      } else if (gescheitert.length > 0) {
-        await meldeFehler(kv, userId, "garmin", FEHLER_MELDUNG.garmin);
-      }
+      // abfragen kann. Den Fehler-Marker setzt der Hol-Lauf — asymmetrisch, und für
+      // beide Läufe nach derselben Regel (Issue #55). Ohne Pause: im Normalfall steht
+      // genau ein Tag an.
+      const bilanz = await holeKoerperdatenTage({
+        kv,
+        archiv,
+        userId,
+        tage: nachzuholendeTage({ vorhanden, heute }),
+        etikett: "Cron Körperdaten",
+        buildClient,
+        fetchLive,
+        log,
+        logFehler,
+      });
 
-      log(
-        `Cron Körperdaten ${userId}: ${offen.length} offen, ` +
-          `${geschrieben} geschrieben, ${gescheitert.length} gescheitert` +
-          (gescheitert.length ? ` (${gescheitert.join(", ")})` : ""),
-      );
-      bilanzen.push({ userId, offen: offen.length, geschrieben, gescheitert });
+      bilanzen.push({ userId, ...bilanz });
     } catch (err) {
       // Vor dem ersten Tag gescheitert — etwa ein abgerissener Refresh-Token. Genau
       // der Fall, den der Athlet sonst nie erfährt: Das Archiv füllt sich still nicht

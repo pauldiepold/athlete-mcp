@@ -26,10 +26,10 @@
  * kostet Wall-Clock, aber kein CPU-Budget.
  */
 
-import { FEHLER_MELDUNG, meldeErfolg, meldeFehler } from "../verbindungen.js";
+import { FEHLER_MELDUNG, meldeFehler } from "../verbindungen.js";
 import type { Koerperdaten } from "./formatKoerperdaten.js";
 import type { GarminClient } from "./garminClient.js";
-import { buildGarminClient, fetchKoerperdatenLive } from "./koerperdatenLive.js";
+import { holeKoerperdatenTage } from "./koerperdatenHolLauf.js";
 import { addDays } from "./koerperdatenNachlauf.js";
 import type { KoerperdatenStore } from "./koerperdatenReadThrough.js";
 
@@ -273,8 +273,8 @@ export async function fuehreErstbefuellungAus({
   userId,
   heute,
   begonnen,
-  buildClient = buildGarminClient,
-  fetchLive = fetchKoerperdatenLive,
+  buildClient,
+  fetchLive,
   pauseMs = ERSTBEFUELLUNG_PAUSE_MS,
   warte = (ms) => new Promise((r) => setTimeout(r, ms)),
   log = console.log,
@@ -292,32 +292,25 @@ export async function fuehreErstbefuellungAus({
     const offen = await offeneErstbefuellungsTage(archiv, userId, heute);
 
     // Erst die Sperre steht, dann wird angerufen: Scheitert schon der Client-Aufbau
-    // (abgerissener Refresh-Token), ist das der `catch` unten — ein Fall, den der
-    // Athlet sonst nie erführe.
-    const client = await buildClient(kv, userId);
-
-    let geschrieben = 0;
-    const gescheitert: string[] = [];
-
-    // Sequentiell mit Pause: die Connect-API ist inoffiziell und ratelimitet (ADR-0001).
-    for (const [i, date] of offen.entries()) {
-      if (i > 0 && pauseMs > 0) await warte(pauseMs);
-      try {
-        await archiv.upsert(userId, date, await fetchLive(client, date));
-        geschrieben++;
-      } catch (err) {
-        gescheitert.push(date);
-        logFehler(
-          `Erstbefüllung ${userId} ${date}: ${(err as Error).message}`,
-        );
-      }
-    }
-
-    if (geschrieben > 0) {
-      await meldeErfolg(kv, userId, "garmin");
-    } else if (gescheitert.length > 0) {
-      await meldeFehler(kv, userId, "garmin", FEHLER_MELDUNG.garmin);
-    }
+    // (abgerissener Refresh-Token), wirft der Hol-Lauf in den `catch` unten — ein
+    // Fall, den der Athlet sonst nie erführe.
+    //
+    // Die Schleife samt Fehlersammlung, Marker-Regel und Bilanzzeile teilt sie sich
+    // mit dem Cron (Issue #55). Eigen ist nur die Pause: 30 Tage am Stück gegen ein
+    // ratelimitetes Garmin brauchen Luft dazwischen.
+    const { geschrieben, gescheitert } = await holeKoerperdatenTage({
+      kv,
+      archiv,
+      userId,
+      tage: offen,
+      etikett: "Erstbefüllung",
+      pauseMs,
+      buildClient,
+      fetchLive,
+      warte,
+      log,
+      logFehler,
+    });
 
     lauf = {
       // Kein einziger Tag durchgekommen, obwohl welche offen waren: Für den Athleten
@@ -329,12 +322,6 @@ export async function fuehreErstbefuellungAus({
       geschrieben,
       gescheitert: gescheitert.length,
     };
-
-    log(
-      `Erstbefüllung ${userId}: ${offen.length} offen, ${geschrieben} geschrieben, ` +
-        `${gescheitert.length} gescheitert` +
-        (gescheitert.length ? ` (${gescheitert.join(", ")})` : ""),
-    );
   } catch (err) {
     // Vor dem ersten Tag gescheitert — Archiv nicht lesbar oder die Anmeldung trägt
     // nicht mehr. Der Lauf bricht nichts anderes ab: Er hinterlässt den Fehler-Marker
