@@ -61,11 +61,14 @@ export function useErstbefuellung({ takt, ziehtNach }: ErstbefuellungOptionen = 
       hatKoerperdaten: false,
       lauf: null as ErstbefuellungLauf | null,
       offen: null as number | null,
+      verschleppt: null as number | null,
     }),
   })
 
   const lauf = computed(() => data.value?.lauf ?? null)
   const offen = computed(() => data.value?.offen ?? null)
+  /** Davon die, an die der nächtliche Cron nicht mehr herankommt (Issue #67). */
+  const verschleppt = computed(() => data.value?.verschleppt ?? null)
   const laeuft = computed(() => lauf.value?.status === 'laeuft')
 
   /**
@@ -140,6 +143,7 @@ export function useErstbefuellung({ takt, ziehtNach }: ErstbefuellungOptionen = 
     refresh,
     lauf,
     offen,
+    verschleppt,
     laeuft,
     fall,
     /** Ob der Knopf etwas auszurichten hätte. */

@@ -3,6 +3,7 @@ import {
   abfrageIntervallMs,
   startseitenZustand,
   zeigtKoerperdaten as berechneZeigtKoerperdaten,
+  zeigtLueckenHinweis,
 } from '#shared/startseitenZustand'
 
 /**
@@ -81,6 +82,17 @@ export function useStartseitenZustand() {
   )
 
   /**
+   * Der Hinweis auf ein löchriges Fenster (Issue #67) — die zweite Aussage im
+   * Körperdaten-Block, neben dem Verbindungs-Hinweis und nicht an Stelle der Kachelzeile.
+   *
+   * Er hängt an den **verschleppten** Tagen, die schon in der Antwort stehen: Wessen
+   * Lücke der nächtliche Cron morgen früh selbst schließt, bekommt hier nichts zu lesen.
+   */
+  const zeigtLuecken = computed(() =>
+    zeigtLueckenHinweis(zustand.value, data.value?.verschleppt ?? null),
+  )
+
+  /**
    * Solange der **erste** Abruf läuft, ist noch nichts entschieden: `zustand` stünde
    * auf dem Default „nicht verbunden", und die Seite zeigte für einen Moment einen
    * Einrichtungs-Hinweis an ein längst eingerichtetes Konto.
@@ -146,6 +158,7 @@ export function useStartseitenZustand() {
     zustand,
     hatKoerperdaten,
     zeigtKoerperdaten,
+    zeigtLuecken,
     /** Die zweite Achse (Issue #57): Steht die Einrichtung über dem Dashboard? */
     einrichtungOffen: pflichtSchrittOffen,
     geladen,

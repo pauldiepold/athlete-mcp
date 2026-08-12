@@ -31,6 +31,7 @@ const {
   zustand,
   hatKoerperdaten,
   zeigtKoerperdaten,
+  zeigtLuecken,
   einrichtungOffen,
   geladen,
 } = useStartseitenZustand()
@@ -82,6 +83,12 @@ useHead({ title: '' })
                die Karte anstößt, übernimmt das Erstbefüllungs-Modul für alle Flächen —
                die Seite wechselt daraufhin von selbst auf den Ladehinweis. -->
           <ErstbefuellungKarte v-else-if="zustand === 'keine-daten'" />
+
+          <!-- Und der dritte Hinweis desselben Blocks (Issue #67): Daten sind da, aber
+               das 30-Tage-Fenster ist löchrig, und zwar über das hinaus, was der
+               nächtliche Cron von selbst nachholt. Er verdrängt die Kacheln nicht — was
+               vorhanden ist, ist nicht falsch, sondern unvollständig. -->
+          <KoerperdatenLueckenHinweis v-if="zeigtLuecken" />
 
           <KoerperdatenStand v-if="zeigtKoerperdaten" />
         </div>

@@ -2,6 +2,7 @@ import { KoerperdatenArchive } from '@shared/garmin/koerperdatenArchive'
 import {
   leseErstbefuellung,
   offeneErstbefuellungsTage,
+  verschleppteTage,
 } from '@shared/garmin/koerperdatenErstbefuellung'
 import { istVerbunden } from '@shared/verbindungen'
 import { heuteInBerlin } from '@shared/zeitzone'
@@ -41,6 +42,13 @@ import { heuteInBerlin } from '@shared/zeitzone'
  * „nicht feststellbar": Ein unlesbares Archiv ist keine Aussage über die Daten, und
  * der Zustand des Laufs steht ja trotzdem daneben.
  *
+ * **Und davon die verschleppten** (Issue #67): die offenen Tage außerhalb des
+ * Nachlauffensters. Die Startseite braucht beide Zahlen für verschiedene Sätze — `offen`
+ * sagt, wie viel ein Klick zu tun hätte, `verschleppt`, ob überhaupt jemand klicken muss.
+ * Die Unterscheidung hier zu treffen statt am Bildschirm, hält die 14 Tage des Crons an
+ * einer Stelle (`verschleppteTage`, ADR-0003) — die Oberfläche bekäme sie sonst als
+ * eigene Zahl noch einmal.
+ *
  * Bewusst nur Fakten: Welcher Hinweis daraus folgt, entscheiden `startseitenZustand`
  * und `erstbefuellungsFall`.
  */
@@ -50,12 +58,16 @@ export default defineEventHandler(async (event) => {
 
   const garminVerbunden = await istVerbunden(env.SESSION_KV, userId, 'garmin')
 
-  // Ohne Verbindung gibt es nichts anzustoßen, und die Zahl trüge nichts bei — sie
-  // wäre immer das volle Fenster.
+  // Ohne Verbindung gibt es nichts anzustoßen, und die Zahlen trügen nichts bei — sie
+  // wären immer das volle Fenster.
   let offen: number | null = null
+  let verschleppt: number | null = null
   if (garminVerbunden) {
     try {
-      offen = (await offeneErstbefuellungsTage(archiv, userId, heuteInBerlin())).length
+      const heute = heuteInBerlin()
+      const offeneTage = await offeneErstbefuellungsTage(archiv, userId, heute)
+      offen = offeneTage.length
+      verschleppt = verschleppteTage(offeneTage, heute).length
     } catch (err) {
       console.error(`Erstbefüllung ${userId}: Archiv nicht lesbar:`, err)
     }
@@ -66,5 +78,6 @@ export default defineEventHandler(async (event) => {
     hatKoerperdaten: (await archiv.firstDate(userId)) !== null,
     lauf: await leseErstbefuellung(env.SESSION_KV, userId),
     offen,
+    verschleppt,
   }
 })

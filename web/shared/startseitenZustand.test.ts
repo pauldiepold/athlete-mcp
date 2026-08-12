@@ -6,6 +6,7 @@ import {
   abfrageIntervallMs,
   startseitenZustand,
   zeigtKoerperdaten,
+  zeigtLueckenHinweis,
   type StartseitenEingaben,
 } from './startseitenZustand'
 
@@ -94,6 +95,33 @@ describe('zeigtKoerperdaten', () => {
     expect(zeigtKoerperdaten('nicht-verbunden', false)).toBe(false)
   })
 
+})
+
+describe('zeigtLueckenHinweis', () => {
+  it('spricht ein löchriges Fenster über vorhandenen Daten an', () => {
+    // Der Fall aus Issue #67: altes Archiv, leeres Fenster. Ohne diesen Hinweis blieb
+    // die Fläche stumm, während die Einstellungen denselben Athleten zum Knopf riefen.
+    expect(zeigtLueckenHinweis('daten', 23)).toBe(true)
+  })
+
+  it('schweigt zu Lücken, die der Cron selbst schließt', () => {
+    // Der fehlende Tag von gestern ist der Normalfall — er liegt im Nachlauffenster,
+    // und eine Fläche, die ihn meldet, meldet an den meisten Morgen etwas.
+    expect(zeigtLueckenHinweis('daten', 0)).toBe(false)
+  })
+
+  it('schweigt, wenn das Archiv nicht lesbar war', () => {
+    // `null` ist keine Aussage über die Daten, sondern über den Blick darauf.
+    expect(zeigtLueckenHinweis('daten', null)).toBe(false)
+  })
+
+  it('überlässt den anderen Zuständen ihre eigene Ansage', () => {
+    // Alle drei reden schon über dieselbe Sache: Ladehinweis, Erstbefüllungs-Karte,
+    // Verbindungs-Hinweis. Zweimal dasselbe wäre schlimmer als einmal.
+    expect(zeigtLueckenHinweis('laeuft', 23)).toBe(false)
+    expect(zeigtLueckenHinweis('keine-daten', 30)).toBe(false)
+    expect(zeigtLueckenHinweis('nicht-verbunden', 30)).toBe(false)
+  })
 })
 
 describe('abfrageIntervallMs', () => {

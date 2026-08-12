@@ -51,7 +51,9 @@ und `../docs/adr/0007-oauth-identitaet-statt-url-secrets-ein-deployable.md`.
   Fläche zeigt ihn als **Rechnung mit sichtbaren Bestandteilen**, nicht als Urteil, und
   beansprucht keine Tagesform-Einschätzung (`../docs/adr/0006-…`).
 - **Was die Startseite zeigt, ist eine reine Funktion:** `shared/startseitenZustand.ts`
-  (Reihenfolge der vier Körperdaten-Fälle) und `shared/einrichtung.ts` (Reihenfolge der
+  (Reihenfolge der vier Körperdaten-Fälle, dazu der Hinweis auf ein löchriges Fenster —
+  ein Hinweis **neben** der Kachelzeile statt eines fünften Falls, und nur für Lücken,
+  die der nächtliche Cron nicht mehr selbst schließt) und `shared/einrichtung.ts` (Reihenfolge der
   vier Schritte, welche davon Pflicht sind, wie viele noch offen stehen und welcher als
   nächster dran ist). Beide sind getestet und kennen keine Texte — die stehen in den
   Komponenten. Die beiden sind **zwei Achsen**, keine Kette: Die Einrichtung steht über

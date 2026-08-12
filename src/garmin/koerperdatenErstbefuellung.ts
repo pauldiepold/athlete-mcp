@@ -30,7 +30,7 @@ import { FEHLER_MELDUNG, meldeFehler } from "../verbindungen.js";
 import type { Koerperdaten } from "./formatKoerperdaten.js";
 import type { GarminClient } from "./garminClient.js";
 import { holeKoerperdatenTage } from "./koerperdatenHolLauf.js";
-import { addDays } from "./koerperdatenNachlauf.js";
+import { addDays, fensterStart } from "./koerperdatenNachlauf.js";
 import type { KoerperdatenStore } from "./koerperdatenReadThrough.js";
 
 /**
@@ -162,6 +162,26 @@ export async function offeneErstbefuellungsTage(
     heute,
   );
   return erstzubefuellendeTage({ vorhanden, heute });
+}
+
+/**
+ * Die **verschleppten** Tage: die offenen Tage des Erstbefüllungs-Fensters, die
+ * **außerhalb** des Nachlauffensters liegen — an die kommt der nächtliche Cron nicht
+ * mehr heran.
+ *
+ * Der Unterschied ist der zwischen „wird morgen früh von selbst voll" und „bleibt für
+ * immer leer, wenn niemand drückt" (Issue #67). Ein fehlender Tag von gestern ist der
+ * Normalfall: Der Cron prüft die letzten 14 Tage bei jedem Lauf, und eine Fläche, die
+ * ihn meldet, meldet an den meisten Morgen etwas. Was älter ist, erreicht nur noch der
+ * Knopf des Athleten (oder ein Backfill von Hand) — und **das** ist eine Aussage wert.
+ *
+ * Bewusst hier und nicht an der Oberfläche: Dass der Cron 14 Tage weit zurückschaut,
+ * ist Garmin-Fachlichkeit (ADR-0003). Eine Vue-Komponente, die eine eigene Zahl dagegen
+ * hielte, hinge beim nächsten Verstellen des Fensters schief.
+ */
+export function verschleppteTage(offen: string[], heute: string): string[] {
+  const grenze = fensterStart(heute);
+  return offen.filter((tag) => tag < grenze);
 }
 
 /** Der Zustand des letzten Laufs; unlesbares gilt als keiner. */

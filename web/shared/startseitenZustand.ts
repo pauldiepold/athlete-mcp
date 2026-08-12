@@ -73,6 +73,37 @@ export function zeigtKoerperdaten(
 }
 
 /**
+ * Ob die Seite ein **löchriges Fenster** anspricht (Issue #67) — der Hinweis mit dem
+ * Knopf, der über der Kachelzeile steht.
+ *
+ * **Kein fünfter Zustand, sondern ein Hinweis im Körperdaten-Block.** Der Zustand
+ * entscheidet, was *an Stelle* der Kachelzeile steht; hier steht sie zu Recht da — sie
+ * zeigt, was vorhanden ist, und ist bei einem halb gefüllten Fenster nicht falsch,
+ * sondern unvollständig. Ein fünfter Fall müsste sie entweder verdrängen (und nähme dem
+ * Athleten seine Daten für eine Randnotiz) oder nichts tun (und wäre kein Zustand). Also
+ * dieselbe Bauart wie der Verbindungs-Hinweis: eine Zeile darüber, die sagt, warum
+ * darunter etwas fehlt.
+ *
+ * **Nur im Zustand `daten`.** Die drei anderen reden schon über dieselbe Sache und
+ * dürfen nicht doppelt: `laeuft` hat den Ladehinweis, `keine-daten` die Karte mit
+ * demselben Knopf, `nicht-verbunden` den Verbindungs-Hinweis — und dort wäre der Knopf
+ * ohnehin tot, weil ohne Verbindung nichts anzustoßen ist.
+ *
+ * **Verschleppt und nicht `offen`** ist die eigentliche Entscheidung: Ein einzelner
+ * fehlender Tag ist der Normalfall, den der Cron morgen früh selbst holt — eine Fläche,
+ * die *jede* Lücke meldet, meldet an den meisten Morgen etwas und wird dadurch zur
+ * Tapete. Gemeint sind die Tage, an die der Cron nicht mehr herankommt (`verschleppteTage`,
+ * ADR-0003): Die bleiben leer, bis jemand drückt. `null` (Archiv nicht lesbar) ist keine
+ * Aussage über die Daten und schweigt deshalb.
+ */
+export function zeigtLueckenHinweis(
+  zustand: StartseitenZustand,
+  verschleppt: number | null,
+): boolean {
+  return zustand === 'daten' && verschleppt !== null && verschleppt > 0
+}
+
+/**
  * Eng, solange geholt wird: Ein Lauf dauert rund eine Minute, und der Athlet sieht ihm
  * zu. Wie beim Knopf in den Einstellungen keine zwei Sekunden — der Zustand liegt im
  * KV und ist *eventually consistent*, häufiger zu fragen liefert dieselbe Antwort.

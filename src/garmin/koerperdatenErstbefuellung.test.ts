@@ -12,6 +12,7 @@ import {
   leseErstbefuellung,
   offeneErstbefuellungsTage,
   reserviereErstbefuellung,
+  verschleppteTage,
 } from "./koerperdatenErstbefuellung.js";
 import type { ErstbefuellungOptions } from "./koerperdatenErstbefuellung.js";
 import type { KoerperdatenStore } from "./koerperdatenReadThrough.js";
@@ -394,6 +395,24 @@ describe("offeneErstbefuellungsTage", () => {
 
     expect(offen).toHaveLength(ERSTBEFUELLUNG_FENSTER_TAGE - 2);
     expect(offen).not.toContain("2026-08-06");
+  });
+});
+
+describe("verschleppteTage", () => {
+  it("lässt liegen, was der Cron selbst nachholt", () => {
+    // Alles innerhalb des Nachlauffensters: Der nächtliche Lauf prüft diese Tage
+    // ohnehin bei jedem Durchgang.
+    expect(
+      verschleppteTage(["2026-08-05", "2026-07-26", "2026-07-23"], "2026-08-06"),
+    ).toEqual([]);
+  });
+
+  it("nennt die Tage jenseits des Nachlauffensters", () => {
+    // `fensterStart` ist hier 2026-07-23 und gehört dem Cron noch; 2026-07-22 ist der
+    // erste Tag, an den nur noch der Knopf des Athleten herankommt.
+    expect(
+      verschleppteTage(["2026-07-23", "2026-07-22", "2026-07-10"], "2026-08-06"),
+    ).toEqual(["2026-07-22", "2026-07-10"]);
   });
 });
 
